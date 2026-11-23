@@ -1,0 +1,23 @@
+name = "pakkasukko"
+main = "src/worker.js"
+compatibility_date = "2026-10-01"
+workers_dev = true
+
+[assets]
+directory = "./docs"
+binding = "ASSETS"
+run_worker_first = ["/api/*", "/admin"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "pakkasukko-db"
+database_id = "00000000-0000-0000-0000-000000000000" # Replace ONLY with new Pakkasukko D1 ID.
+
+[vars]
+ENVIRONMENT = "preview"
+ACCEPT_BOOKINGS = "false"
+TURNSTILE_SITE_KEY = ""
+OWNER_EMAIL = ""
+FROM_EMAIL = ""
+# Private values must be configured as Cloudflare Worker secrets,
+# never committed: ADMIN_PASSWORD, SESSION_SECRET, TURNSTILE_SECRET, RESEND_API_KEY.
