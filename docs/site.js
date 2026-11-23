@@ -25,7 +25,15 @@ export function applySectionCrop(doc,model,section,device,editing=false){
   img.style.transform='translate('+Math.max(-100,Math.min(100,Number(crop.x)||0))+'%, '+Math.max(-100,Math.min(100,Number(crop.y)||0))+'%) scale('+Math.max(.35,Math.min(3,(Number(crop.zoom)||100)/100))+')';
 }
 
-export const initial = () => ({sections:[],headingOverrides:{},texts:{},crops:{},sectionCrops:{},hidden:[],order:[],cards:[],pictures:{},seo:{},logo:"",contacts:{},durations:{}});
+export const initial = () => ({sections:[],headingOverrides:{},texts:{},crops:{},sectionCrops:{},shades:{},hidden:[],order:[],cards:[],pictures:{},seo:{},logo:"",contacts:{},durations:{}});
+export function heroShadePercent(model,device){
+  const value=Number(model?.shades?.[device] ?? 0);
+  return Number.isFinite(value)?Math.max(0,Math.min(100,value)):0;
+}
+export function applyHeroShade(doc,model,device){
+  const overlay=doc.querySelector('.hero-shade');
+  if(overlay)overlay.style.opacity=String(heroShadePercent(model,device)/100);
+}
 export function deviceFor(width,height){
   if(width<=600 || (width<=940 && height<=520))return 'phone';
   return width<=1100 || (width<=1200 && height<=900)?'tablet':'desktop';
@@ -161,5 +169,6 @@ export function renderPage(doc,model,fields,device,editing=false){
   if(model.seo.title)doc.title=model.seo.title;
   if(model.seo.description)doc.querySelector('meta[name=description]').content=model.seo.description;
   cropPhoto(doc,model.crops[device]||baseCrop(),editing);
+  applyHeroShade(doc,model,device);
   for(const section of doc.querySelectorAll('main > section'))if(section.id!=='top')applySectionCrop(doc,model,section.id,device,editing);
 }

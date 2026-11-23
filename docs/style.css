@@ -146,3 +146,7 @@ main>section:not(.intro)>.section-media-frame>.section-media{display:block;width
 }
 .routes-art:has(> .section-media-frame) > span{opacity:0}
 .routes-art > i{z-index:3;left:12px;right:12px;text-align:center;text-shadow:0 2px 12px #00131f}
+
+/* RUN-011: Hero photograph remains bright unless owner sets overlay strength. */
+.hero-photo{opacity:1}
+.hero-shade{opacity:0;pointer-events:none;transition:opacity .12s linear}

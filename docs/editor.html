@@ -14,6 +14,8 @@
 <option value="cover">Заполнить рамку (возможно кадрирование)</option>
 </select></label>
 <p id="photoHint">Перетащите изображение в окне просмотра или измените координаты ниже. Настройки независимы для каждого раздела и устройства.</p>
+<label id="heroShadeLabel">Затемнение верхней фотографии: <output id="heroShadeValue">0%</output><input id="heroShade" type="range" min="0" max="100" step="1" value="0"></label>
+<p id="heroShadeHint">0% — фотография без затемнения. Настройка сохраняется отдельно для каждого устройства.</p>
 <label>Кадрирование<select id="preset"><option value="">Вручную</option><option value="170">По пояс</option><option value="130">По колено</option><option value="100">В полный рост</option></select></label>
 <div class="row" id="coords"></div><label>Фотография для устройства<select id="photo"></select></label>
 <button id="reset">Вернуть исходное положение</button><button id="cancel">Отменить изменения</button></div></section>

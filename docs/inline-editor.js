@@ -1,4 +1,4 @@
-import {initial,mediaURL,baseCrop,baseSectionCrop,cropPhoto,applySectionCrop,renderPage,setField} from './site.js';
+import {initial,mediaURL,baseCrop,baseSectionCrop,cropPhoto,applySectionCrop,renderPage,setField,applyHeroShade,heroShadePercent} from './site.js';
 
 // RUN-009: In-page controls are loaded only after the protected /api/admin/editor request succeeds.
 export function editableFields(fields,element){
@@ -81,7 +81,7 @@ export async function startInlineEditor({model,fields,currentDevice,onAdmin}){
   function replaceModel(value){
     for(const key of Object.keys(model))delete model[key];
     Object.assign(model,initial(),structuredClone(value||{}));
-    model.sectionCrops??={};model.pictures??={};model.hidden??=[];model.order??=[];model.cards??=[];model.sections??=[];
+    model.sectionCrops??={};model.shades??={};model.pictures??={};model.hidden??=[];model.order??=[];model.cards??=[];model.sections??=[];
     if(!model.order.length)model.order=['top','intro','programs','about','routes','booking','contact','privacy'];
   }
   baseline=structuredClone(result.model||{});
@@ -302,6 +302,21 @@ export async function startInlineEditor({model,fields,currentDevice,onAdmin}){
     if(!imageFrame(target)){
       panelBody.append(make('p','pk-hint','Сначала выберите изображение — после этого появится рамка для перемещения.'));
       return;
+    }
+    if(target==='top'){
+      const wrapper=make('label','pk-field');wrapper.append(make('span','','Затемнение фотографии: 0% — без затемнения'));
+      const slider=make('input');slider.type='range';slider.min='0';slider.max='100';slider.step='1';
+      const value=make('strong','',heroShadePercent(model,currentDevice())+'%');slider.value=String(heroShadePercent(model,currentDevice()));
+      slider.addEventListener('input',()=>{
+        model.shades??={};model.shades[currentDevice()]=Number(slider.value);
+        value.textContent=heroShadePercent(model,currentDevice())+'%';
+        applyHeroShade(document,model,currentDevice());changed();
+      });
+      wrapper.append(slider,value);panelBody.append(wrapper);
+      button(panelBody,'Убрать затемнение (0%)',()=>{
+        model.shades??={};model.shades[currentDevice()]=0;
+        slider.value='0';value.textContent='0%';applyHeroShade(document,model,currentDevice());changed();
+      });
     }
     if(target!=='top'){
       const fLabel=make('label','pk-field');fLabel.append(make('span','','Отображение'));
