@@ -8,6 +8,7 @@ on:
       - 'wrangler.toml'
       - 'docs/**'
       - 'src/**'
+      - 'tests/**'
       - 'schema.sql'
   workflow_dispatch:
 permissions:
