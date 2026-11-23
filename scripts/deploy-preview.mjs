@@ -49,6 +49,12 @@ try{
  const health=await (await fetch(url+'/api/health',{cache:'no-store'})).json();
  if(health.databaseReady!==true||typeof health.bookingsEnabled!=='boolean')throw Error('Public configuration check failed');
  if(mediaEnabled&&health.mediaReady!==true)throw Error('R2 binding MEDIA missing from deployed Pakkasukko Worker');
+ const slotsResponse=await fetch(url+'/api/slots',{cache:'no-store'});
+ if(!slotsResponse.ok||!Array.isArray((await slotsResponse.json()).slots))throw Error('Public calendar read API not ready');
+ const publicResponse=await fetch(url+'/api/public-config',{cache:'no-store'});
+ const publicConfig=await publicResponse.json();
+ if(!publicResponse.ok||typeof publicConfig.bookingsEnabled!=='boolean')throw Error('Public booking configuration unavailable');
+ console.log('Pakkasukko calendar availability endpoint ready; live booking enabled: '+publicConfig.bookingsEnabled);
  console.log('Pakkasukko R2 media binding ready: '+health.mediaReady);
  const login=await fetch(url+'/api/admin/login',{method:'POST',redirect:'error',headers:{Origin:url,'Content-Type':'application/json'},body:JSON.stringify({password})});
  if(!login.ok)throw Error('Owner login check failed (HTTP '+login.status+')');
@@ -67,6 +73,10 @@ try{
    if(attempt<5)await new Promise(resolve=>setTimeout(resolve,800*(attempt+1)));
  }
  if(!editorOk)throw Error('Editor check failed after retries: '+lastStatus);
+ const launch=await fetch(url+'/api/admin/booking-state',{headers:{Cookie:cookie},cache:'no-store'});
+ const booking=await launch.json().catch(()=>null);
+ if(!launch.ok||typeof booking?.enabled!=='boolean'||!Array.isArray(booking.missing))throw Error('Owner booking readiness API not ready');
+ console.log('Owner calendar launch controls ready.');
  await fetch(url+'/api/admin/logout',{method:'POST',headers:{Cookie:cookie,Origin:url}});
  console.log('Verified site '+url+' and admin '+url+'/admin');
 }finally{for(const path of [config,secrets])try{unlinkSync(path)}catch{}}
