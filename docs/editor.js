@@ -86,7 +86,10 @@ function previewClick(event){
   let field;
   if(card){
     const idx=[...doc.querySelectorAll('.extra-card')].indexOf(card);
-    field=$('cards').querySelectorAll('input')[idx*4+Math.max(0,Math.min(3,[...card.children].indexOf(target)))];
+    const key=target.closest('.card-icon')?'icon':target.closest('.card-number')?'label':
+      target.closest('h3')?'title':target.closest('.program-duration')?'duration':
+      target.closest('.card-foot strong')?'price':'description';
+    field=[...$('cards').querySelectorAll('input,textarea')].find(el=>el.dataset.cardIndex===String(idx)&&el.dataset.cardKey===key);
   }else if(heading)field=$('wholeHeading');
   else if(container.hasAttribute('data-created'))field=$('customBody');
   else{
@@ -132,9 +135,19 @@ function section(){
 }
 function cards(){
   $('cards').replaceChildren();
-  for(const c of model.cards){
-    for(const [k,label] of Object.entries({title:'Название',description:'Описание',price:'Цена',duration:'Длительность'}))input($('cards'),label,c[k],v=>{c[k]=v;draw();});
-    button($('cards'),'Удалить карточку',()=>{model.cards.splice(model.cards.indexOf(c),1);cards();draw();});
+  for(const [index,c] of model.cards.entries()){
+    const box=document.createElement('fieldset');box.className='program-edit-fields';
+    const legend=document.createElement('legend');legend.textContent='Программа '+String(index+4).padStart(2,'0');box.append(legend);
+    for(const [k,label] of Object.entries({
+      title:'Название',accent:'Выделить цветом окончание названия (необязательно)',
+      label:'Подпись над названием (необязательно)',icon:'Иконка (например ▶, ✧, ♫)',
+      description:'Описание',duration:'Длительность',price:'Цена'
+    })){
+      const control=input(box,label,c[k]||'',v=>{c[k]=v;draw();},k==='description'?'textarea':'text');
+      control.dataset.cardIndex=String(index);control.dataset.cardKey=k;
+    }
+    button(box,'Удалить карточку',()=>{model.cards.splice(model.cards.indexOf(c),1);cards();draw();});
+    $('cards').append(box);
   }
 }
 function library(){

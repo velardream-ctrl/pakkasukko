@@ -53,6 +53,25 @@ export function applySectionCrop(doc,model,section,device,editing=false){
 }
 
 export const initial = () => ({sections:[],headingOverrides:{},texts:{},crops:{},sectionCrops:{},shades:{},hidden:[],order:[],cards:[],pictures:{},seo:{},logo:"",contacts:{},durations:{}});
+// Additional programs use the same visual structure as the three original cards.
+// Presentation defaults are derived at render time, so old D1 drafts stay intact.
+export function programPresentation(card,index){
+  const title=String(card.title||'').trim();
+  let regular=title,accent='';
+  const explicit=String(card.accent||'').trim();
+  if(explicit&&title.toLocaleLowerCase('ru').endsWith(explicit.toLocaleLowerCase('ru'))){
+    regular=title.slice(0,title.length-explicit.length).trim();
+    accent=title.slice(title.length-explicit.length).trim();
+  }else{
+    const match=title.match(/^(.+?)\s+((?:от|для|у|на|с)\s+.+)$/i);
+    if(match){regular=match[1];accent=match[2];}
+  }
+  const video=/видео|онлайн|запись/i.test(title);
+  const icon=String(card.icon|| (video?'▶':'✧')).trim()||'✧';
+  const label=String(card.label||(video?'ВИДЕОПОЗДРАВЛЕНИЕ':'ПРАЗДНИЧНАЯ ПРОГРАММА')).trim();
+  const number=String(index+4).padStart(2,'0')+' / '+label.toLocaleUpperCase('ru');
+  return {regular,accent,icon,number};
+}
 export function heroShadePercent(model,device){
   const value=Number(model?.shades?.[device] ?? 0);
   return Number.isFinite(value)?Math.max(0,Math.min(100,value)):0;
@@ -185,16 +204,33 @@ export function renderPage(doc,model,fields,device,editing=false){
     const value=model.durations?.[link.dataset.service];
     if(value){const p=doc.createElement('p');p.className='program-duration';p.textContent=value;link.closest('.card').append(p);}
   }
-  for(const card of model.cards){
+  const programGrid=doc.querySelector('.cards');
+  programGrid?.classList.toggle('cards-four',3+model.cards.length===4);
+  for(const [index,card] of model.cards.entries()){
+    const display=programPresentation(card,index);
     const box=doc.createElement('article');box.className='card extra-card';
-    for(const [tag,key] of [['h3','title'],['p','description'],['strong','price'],['p','duration']]){
-      const child=doc.createElement(tag);child.textContent=card[key];box.append(child);
+    const icon=doc.createElement('span');icon.className='card-icon';icon.textContent=display.icon;box.append(icon);
+    const number=doc.createElement('span');number.className='card-number';number.textContent=display.number;box.append(number);
+    const title=doc.createElement('h3');title.textContent=display.regular;
+    if(display.accent){
+      title.append(doc.createElement('br'));
+      const em=doc.createElement('em');em.textContent=display.accent;title.append(em);
     }
+    box.append(title);
+    const description=doc.createElement('p');description.className='card-description';description.textContent=card.description||'';box.append(description);
+    if(card.duration){
+      const duration=doc.createElement('p');duration.className='program-duration';
+      duration.textContent=card.duration;box.append(duration);
+    }
+    const foot=doc.createElement('div');foot.className='card-foot';
+    const price=doc.createElement('strong');price.textContent=card.price||'По запросу';foot.append(price);
     if(card.id){
       const option=doc.createElement('option');option.className='extra-option';option.value=card.id;option.textContent=card.title+' · '+card.price;doc.querySelector('#service').append(option);
-      const link=doc.createElement('a');link.href='#booking';link.textContent=pageText(model,'programButton');link.onclick=()=>{doc.querySelector('#service').value=card.id;};box.append(link);
+      const link=doc.createElement('a');link.href='#booking';link.textContent=pageText(model,'programButton')+' ↗';
+      link.onclick=()=>{doc.querySelector('#service').value=card.id;};foot.append(link);
     }
-    doc.querySelector('.cards').append(box);
+    box.append(foot);
+    programGrid.append(box);
   }
   if(model.seo.title)doc.title=model.seo.title;
   if(model.seo.description)doc.querySelector('meta[name=description]').content=model.seo.description;

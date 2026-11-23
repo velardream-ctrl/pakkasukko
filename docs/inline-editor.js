@@ -165,8 +165,13 @@ export async function startInlineEditor({model,fields,currentDevice,onAdmin}){
       const index=[...document.querySelectorAll('.extra-card')].indexOf(card);
       const entry=model.cards[index];
       if(entry){
-        for(const [key,label,selector] of [['title','Название','h3'],['description','Описание','p'],['price','Цена','strong'],['duration','Длительность','p:nth-of-type(2)']]){
-          labeled(panelBody,label,'textarea',entry[key],value=>{entry[key]=value;const node=card.querySelector(selector);if(node)node.textContent=value;changed();});
+        for(const [key,label] of [
+          ['title','Название'],['accent','Выделение части заголовка'],['label','Подпись над названием'],
+          ['icon','Иконка'],['description','Описание'],['duration','Длительность'],['price','Цена']
+        ]){
+          labeled(panelBody,label,'textarea',entry[key]||'',value=>{
+            entry[key]=value;changed();draw();
+          });
         }
         button(panelBody,'Удалить карточку',()=>{model.cards.splice(index,1);changed();draw();closePanel();});
         return;
