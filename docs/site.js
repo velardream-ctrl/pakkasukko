@@ -1,7 +1,7 @@
 export const devices = {desktop:[1440,900],tablet:[820,1180],phone:[390,844]};
 export const portrait = './assets/pakkasukko-ded-moroz.webp';
 export const baseCrop = () => ({x:0,y:0,zoom:100,image:''});
-export const initial = () => ({texts:{},crops:{},hidden:[],order:[],cards:[],pictures:{},seo:{},logo:"",contacts:{},durations:{}});
+export const initial = () => ({sections:[],headingOverrides:{},texts:{},crops:{},hidden:[],order:[],cards:[],pictures:{},seo:{},logo:"",contacts:{},durations:{}});
 export function deviceFor(width,height){
   if(width<=600 || (width<=940 && height<=520))return 'phone';
   return width<=1100 || (width<=1200 && height<=900)?'tablet':'desktop';
@@ -64,6 +64,24 @@ export function bindPage(doc){
 }
 export function renderPage(doc,model,fields,device,editing=false){
   for(const f of fields)setField(f,model.texts[f.key]??f.original);
+  for(const heading of doc.querySelectorAll('[data-heading-display]'))heading.remove();
+  for(const node of doc.querySelectorAll('[data-heading-original]')){
+    node.hidden=false;node.removeAttribute('data-heading-original');
+  }
+  for(const section of doc.querySelectorAll('main > section[data-created]'))section.remove();
+  for(const block of model.sections||[]){
+    const section=doc.createElement('section');section.id=block.id;section.dataset.created='';section.className='intro section';
+    const wrap=doc.createElement('div');wrap.className='container';
+    const title=doc.createElement('h2'),body=doc.createElement('p');
+    title.textContent=block.title;body.textContent=block.body;body.style.whiteSpace='pre-line';
+    wrap.append(title,body);section.append(wrap);doc.querySelector('main').append(section);
+  }
+  for(const [id,text] of Object.entries(model.headingOverrides||{})){
+    const original=doc.getElementById(id)?.querySelector('h1,h2');
+    if(!original)continue;
+    const replacement=doc.createElement(original.localName);replacement.dataset.headingDisplay='';replacement.className=original.className;replacement.textContent=text;
+    original.dataset.headingOriginal='';original.hidden=true;original.after(replacement);
+  }
   for(const id of model.order){const section=doc.getElementById(id);if(section?.parentElement?.tagName==='MAIN')section.parentElement.append(section);}
   for(const section of doc.querySelectorAll('main > section')){
     section.hidden=model.hidden.includes(section.id);
