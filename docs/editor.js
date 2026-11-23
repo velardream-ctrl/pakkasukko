@@ -2,12 +2,45 @@ import {setField,devices,baseCrop,baseSectionCrop,initial,bindPage,renderPage,cr
 const $=id=>document.getElementById(id);
 const frame=document.querySelector('iframe'), panel=document.querySelector('main');
 const names={header:'Шапка',top:'Первый экран',intro:'Вступление',programs:'Программы',about:'Об артисте',routes:'Города',booking:'Календарь',contact:'Контакты',privacy:'Конфиденциальность',footer:'Подвал'};
-let data,model,fields,doc,landscape=false,scale=1,start;
+let data,model,fields,doc,landscape=false,scale=1,start,sessionNotice,lastBrokenImage='';
 function note(s){$('status').textContent=s;}
+function requireOwnerLogin(){
+  if(!sessionNotice){
+    const banner=document.createElement('div');banner.id='ownerSessionNotice';banner.setAttribute('role','alert');
+    const message=document.createElement('p');message.textContent='Сессия владельца больше не действует. Изображения из R2 защищены, поэтому они не появятся в предпросмотре до повторного входа.';
+    const login=document.createElement('a');login.href='./admin.html';login.target='_blank';login.rel='noopener noreferrer';login.textContent='Войти в админку ↗';
+    const retry=document.createElement('button');retry.type='button';retry.textContent='Проверить вход и обновить фотографии';
+    retry.onclick=async()=>{
+      try{
+        const r=await fetch('/api/admin/editor',{cache:'no-store',credentials:'same-origin'});
+        if(!r.ok)throw Error('Сначала войдите в админку в новой вкладке.');
+        sessionNotice.hidden=true;lastBrokenImage='';
+        if(!doc){await init();return;}
+        for(const img of doc.querySelectorAll('.hero-photo img,.about-photo'))img.removeAttribute('src');
+        draw();note('Вход восстановлен. Фотографии загружаются снова.');
+      }catch(e){note(e.message);}
+    };
+    banner.append(message,login,retry);$('status').after(banner);sessionNotice=banner;
+  }
+  sessionNotice.hidden=false;
+  note('Необходим вход владельца — откройте админку и затем проверьте вход.');
+}
+async function verifyMedia(id){
+  if(!/^[a-f0-9-]{36}$/.test(id||''))return true;
+  const response=await fetch('/api/admin/media/check/'+id,{cache:'no-store',credentials:'same-origin'});
+  if(response.status===401){requireOwnerLogin();return false;}
+  if(!response.ok){
+    const data=await response.json().catch(()=>({}));
+    note(data.error||'Фотография отсутствует в R2. Выберите другой файл или загрузите её снова.');
+    return false;
+  }
+  return true;
+}
 async function api(path,body){
   const options=body instanceof FormData?{method:'POST',body}:body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{};
-  const r=await fetch('/api/admin/'+path,{...options,cache:'no-store'});
+  const r=await fetch('/api/admin/'+path,{...options,cache:'no-store',credentials:'same-origin'});
   const value=await r.json().catch(()=>({error:'Для редактирования нужен сервер Pakkasukko.'}));
+  if(r.status===401)requireOwnerLogin();
   if(!r.ok||value.error)throw Error(value.error||'Ошибка сервера');return value;
 }
 function action(id,fn){$(id).onclick=async()=>{try{await fn();}catch(e){note(e.message);}};}
@@ -191,6 +224,21 @@ async function init(){
   for(const [id,key] of Object.entries({priceGift:'giftPrice',priceHome:'homePrice',priceEvent:'eventPrice',bio:'bio',travel:'travel'}))if(config.content?.[key])page.getElementById(id).textContent=config.content[key];
   const loaded=new Promise(resolve=>frame.onload=resolve);frame.srcdoc=page.documentElement.outerHTML;await loaded;
   doc=frame.contentDocument;fields=bindPage(doc);doc.addEventListener('click',previewClick,true);
+  // Image errors cannot be read through img.onload as they may be caused by
+  // expired owner cookies, or an R2 object missing after an old draft restore.
+  doc.addEventListener('error',async event=>{
+    const img=event.target;
+    if(img?.tagName!=='IMG')return;
+    const src=img.getAttribute('src')||'';
+    if(!src.startsWith('/api/admin/media/'))return;
+    const id=src.split('/').pop()?.split('?')[0];
+    if(!id||id===lastBrokenImage)return;
+    lastBrokenImage=id;
+    try{
+      const ok=await verifyMedia(id);
+      if(ok)note('Файл существует в R2, но предпросмотр не смог его показать. Откройте админку и проверьте вход.');
+    }catch(e){note('Ошибка проверки фотографии: '+e.message);}
+  },true);
   for(const [key,label] of Object.entries(names))$('section').add(new Option(label,key));
   for(const [key,label,min,max] of [['x','X (%)',-100,100],['y','Y (%)',-100,100],['zoom','Масштаб (%)',35,300]]){
     const el=input($('coords'),label,0,v=>{if(v!==''&&Number(v)>=min&&Number(v)<=max){crop()[key]=Number(v);if(target()==='top')cropPhoto(doc,crop(),true);else applySectionCrop(doc,model,target(),device(),true);}},'number');el.id=key;el.min=min;el.max=max;
@@ -222,7 +270,8 @@ $('textSearch').oninput=section;
 $('section').onchange=()=>{selectGroup($('section').value);};
 $('preset').onchange=e=>{if(e.target.value){Object.assign(crop(),{zoom:Number(e.target.value),x:0,y:0});draw();}};
 $('logo').onchange=e=>{model.logo=e.target.value;draw();};
-$('photo').onchange=e=>{
+$('photo').onchange=async e=>{
+  if(!(await verifyMedia(e.target.value))){draw();return;}
   if(target()==='top')setHeroDeviceImage(model,device(),e.target.value);
   else {
     model.pictures??={};
@@ -234,7 +283,8 @@ $('photo').onchange=e=>{
   }
   draw();
 };
-$('picture').onchange=e=>{
+$('picture').onchange=async e=>{
+  if(!(await verifyMedia(e.target.value))){section();return;}
   const f=e.target.value==='pakkasukko-gifts'?{id:e.target.value,caption:'Дед Мороз дарит подарки',mime:'image/webp'}:data.media.find(i=>i.id===e.target.value);
   const group=$('section').value;
   if(group==='top'){

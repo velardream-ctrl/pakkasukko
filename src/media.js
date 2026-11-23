@@ -2,6 +2,13 @@ import {published} from './editor.js';
 export async function mediaAPI(req,env,path,reply,admin){
   if(!env.MEDIA)return reply({error:'Хранилище Pakkasukko R2 ещё не подключено'},503);
   const id=path.split('/').pop();
+  // Authenticated, lightweight presence check; never exposes private media bytes.
+  if(req.method==='GET'&&path.startsWith('/api/admin/media/check/')){
+    if(!admin)return reply({},403);
+    if(!/^[a-f0-9-]{36}$/.test(id))return reply({error:'Некорректный идентификатор фотографии'},400);
+    const object=await env.MEDIA.head(id)||await env.MEDIA.head(id+'-original');
+    return object?reply({available:true,mime:object.httpMetadata?.contentType||''}):reply({error:'Файл фотографии отсутствует в R2'},404);
+  }
   if(req.method==='GET'){
     if(!/^[a-f0-9-]{36}$/.test(id))return reply({},404);
     if(!admin){
