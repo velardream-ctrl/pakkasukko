@@ -99,6 +99,7 @@ function section(){
   if(group==='programs')for(const link of doc.querySelectorAll('.card [data-service]')){
     const k=link.dataset.service;input($('fields'),'Длительность · '+link.closest('.card').querySelector('h3').textContent,model.durations[k]||'',v=>{model.durations[k]=v;draw();});
   }
+  if(![...$('picture').options].some(o=>o.value==='pakkasukko-gifts'))$('picture').add(new Option('Дед Мороз дарит подарки','pakkasukko-gifts'));
   $('picture').value=model.pictures[group]?.id||'';
   for(const id of ['up','down','visibility','picture'])$(id).disabled=!model.order.includes(group);
   $('visibility').textContent=model.hidden.includes(group)?'Показать раздел':'Скрыть раздел';
@@ -175,7 +176,7 @@ $('section').onchange=()=>{selectGroup($('section').value);};
 $('preset').onchange=e=>{if(e.target.value){Object.assign(crop(),{zoom:Number(e.target.value),x:0,y:0});draw();}};
 $('logo').onchange=e=>{model.logo=e.target.value;draw();};
 $('photo').onchange=e=>{crop().image=e.target.value;draw();};
-$('picture').onchange=e=>{const f=data.media.find(i=>i.id===e.target.value);if(f)model.pictures[$('section').value]={id:f.id,video:f.mime.startsWith('video'),caption:f.caption};else delete model.pictures[$('section').value];draw();};
+$('picture').onchange=e=>{const f=e.target.value==='pakkasukko-gifts'?{id:e.target.value,caption:'Дед Мороз дарит подарки',mime:'image/webp'}:data.media.find(i=>i.id===e.target.value);if(f)model.pictures[$('section').value]={id:f.id,video:f.mime.startsWith('video'),caption:f.caption};else delete model.pictures[$('section').value];draw();};
 for(const [id,delta] of [['up',-1],['down',1]])action(id,()=>{const i=model.order.indexOf($('section').value),j=i+delta;if(j>=0&&j<model.order.length){[model.order[i],model.order[j]]=[model.order[j],model.order[i]];outline();draw();note('Порядок: '+model.order.map(groupName).join(' · '));}});
 action('visibility',()=>{const k=$('section').value;model.hidden=model.hidden.includes(k)?model.hidden.filter(i=>i!==k):[...model.hidden,k];outline();section();draw();});
 action('add',()=>{model.cards.push({id:crypto.randomUUID(),title:'Новая программа',description:'',price:'',duration:''});cards();draw();});

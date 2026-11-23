@@ -7,6 +7,7 @@ export function deviceFor(width,height){
   return width<=1100 || (width<=1200 && height<=900)?'tablet':'desktop';
 }
 export function mediaURL(id,editing=false){
+  if(id==='pakkasukko-gifts')return './assets/pakkasukko-gifts.webp';
   return /^[a-f0-9-]{36}$/.test(id)?'/api/'+(editing?'admin/':'')+'media/'+id:portrait;
 }
 export function cropPhoto(doc,crop,editing){
@@ -87,7 +88,7 @@ export function renderPage(doc,model,fields,device,editing=false){
     section.hidden=model.hidden.includes(section.id);
     section.querySelector('.section-media')?.remove();
     const asset=model.pictures[section.id];
-    if(asset){const item=doc.createElement(asset.video?'video':'img');item.className='section-media';item.controls=true;item.src=mediaURL(asset.id,editing);item.title=asset.caption||'';item.alt=item.title;section.append(item);}
+    if(asset){const item=doc.createElement(asset.video?'video':'img');item.className='section-media';item.controls=true;item.src=mediaURL(asset.id,editing);item.title=asset.caption||'';item.alt=item.title;if(section.id==='intro')section.querySelector('.intro-grid').append(item);else section.append(item);}
   }
   doc.querySelectorAll('.extra-card').forEach(el=>el.remove());
   doc.querySelectorAll('.extra-option,.owner-contact,.owner-logo').forEach(el=>el.remove());
