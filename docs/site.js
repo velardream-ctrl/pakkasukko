@@ -4,7 +4,7 @@ export const baseCrop = () => ({x:0,y:0,zoom:100,image:''});
 export const baseSectionCrop = () => ({x:0,y:0,zoom:100,fit:'contain'});
 export function sectionCrop(model,section,device){
   const positions=model.sectionCrops?.[section];
-  return positions?.[device]||baseSectionCrop();
+  return positions?.[device]|| (section==='routes'?{...baseSectionCrop(),fit:'cover'}:baseSectionCrop());
 }
 export function applySectionCrop(doc,model,section,device,editing=false){
   const crop=sectionCrop(model,section,device);
@@ -125,6 +125,7 @@ export function renderPage(doc,model,fields,device,editing=false){
       }else{
         const wrapper=doc.createElement('div');wrapper.className='section-media-frame';wrapper.append(item);
         if(section.id==='intro')section.querySelector('.intro-grid')?.append(wrapper);
+        else if(section.id==='routes')section.querySelector('.routes-art')?.append(wrapper);
         else section.append(wrapper);
       }
     }

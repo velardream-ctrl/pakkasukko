@@ -75,7 +75,7 @@ function previewClick(event){
   const group=container.id||container.localName;
   $('section').value=group;$('textSearch').value='';section();
   if(target.closest('.about-portrait')||target.closest('.section-media-frame')){
-    $('photoTarget').value=group==='about'?'about':'intro';
+    $('photoTarget').value=group==='about'?'about':group;
     $('mode').value='photo';mode();draw();return;
   }
   const heading=target.closest('h1,h2'),card=target.closest('.extra-card');
@@ -176,7 +176,7 @@ async function init(){
   doc=frame.contentDocument;fields=bindPage(doc);doc.addEventListener('click',previewClick,true);
   for(const [key,label] of Object.entries(names))$('section').add(new Option(label,key));
   for(const [key,label,min,max] of [['x','X (%)',-100,100],['y','Y (%)',-100,100],['zoom','Масштаб (%)',35,300]]){
-    const el=input($('coords'),label,0,v=>{if(v!==''&&Number(v)>=min&&Number(v)<=max){crop()[key]=Number(v);cropPhoto(doc,crop(),true);}},'number');el.id=key;el.min=min;el.max=max;
+    const el=input($('coords'),label,0,v=>{if(v!==''&&Number(v)>=min&&Number(v)<=max){crop()[key]=Number(v);if(target()==='top')cropPhoto(doc,crop(),true);else applySectionCrop(doc,model,target(),device(),true);}},'number');el.id=key;el.min=min;el.max=max;
   }
   panel.hidden=false;reset();note('Редактор готов.');
 }
@@ -219,7 +219,7 @@ action('save',()=>commit());action('publish',()=>commit(true));action('restore',
 action('cancel',reset);action('reset',()=>{Object.assign(crop(),{x:0,y:0,zoom:100,fit:'contain'});draw();});
 const drag=$('drag');
 drag.onpointerdown=e=>{
-  const img=target()==='top'?doc.querySelector('.hero-photo img'):target()==='about'?doc.querySelector('.about-photo'):doc.querySelector('#intro .section-media-frame img');
+  const img=target()==='top'?doc.querySelector('.hero-photo img'):target()==='about'?doc.querySelector('.about-photo'):doc.querySelector('#'+target()+' .section-media-frame img');
   if(!img)return;
   start={id:e.pointerId,x:e.clientX,y:e.clientY,c:{...crop()},w:Math.max(1,img.offsetWidth*scale),h:Math.max(1,img.offsetHeight*scale)};
   drag.setPointerCapture(e.pointerId);
