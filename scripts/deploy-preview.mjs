@@ -36,13 +36,27 @@ try{
  const {subdomain}=await call('/workers/subdomain');
  if(!/^[a-z0-9-]+$/.test(subdomain))throw Error('Unexpected workers.dev subdomain');
  const url='https://pakkasukko.'+subdomain+'.workers.dev';
- const health=await (await fetch(url+'/api/public-config')).json();
- if(health.bookingsEnabled!==false)throw Error('Public configuration check failed');
+ const health=await (await fetch(url+'/api/health',{cache:'no-store'})).json();
+ if(health.bookingsEnabled!==false||health.databaseReady!==true)throw Error('Public configuration check failed');
+ if(mediaEnabled&&health.mediaReady!==true)throw Error('R2 binding MEDIA missing from deployed Pakkasukko Worker');
+ console.log('Pakkasukko R2 media binding ready: '+health.mediaReady);
  const login=await fetch(url+'/api/admin/login',{method:'POST',redirect:'error',headers:{Origin:url,'Content-Type':'application/json'},body:JSON.stringify({password})});
- if(!login.ok)throw Error('Owner login check failed');
- const cookie=login.headers.get('set-cookie').split(';')[0];
- const editor=await fetch(url+'/api/admin/editor',{headers:{Cookie:cookie}});
- if(!editor.ok||!Array.isArray((await editor.json()).history))throw Error('Editor check failed');
+ if(!login.ok)throw Error('Owner login check failed (HTTP '+login.status+')');
+ const cookie=login.headers.get('set-cookie')?.split(';')[0];
+ if(!cookie)throw Error('Session cookie missing');
+ let editorOk=false,lastStatus='not started';
+ // D1 writes may not become visible to subsequent reads immediately in another request.
+ for(let attempt=0;attempt<6;attempt++){
+   const editor=await fetch(url+'/api/admin/editor',{headers:{Cookie:cookie},cache:'no-store'});
+   lastStatus='HTTP '+editor.status;
+   if(editor.ok){
+     const data=await editor.json().catch(()=>null);
+     if(Array.isArray(data?.history)){editorOk=true;break;}
+     lastStatus+=' (unexpected response)';
+   }
+   if(attempt<5)await new Promise(resolve=>setTimeout(resolve,800*(attempt+1)));
+ }
+ if(!editorOk)throw Error('Editor check failed after retries: '+lastStatus);
  await fetch(url+'/api/admin/logout',{method:'POST',headers:{Cookie:cookie,Origin:url}});
  console.log('Verified site '+url+' and admin '+url+'/admin');
 }finally{for(const path of [config,secrets])try{unlinkSync(path)}catch{}}
