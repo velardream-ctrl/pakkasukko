@@ -1,4 +1,4 @@
-import {pageText,initial,bindPage,renderPage,cropPhoto,baseCrop,deviceFor} from './site.js';
+import {pageText,initial,bindPage,renderPage,deviceFor} from './site.js';
 const $=(s)=>document.querySelector(s);
 $('#year').textContent=new Date().getFullYear();
 document.querySelectorAll('[data-service]').forEach(a=>a.addEventListener('click',()=>{$('#service').value=a.dataset.service;}));
@@ -15,8 +15,15 @@ async function activate(){
     const model=Object.assign(initial(),config.site);
     const currentDevice=()=>deviceFor(innerWidth,innerHeight);
     const boundFields=bindPage(document);
-    renderPage(document,model,boundFields,currentDevice());
-    addEventListener('resize',()=>renderPage(document,model,boundFields,currentDevice()));
+    let ownerPreview=false;
+    const redraw=()=>renderPage(document,model,boundFields,currentDevice(),ownerPreview);
+    redraw();
+    addEventListener('resize',()=>{redraw();document.dispatchEvent(new Event('pakkasukko:layout'));});
+    // Ordinary visitors receive no editing UI. Authentication is validated by the Worker.
+    try{
+      const {startInlineEditor}=await import('./inline-editor.js');
+      await startInlineEditor({model,fields:boundFields,currentDevice,onAdmin:()=>{ownerPreview=true;}});
+    }catch(err){console.warn('Inline editor unavailable',err?.message);}
     if(!config.bookingsEnabled||!config.turnstileSiteKey) return;
     const slotsResp=await fetch('/api/slots',{cache:'no-store'});
     if(!slotsResp.ok)return;

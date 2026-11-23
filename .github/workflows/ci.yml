@@ -18,3 +18,4 @@ jobs:
       - run: node --check src/worker.js
       - run: node --check docs/app.js
       - run: node --check docs/admin.js
+      - run: node --check docs/inline-editor.js
