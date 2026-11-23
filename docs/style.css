@@ -154,3 +154,45 @@ main>section:not(.intro)>.section-media-frame>.section-media{display:block;width
 /* RUN-012: The hero and About use a single real <img>, never a duplicate CSS photograph. */
 .hero-photo{background-image:none!important}
 .about-portrait{background-image:none!important}
+
+
+/* RUN-013 · Pakkasukko photo language: one image, one offset matte.
+   Solid, shape-following box-shadows (not a second image or parallax).
+   Keep media frames clipped so crops never spill beyond their arches. */
+:root{
+  --pk-photo-offset:18px;
+  --pk-photo-offset-mobile:9px;
+  --pk-matte-light:#d9ceb9;
+  --pk-matte-dark:#9e8356;
+}
+.about-portrait,
+.intro-grid > .section-media-frame,
+main > section:not(.intro) > .section-media-frame,
+.routes-art{
+  box-shadow:var(--pk-photo-offset) var(--pk-photo-offset) 0 var(--pk-matte-light);
+}
+.routes-art{box-shadow:var(--pk-photo-offset) var(--pk-photo-offset) 0 var(--pk-matte-dark)}
+.hero-photo{
+  border-radius:14px 0 0 14px;
+  box-shadow:14px 16px 0 rgba(218,185,130,.30);
+  /* The real <img> is cropped inside this single frame. */
+}
+@media(max-width:760px){
+  .about-portrait,
+  .intro-grid > .section-media-frame,
+  main > section:not(.intro) > .section-media-frame,
+  .routes-art{
+    box-shadow:var(--pk-photo-offset-mobile) var(--pk-photo-offset-mobile) 0 var(--pk-matte-light);
+  }
+  .routes-art{
+    box-shadow:var(--pk-photo-offset-mobile) var(--pk-photo-offset-mobile) 0 var(--pk-matte-dark);
+  }
+  .hero-photo{
+    border-radius:10px;
+    box-shadow:7px 9px 0 rgba(218,185,130,.25);
+  }
+}
+@media(prefers-reduced-motion:reduce){
+  /* Offset matte is static; never animate photo frames or crop controls. */
+  .about-portrait,.section-media-frame,.routes-art,.hero-photo{transition:none}
+}
