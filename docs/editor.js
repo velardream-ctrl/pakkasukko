@@ -1,4 +1,4 @@
-import {setField,devices,baseCrop,initial,bindPage,renderPage,cropPhoto,mediaURL} from './site.js';
+import {setField,devices,baseCrop,baseSectionCrop,initial,bindPage,renderPage,cropPhoto,applySectionCrop,mediaURL} from './site.js';
 const $=id=>document.getElementById(id);
 const frame=document.querySelector('iframe'), panel=document.querySelector('main');
 const names={header:'Шапка',top:'Первый экран',intro:'Вступление',programs:'Программы',about:'Об артисте',routes:'Города',booking:'Календарь',contact:'Контакты',privacy:'Конфиденциальность',footer:'Подвал'};
@@ -18,11 +18,28 @@ function input(parent,label,value,change,type='text'){
 }
 function button(parent,label,fn){const el=document.createElement('button');el.textContent=label;el.onclick=async()=>{try{await fn();}catch(e){note(e.message);}};parent.append(el);}
 const device=()=>$('device').value;
-const crop=()=>model.crops[device()]??=baseCrop();
+const target=()=>$('photoTarget').value;
+const crop=()=>{
+  if(target()==='top')return model.crops[device()]??=baseCrop();
+  model.sectionCrops??={};
+  const section=model.sectionCrops[target()]??={};
+  return section[device()]??=baseSectionCrop();
+};
+const source=()=>{
+  if(target()==='top')return crop().image||'';
+  return model.pictures?.[target()]?.id||'';
+};
+const displayTarget=()=>{
+  if(!doc)return;
+  if(target()==='top')doc.defaultView.scrollTo(0,0);
+  else doc.getElementById(target())?.scrollIntoView({block:'start'});
+};
 function draw(){
   renderPage(doc,model,fields,device(),true);
   for(const key of ['x','y','zoom'])$(key).value=crop()[key];
-  $('photo').value=crop().image;
+  $('photo').value=source();
+  $('photoFit').value=crop().fit==='cover'?'cover':'contain';
+  $('photoFitLabel').hidden=target()==='top';
 }
 function layout(){
   let [w,h]=devices[device()];if(landscape)[w,h]=[h,w];
@@ -31,6 +48,7 @@ function layout(){
 }
 function assets(select,imagesOnly=false){
   select.replaceChildren(new Option(imagesOnly?'Исходный портрет':'Без дополнительного изображения',''));
+  if(imagesOnly)select.add(new Option('Дед Мороз дарит подарки','pakkasukko-gifts'));
   for(const f of data.media)if(!imagesOnly||f.mime.startsWith('image'))select.add(new Option(f.caption,f.id));
 }
 function groupName(id){return model.sections.find(s=>s.id===id)?.title||names[id]||id;}
@@ -56,6 +74,10 @@ function previewClick(event){
   if(!container)return;
   const group=container.id||container.localName;
   $('section').value=group;$('textSearch').value='';section();
+  if(target.closest('.about-portrait')||target.closest('.section-media-frame')){
+    $('photoTarget').value=group==='about'?'about':'intro';
+    $('mode').value='photo';mode();draw();return;
+  }
   const heading=target.closest('h1,h2'),card=target.closest('.extra-card');
   let field;
   if(card){
@@ -162,7 +184,7 @@ function mode(){
   const photo=$('mode').value==='photo';
   $('drag').hidden=!photo;frame.style.pointerEvents=photo?'none':'auto';frame.tabIndex=photo?-1:0;
   $('photoTools').hidden=!photo;$('hint').hidden=photo;
-  if(photo)doc?.defaultView.scrollTo(0,0);
+  if(photo)displayTarget();
 }
 mode();$('mode').onchange=mode;
 action('newSection',()=>{
@@ -170,20 +192,38 @@ action('newSection',()=>{
   outline();draw();selectGroup(id);$('wholeHeading').focus();
 });
 $('device').onchange=()=>{landscape=false;layout();};
+$('photoTarget').onchange=()=>{draw();displayTarget();};
+$('photoFit').onchange=e=>{crop().fit=e.target.value==='cover'?'cover':'contain';draw();};
 action('rotate',()=>{landscape=!landscape;layout();});
 $('textSearch').oninput=section;
 $('section').onchange=()=>{selectGroup($('section').value);};
 $('preset').onchange=e=>{if(e.target.value){Object.assign(crop(),{zoom:Number(e.target.value),x:0,y:0});draw();}};
 $('logo').onchange=e=>{model.logo=e.target.value;draw();};
-$('photo').onchange=e=>{crop().image=e.target.value;draw();};
+$('photo').onchange=e=>{
+  if(target()==='top')crop().image=e.target.value;
+  else {
+    model.pictures??={};
+    if(!e.target.value)delete model.pictures[target()];
+    else {
+      const f=e.target.value==='pakkasukko-gifts'?{id:e.target.value,caption:'Дед Мороз дарит подарки',mime:'image/webp'}:data.media.find(i=>i.id===e.target.value);
+      if(f&&f.mime.startsWith('image'))model.pictures[target()]={id:f.id,caption:f.caption,video:false};
+    }
+  }
+  draw();
+};
 $('picture').onchange=e=>{const f=e.target.value==='pakkasukko-gifts'?{id:e.target.value,caption:'Дед Мороз дарит подарки',mime:'image/webp'}:data.media.find(i=>i.id===e.target.value);if(f)model.pictures[$('section').value]={id:f.id,video:f.mime.startsWith('video'),caption:f.caption};else delete model.pictures[$('section').value];draw();};
 for(const [id,delta] of [['up',-1],['down',1]])action(id,()=>{const i=model.order.indexOf($('section').value),j=i+delta;if(j>=0&&j<model.order.length){[model.order[i],model.order[j]]=[model.order[j],model.order[i]];outline();draw();note('Порядок: '+model.order.map(groupName).join(' · '));}});
 action('visibility',()=>{const k=$('section').value;model.hidden=model.hidden.includes(k)?model.hidden.filter(i=>i!==k):[...model.hidden,k];outline();section();draw();});
 action('add',()=>{model.cards.push({id:crypto.randomUUID(),title:'Новая программа',description:'',price:'',duration:''});cards();draw();});
 action('save',()=>commit());action('publish',()=>commit(true));action('restore',()=>{if($('history').value)return commit(false,Number($('history').value));});
-action('cancel',reset);action('reset',()=>{Object.assign(crop(),{x:0,y:0,zoom:100});draw();});
+action('cancel',reset);action('reset',()=>{Object.assign(crop(),{x:0,y:0,zoom:100,fit:'contain'});draw();});
 const drag=$('drag');
-drag.onpointerdown=e=>{const img=doc.querySelector('.hero-photo img');start={id:e.pointerId,x:e.clientX,y:e.clientY,c:{...crop()},w:img.offsetWidth*scale,h:img.offsetHeight*scale};drag.setPointerCapture(e.pointerId);};
+drag.onpointerdown=e=>{
+  const img=target()==='top'?doc.querySelector('.hero-photo img'):target()==='about'?doc.querySelector('.about-photo'):doc.querySelector('#intro .section-media-frame img');
+  if(!img)return;
+  start={id:e.pointerId,x:e.clientX,y:e.clientY,c:{...crop()},w:Math.max(1,img.offsetWidth*scale),h:Math.max(1,img.offsetHeight*scale)};
+  drag.setPointerCapture(e.pointerId);
+};
 drag.onpointermove=e=>{if(start?.id!==e.pointerId)return;
   for(const [k,pos,size] of [['x',e.clientX,'w'],['y',e.clientY,'h']])crop()[k]=Math.max(-100,Math.min(100,Math.round(start.c[k]+100*(pos-start[k])/start[size])));
   draw();};

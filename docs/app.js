@@ -14,8 +14,9 @@ async function activate(){
     }
     const model=Object.assign(initial(),config.site);
     const currentDevice=()=>deviceFor(innerWidth,innerHeight);
-    renderPage(document,model,bindPage(document),currentDevice());
-    addEventListener('resize',()=>cropPhoto(document,model.crops[currentDevice()]||baseCrop()));
+    const boundFields=bindPage(document);
+    renderPage(document,model,boundFields,currentDevice());
+    addEventListener('resize',()=>renderPage(document,model,boundFields,currentDevice()));
     if(!config.bookingsEnabled||!config.turnstileSiteKey) return;
     const slotsResp=await fetch('/api/slots',{cache:'no-store'});
     if(!slotsResp.ok)return;

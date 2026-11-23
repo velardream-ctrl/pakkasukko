@@ -66,3 +66,14 @@ html,body{max-width:100%;overflow-x:clip}
 .intro-grid:has(>.section-media)>div{grid-area:copy;align-self:center}
 .intro-grid>.section-media{grid-area:photo;width:100%;height:auto;max-width:100%;max-height:none;margin:0;border-radius:12px}
 @media(max-width:760px){.intro-grid:has(>.section-media){grid-template-columns:minmax(0,1fr);grid-template-areas:"kicker" "photo" "copy"}}
+
+/* RUN-007: Keep portrait fully visible by default and allow per-device editor transforms. */
+.about-portrait {overflow:hidden;isolation:isolate}
+.about-portrait>.about-photo {position:absolute;inset:0;width:100%;height:100%;object-fit:contain;object-position:center;transform-origin:center center;z-index:1;will-change:transform}
+.about-portrait>.portrait-label {z-index:2}
+.intro-grid:has(>.section-media-frame){grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);grid-template-areas:"kicker copy" "photo copy";align-items:start;row-gap:14px}
+.intro-grid:has(>.section-media-frame)>.section-kicker{grid-area:kicker;margin:0}
+.intro-grid:has(>.section-media-frame)>div:not(.section-media-frame){grid-area:copy;align-self:center}
+.intro-grid>.section-media-frame{grid-area:photo;width:100%;aspect-ratio:4/3;border-radius:12px;overflow:hidden;background:#e8dfd0;position:relative}
+.intro-grid>.section-media-frame>.section-media{display:block;width:100%;height:100%;max-width:none;max-height:none;margin:0;object-fit:contain;object-position:center;transform-origin:center center;will-change:transform}
+@media(max-width:760px){.intro-grid:has(>.section-media-frame){grid-template-columns:minmax(0,1fr);grid-template-areas:"kicker" "photo" "copy"}}

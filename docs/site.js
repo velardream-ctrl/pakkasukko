@@ -1,7 +1,31 @@
 export const devices = {desktop:[1440,900],tablet:[820,1180],phone:[390,844]};
 export const portrait = './assets/pakkasukko-ded-moroz.webp';
 export const baseCrop = () => ({x:0,y:0,zoom:100,image:''});
-export const initial = () => ({sections:[],headingOverrides:{},texts:{},crops:{},hidden:[],order:[],cards:[],pictures:{},seo:{},logo:"",contacts:{},durations:{}});
+export const baseSectionCrop = () => ({x:0,y:0,zoom:100,fit:'contain'});
+export function sectionCrop(model,section,device){
+  const positions=model.sectionCrops?.[section];
+  return positions?.[device]||baseSectionCrop();
+}
+export function applySectionCrop(doc,model,section,device,editing=false){
+  const crop=sectionCrop(model,section,device);
+  let img;
+  if(section==='about'){
+    const frame=doc.querySelector('.about-portrait');
+    if(!frame)return;
+    img=frame.querySelector('.about-photo');
+    if(!img){img=doc.createElement('img');img.className='about-photo';img.alt='Дед Мороз в красном костюме со светящимся посохом';frame.prepend(img);}
+    const chosen=model.pictures?.about;
+    const src=chosen&&!chosen.video?mediaURL(chosen.id,editing):portrait;
+    if(img.getAttribute('src')!==src)img.setAttribute('src',src);
+  }else if(section==='intro'){
+    img=doc.querySelector('#intro .section-media-frame > img');
+    if(!img)return;
+  }else return;
+  img.style.objectFit=crop.fit==='cover'?'cover':'contain';
+  img.style.transform='translate('+Math.max(-100,Math.min(100,Number(crop.x)||0))+'%, '+Math.max(-100,Math.min(100,Number(crop.y)||0))+'%) scale('+Math.max(.35,Math.min(3,(Number(crop.zoom)||100)/100))+')';
+}
+
+export const initial = () => ({sections:[],headingOverrides:{},texts:{},crops:{},sectionCrops:{},hidden:[],order:[],cards:[],pictures:{},seo:{},logo:"",contacts:{},durations:{}});
 export function deviceFor(width,height){
   if(width<=600 || (width<=940 && height<=520))return 'phone';
   return width<=1100 || (width<=1200 && height<=900)?'tablet':'desktop';
@@ -86,9 +110,16 @@ export function renderPage(doc,model,fields,device,editing=false){
   for(const id of model.order){const section=doc.getElementById(id);if(section?.parentElement?.tagName==='MAIN')section.parentElement.append(section);}
   for(const section of doc.querySelectorAll('main > section')){
     section.hidden=model.hidden.includes(section.id);
+    section.querySelector('.section-media-frame')?.remove();
     section.querySelector('.section-media')?.remove();
     const asset=model.pictures[section.id];
-    if(asset){const item=doc.createElement(asset.video?'video':'img');item.className='section-media';item.controls=true;item.src=mediaURL(asset.id,editing);item.title=asset.caption||'';item.alt=item.title;if(section.id==='intro')section.querySelector('.intro-grid').append(item);else section.append(item);}
+    if(asset&&section.id==='about'&&!asset.video){
+      // About portrait is the existing image frame, not another image below the text.
+    }else if(asset){const item=doc.createElement(asset.video?'video':'img');item.className='section-media';item.controls=true;item.src=mediaURL(asset.id,editing);item.title=asset.caption||'';item.alt=item.title;
+      if(section.id==='intro'){
+        const wrapper=doc.createElement('div');wrapper.className='section-media-frame';wrapper.append(item);section.querySelector('.intro-grid').append(wrapper);
+      }else section.append(item);
+    }
   }
   doc.querySelectorAll('.extra-card').forEach(el=>el.remove());
   doc.querySelectorAll('.extra-option,.owner-contact,.owner-logo').forEach(el=>el.remove());
@@ -121,4 +152,6 @@ export function renderPage(doc,model,fields,device,editing=false){
   if(model.seo.title)doc.title=model.seo.title;
   if(model.seo.description)doc.querySelector('meta[name=description]').content=model.seo.description;
   cropPhoto(doc,model.crops[device]||baseCrop(),editing);
+  applySectionCrop(doc,model,'about',device,editing);
+  applySectionCrop(doc,model,'intro',device,editing);
 }
