@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 
 test('all major photograph frames use the same static offset-matte language',()=>{
   const css=readFileSync(new URL('../docs/style.css',import.meta.url),'utf8');
-  const segment=css.split('RUN-013')[1];
+  const segment=css.split('RUN-013')[1]?.split('/* RUN-014:')[0];
   assert.ok(segment,'photo depth style block must exist');
   for(const selector of [
     '.hero-photo', '.about-portrait',
