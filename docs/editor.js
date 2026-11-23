@@ -1,4 +1,4 @@
-import {setField,devices,baseCrop,baseSectionCrop,initial,bindPage,renderPage,cropPhoto,applySectionCrop,applyHeroShade,heroShadePercent,mediaURL} from './site.js';
+import {setField,devices,baseCrop,baseSectionCrop,initial,bindPage,renderPage,cropPhoto,applySectionCrop,applyHeroShade,heroShadePercent,heroImageId,setHeroDeviceImage,setHeroGlobalImage,mediaURL} from './site.js';
 const $=id=>document.getElementById(id);
 const frame=document.querySelector('iframe'), panel=document.querySelector('main');
 const names={header:'Шапка',top:'Первый экран',intro:'Вступление',programs:'Программы',about:'Об артисте',routes:'Города',booking:'Календарь',contact:'Контакты',privacy:'Конфиденциальность',footer:'Подвал'};
@@ -26,7 +26,7 @@ const crop=()=>{
   return section[device()]??=baseSectionCrop();
 };
 const source=()=>{
-  if(target()==='top')return crop().image||'';
+  if(target()==='top')return heroImageId(model,device());
   return model.pictures?.[target()]?.id||'';
 };
 const displayTarget=()=>{
@@ -210,7 +210,7 @@ $('section').onchange=()=>{selectGroup($('section').value);};
 $('preset').onchange=e=>{if(e.target.value){Object.assign(crop(),{zoom:Number(e.target.value),x:0,y:0});draw();}};
 $('logo').onchange=e=>{model.logo=e.target.value;draw();};
 $('photo').onchange=e=>{
-  if(target()==='top')crop().image=e.target.value;
+  if(target()==='top')setHeroDeviceImage(model,device(),e.target.value);
   else {
     model.pictures??={};
     if(!e.target.value)delete model.pictures[target()];
@@ -221,7 +221,16 @@ $('photo').onchange=e=>{
   }
   draw();
 };
-$('picture').onchange=e=>{const f=e.target.value==='pakkasukko-gifts'?{id:e.target.value,caption:'Дед Мороз дарит подарки',mime:'image/webp'}:data.media.find(i=>i.id===e.target.value);if(f)model.pictures[$('section').value]={id:f.id,video:f.mime.startsWith('video'),caption:f.caption};else delete model.pictures[$('section').value];draw();};
+$('picture').onchange=e=>{
+  const f=e.target.value==='pakkasukko-gifts'?{id:e.target.value,caption:'Дед Мороз дарит подарки',mime:'image/webp'}:data.media.find(i=>i.id===e.target.value);
+  const group=$('section').value;
+  if(group==='top'){
+    if(f?.mime.startsWith('video')){note('Для верхнего портрета выберите фотографию, не видео.');section();return;}
+    setHeroGlobalImage(model,f?.id||'',f?.caption||'');
+  }else if(f)model.pictures[group]={id:f.id,video:f.mime.startsWith('video'),caption:f.caption};
+  else delete model.pictures[group];
+  draw();
+};
 for(const [id,delta] of [['up',-1],['down',1]])action(id,()=>{const i=model.order.indexOf($('section').value),j=i+delta;if(j>=0&&j<model.order.length){[model.order[i],model.order[j]]=[model.order[j],model.order[i]];outline();draw();note('Порядок: '+model.order.map(groupName).join(' · '));}});
 action('visibility',()=>{const k=$('section').value;model.hidden=model.hidden.includes(k)?model.hidden.filter(i=>i!==k):[...model.hidden,k];outline();section();draw();});
 action('add',()=>{model.cards.push({id:crypto.randomUUID(),title:'Новая программа',description:'',price:'',duration:''});cards();draw();});

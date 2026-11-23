@@ -1,6 +1,33 @@
 export const devices = {desktop:[1440,900],tablet:[820,1180],phone:[390,844]};
 export const portrait = './assets/pakkasukko-ded-moroz.webp';
 export const baseCrop = () => ({x:0,y:0,zoom:100,image:''});
+// An older site revision may store the same hero photo in both pictures.top
+// and device crops. The header has exactly one photo, with legacy pictures.top
+// taking precedence until the owner chooses a device-specific replacement.
+export function heroImageId(model,device){
+  const global=model?.pictures?.top;
+  return (global&&!global.video&&global.id)||model?.crops?.[device]?.image||'';
+}
+export function setHeroDeviceImage(model,device,id){
+  model.crops??={};model.pictures??={};
+  const old=model.pictures.top;
+  if(old&&!old.video&&old.id){
+    for(const profile of Object.keys(devices)){
+      model.crops[profile]??=baseCrop();
+      model.crops[profile].image=old.id;
+    }
+  }
+  delete model.pictures.top;
+  (model.crops[device]??=baseCrop()).image=id||'';
+}
+export function setHeroGlobalImage(model,id,caption=''){
+  model.crops??={};model.pictures??={};
+  for(const profile of Object.keys(devices)){
+    if(model.crops[profile])model.crops[profile].image='';
+  }
+  if(id)model.pictures.top={id,caption,video:false};
+  else delete model.pictures.top;
+}
 export const baseSectionCrop = () => ({x:0,y:0,zoom:100,fit:'contain'});
 export function sectionCrop(model,section,device){
   const positions=model.sectionCrops?.[section];
@@ -121,6 +148,9 @@ export function renderPage(doc,model,fields,device,editing=false){
     section.querySelector('.section-media-frame')?.remove();
     section.querySelector('.section-media')?.remove();
     const asset=model.pictures[section.id];
+    // The hero uses .hero-photo exclusively. Never append a second photo/card
+    // to the top section, even for older revisions using pictures.top.
+    if(section.id==='top')continue;
     if(asset&&section.id==='about'&&!asset.video){
       // The photo is displayed inside the existing .about-portrait frame.
     }else if(asset){
@@ -168,7 +198,7 @@ export function renderPage(doc,model,fields,device,editing=false){
   }
   if(model.seo.title)doc.title=model.seo.title;
   if(model.seo.description)doc.querySelector('meta[name=description]').content=model.seo.description;
-  cropPhoto(doc,model.crops[device]||baseCrop(),editing);
+  cropPhoto(doc,{...baseCrop(),...(model.crops[device]||{}),image:heroImageId(model,device)},editing);
   applyHeroShade(doc,model,device);
   for(const section of doc.querySelectorAll('main > section'))if(section.id!=='top')applySectionCrop(doc,model,section.id,device,editing);
 }

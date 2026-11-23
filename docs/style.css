@@ -150,3 +150,7 @@ main>section:not(.intro)>.section-media-frame>.section-media{display:block;width
 /* RUN-011: Hero photograph remains bright unless owner sets overlay strength. */
 .hero-photo{opacity:1}
 .hero-shade{opacity:0;pointer-events:none;transition:opacity .12s linear}
+
+/* RUN-012: The hero and About use a single real <img>, never a duplicate CSS photograph. */
+.hero-photo{background-image:none!important}
+.about-portrait{background-image:none!important}

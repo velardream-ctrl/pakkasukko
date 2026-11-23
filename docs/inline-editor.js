@@ -1,4 +1,4 @@
-import {initial,mediaURL,baseCrop,baseSectionCrop,cropPhoto,applySectionCrop,renderPage,setField,applyHeroShade,heroShadePercent} from './site.js';
+import {initial,mediaURL,baseCrop,baseSectionCrop,cropPhoto,applySectionCrop,renderPage,setField,applyHeroShade,heroShadePercent,heroImageId,setHeroDeviceImage} from './site.js';
 
 // RUN-009: In-page controls are loaded only after the protected /api/admin/editor request succeeds.
 export function editableFields(fields,element){
@@ -245,11 +245,11 @@ export async function startInlineEditor({model,fields,currentDevice,onAdmin}){
     return document.getElementById(target)?.querySelector('.section-media-frame');
   }
   function imageSource(target){
-    if(target==='top')return model.crops[currentDevice()]?.image||'';
+    if(target==='top')return heroImageId(model,currentDevice());
     return model.pictures?.[target]?.id||'';
   }
   function setSource(target,id){
-    if(target==='top')photoState(model,'top',currentDevice()).image=id;
+    if(target==='top')setHeroDeviceImage(model,currentDevice(),id);
     else if(id){
       const entry=id==='pakkasukko-gifts'?{id,caption:'Дед Мороз дарит подарки',mime:'image/webp'}:result.media.find(f=>f.id===id);
       if(entry)model.pictures[target]={id:entry.id,caption:entry.caption,video:false};
@@ -257,7 +257,7 @@ export async function startInlineEditor({model,fields,currentDevice,onAdmin}){
     changed();draw();photoPanel(target);
   }
   function applyCrop(target){
-    if(target==='top')cropPhoto(document,photoState(model,target,currentDevice()),true);
+    if(target==='top')cropPhoto(document,{...photoState(model,target,currentDevice()),image:heroImageId(model,currentDevice())},true);
     else applySectionCrop(document,model,target,currentDevice(),true);
   }
   function photoPanel(target){
