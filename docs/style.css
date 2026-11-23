@@ -11,3 +11,37 @@
 @media(max-width:760px){.container{width:calc(100% - 32px)}.section{padding:67px 0}.nav-row{height:66px}.brand{font-size:21px}.brand small{font-size:7px}.top-cta{font-size:10px}.hero{min-height:800px;min-height:100svh;align-items:flex-end}.hero-photo{background-position:center 12%;background-size:auto 68%;background-repeat:no-repeat}.hero-shade{background:linear-gradient(0deg,#071522 1%,#071522ff 17%,#071522e8 40%,#07152230 76%),linear-gradient(90deg,#07152228,transparent)}.hero-inner{padding:340px 0 62px}.hero-pre{font-size:9px}.eyebrow{font-size:9px}h1{font-size:clamp(56px,13vw,85px);margin:10px 0 15px}.hero-copy{font-size:13px;line-height:1.65;max-width:510px}.hero-actions{margin-top:22px}.hero-stats{margin-top:28px;gap:12px;padding-top:16px;font-size:10px}.hero-stats b{font-size:23px}.hero-bottom{display:none}.intro-grid,.about-grid,.routes-grid,.booking-grid,.contact-grid{grid-template-columns:1fr;gap:32px}.intro h2,.routes h2,.about h2{font-size:clamp(51px,10vw,72px)}.intro-grid{gap:12px}.cards{grid-template-columns:1fr}.card{min-height:290px}.about-portrait{min-height:410px;max-width:470px}.routes-art{min-height:290px}.booking-panel{padding:22px}.footer-grid{display:block}.footer-grid>div:last-child{margin-top:25px}}
 @media(max-width:430px){.top-cta{padding:8px 11px;font-size:9px}.top-cta span{display:none}.hero-inner{padding-top:305px}.hero-actions{flex-direction:column}.hero-actions .btn{width:100%}.hero-stats{display:grid;grid-template-columns:1fr 1fr}.eyebrow{letter-spacing:.09em}.form-row{grid-template-columns:1fr}.booking-panel{padding:18px}.panel-top h3{font-size:33px}}
 @media(prefers-reduced-motion:reduce){.snow{animation:none}html{scroll-behavior:auto}*{transition:none!important}}
+
+/* RUN-005: Main Pakkasukko portrait — owner-approved artistic composition */
+.hero-photo {
+  inset: 5% 0 0 41%;
+  background-image: url('./assets/pakkasukko-ded-moroz.webp');
+  background-size: cover;
+  background-position: center top;
+  background-repeat: no-repeat;
+  opacity: 1;
+}
+.about-portrait {
+  background-image:
+    linear-gradient(0deg, rgba(7,21,34,.74), transparent 38%),
+    url('./assets/pakkasukko-ded-moroz.webp');
+  background-size: cover;
+  background-position: center 17%;
+}
+@media(max-width: 760px) {
+  .hero-photo {
+    inset: 0 0 auto;
+    height: 67%;
+    background-size: cover;
+    background-position: center 3%;
+  }
+  .hero-shade {
+    background: linear-gradient(0deg, #071522 0%, #071522 12%, rgba(7,21,34,.95) 32%, rgba(7,21,34,.20) 78%, rgba(7,21,34,.05) 100%);
+  }
+}
+@media(max-width: 430px) {
+  .hero-photo {
+    height: 64%;
+    background-position: center top;
+  }
+}
