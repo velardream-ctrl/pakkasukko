@@ -13,9 +13,40 @@ function textBlock(parent,tag,text,cls){const child=el(tag,text,cls);parent.appe
 function button(parent,label,cb,cls){const b=el('button',label,cls);b.type='button';b.addEventListener('click',cb);parent.append(b);return b;}
 function format(stamp){return (stamp||'').replace('T',' ');}
 async function reload(){
- try{state=await request('/api/admin/dashboard');$('loginBox').classList.add('hidden');$('dashboard').classList.remove('hidden');$('logout').classList.remove('hidden');render();}
+ try{state=await request('/api/admin/dashboard');$('loginBox').classList.add('hidden');$('dashboard').classList.remove('hidden');$('logout').classList.remove('hidden');render();await reloadBookingState();}
  catch(e){$('dashboard').classList.add('hidden');$('loginBox').classList.remove('hidden');$('logout').classList.add('hidden');}
 }
+async function reloadBookingState(){
+ const panel=$('bookingChecklist');panel.replaceChildren();
+ try{
+   const response=await request('/api/admin/booking-state');
+   status('bookingStateStatus',response.enabled?'Приём заявок ВКЛЮЧЁН.':'Приём заявок выключен. Свободное время видно в календаре.');
+   $('mailConfirmed').checked=response.mailReceived;
+   $('privacyConfirmed').checked=response.privacyConfirmed;
+   for(const issue of response.missing)textBlock(panel,'p','Требуется: '+issue,'muted');
+   if(!response.missing.length)textBlock(panel,'p','Настройки готовы. Приём заявок можно включать.','status');
+   $('enableBookings').disabled=response.enabled||!response.turnstileConfigured||!response.emailConfigured||!response.mailTestSent;
+   $('disableBookings').disabled=!response.requested;
+   $('emailTestButton').disabled=!response.emailConfigured;
+ }catch(e){status('bookingStateStatus',e.message,true);}
+}
+$('emailTestButton').onclick=async()=>{
+ status('emailTestStatus','Отправляем проверочное письмо…');
+ try{const result=await request('/api/admin/email-test','POST',{});status('emailTestStatus',result.message);await reloadBookingState();}
+ catch(e){status('emailTestStatus',e.message,true);}
+};
+$('enableBookings').onclick=async()=>{
+ if(!confirm('Включить реальные заявки посетителей? Подтвердите, что получили тестовое письмо и разместили юридическую информацию.'))return;
+ try{
+   await request('/api/admin/booking-state','POST',{enabled:true,mailReceived:$('mailConfirmed').checked,privacyConfirmed:$('privacyConfirmed').checked});
+   await reloadBookingState();
+ }catch(e){status('bookingStateStatus',e.message,true);await reloadBookingState();}
+};
+$('disableBookings').onclick=async()=>{
+ if(!confirm('Выключить отправку новых заявок? Ранее полученные заявки останутся в базе.'))return;
+ try{await request('/api/admin/booking-state','POST',{enabled:false});await reloadBookingState();}
+ catch(e){status('bookingStateStatus',e.message,true);}
+};
 $('day').value=new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Helsinki'}).format(new Date());
 $('day').onchange=$('period').onchange=()=>render();
 function render(){

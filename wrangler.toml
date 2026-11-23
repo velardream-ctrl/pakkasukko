@@ -15,7 +15,7 @@ database_id = "00000000-0000-0000-0000-000000000000" # Replace ONLY with new Pak
 
 [vars]
 ENVIRONMENT = "preview"
-ACCEPT_BOOKINGS = "false"
+ACCEPT_BOOKINGS = "true" # Master capability; D1 owner switch is OFF by default.
 TURNSTILE_SITE_KEY = ""
 OWNER_EMAIL = ""
 FROM_EMAIL = ""

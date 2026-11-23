@@ -5,7 +5,33 @@ const headers={'Content-Type':'application/json; charset=utf-8','Cache-Control':
 const reply=(data,status=200,extra={})=>new Response(JSON.stringify(data),{status,headers:{...headers,...extra}});
 const fail=(message,status=400)=>reply({error:message},status);
 const now=()=>new Date().toISOString();
-const live=(env)=>env.ACCEPT_BOOKINGS==='true'&&Boolean(env.DB&&env.TURNSTILE_SECRET&&env.TURNSTILE_SITE_KEY);
+const bookingCredentials=env=>Boolean(env.DB&&env.TURNSTILE_SECRET&&env.TURNSTILE_SITE_KEY&&env.OWNER_EMAIL&&env.FROM_EMAIL&&env.RESEND_API_KEY);
+async function setting(env,key){
+ if(!env.DB)return '';
+ const row=await env.DB.prepare('SELECT value FROM booking_settings WHERE key=?').bind(key).first();
+ return row?.value||'';
+}
+async function setSetting(env,key,value){
+ await env.DB.prepare('INSERT INTO booking_settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').bind(key,value).run();
+}
+async function bookingState(env){
+ const [enabled,mailTest,mailReceived,privacyConfirmed]=await Promise.all([
+   setting(env,'enabled'),setting(env,'mail_test'),setting(env,'mail_received'),setting(env,'privacy_confirmed')
+ ]);
+ const missing=[];
+ if(!env.DB)missing.push('Отдельная база D1');
+ if(env.ACCEPT_BOOKINGS!=='true')missing.push('Разрешение приёма заявок в Worker');
+ if(!env.TURNSTILE_SITE_KEY||!env.TURNSTILE_SECRET)missing.push('Ключи защиты Turnstile');
+ if(!env.RESEND_API_KEY||!env.FROM_EMAIL||!env.OWNER_EMAIL)missing.push('Почта Resend и адреса отправителя/владельца');
+ if(!mailTest)missing.push('Тест отправки уведомления');
+ if(mailReceived!=='true')missing.push('Подтверждение получения тестового письма');
+ if(privacyConfirmed!=='true')missing.push('Подтверждение опубликованной политики конфиденциальности');
+ const canEnable=missing.length===0;
+ return {enabled:enabled==='true'&&canEnable,requested:enabled==='true',canEnable,missing,
+   mailTestSent:Boolean(mailTest),mailReceived:mailReceived==='true',
+   privacyConfirmed:privacyConfirmed==='true',emailConfigured:Boolean(env.OWNER_EMAIL&&env.FROM_EMAIL&&env.RESEND_API_KEY),
+   turnstileConfigured:Boolean(env.TURNSTILE_SITE_KEY&&env.TURNSTILE_SECRET)};
+}
 const fiNow=()=>new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Helsinki',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date()).replace(' ','T');
 async function parse(req){const text=await req.text();if(text.length>16000)throw Error('Запрос слишком большой.');try{return JSON.parse(text);}catch{throw Error('Неверный формат JSON.');}}
 async function mac(secret,body){const enc=new TextEncoder();const key=await crypto.subtle.importKey('raw',enc.encode(secret),{name:'HMAC',hash:'SHA-256'},false,['sign']);return Array.from(new Uint8Array(await crypto.subtle.sign('HMAC',key,enc.encode(body)))).map(n=>n.toString(16).padStart(2,'0')).join('');}
@@ -21,16 +47,28 @@ async function rateLimit(req,env,kind,count,minutes){
 }
 async function human(token,req,env){if(!token||!env.TURNSTILE_SECRET)return false;const data=new FormData();data.set('secret',env.TURNSTILE_SECRET);data.set('response',token);const ip=req.headers.get('CF-Connecting-IP');if(ip)data.set('remoteip',ip);try{const r=await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify',{method:'POST',body:data});return r.ok&&(await r.json()).success===true;}catch{return false;}}
 async function getContent(env){if(!env.DB)return DEFAULT_CONTENT;const row=await env.DB.prepare("SELECT value FROM content WHERE key='site'").first();if(!row)return DEFAULT_CONTENT;try{return normalizeContent(JSON.parse(row.value));}catch{return DEFAULT_CONTENT;}}
-async function emailOwner(env,subject,body){if(!env.OWNER_EMAIL||!env.FROM_EMAIL||!env.RESEND_API_KEY)return;try{const r=await fetch('https://api.resend.com/emails',{method:'POST',headers:{Authorization:'Bearer '+env.RESEND_API_KEY,'Content-Type':'application/json'},body:JSON.stringify({from:env.FROM_EMAIL,to:[env.OWNER_EMAIL],subject,text:body})});if(!r.ok)console.warn('Pakkasukko email error',r.status);}catch(e){console.warn('Email request failed',e?.message);}}
+async function sendOwnerEmail(env,subject,body){
+ if(!env.OWNER_EMAIL||!env.FROM_EMAIL||!env.RESEND_API_KEY)throw Error('Почта Resend ещё не настроена');
+ const r=await fetch('https://api.resend.com/emails',{method:'POST',headers:{Authorization:'Bearer '+env.RESEND_API_KEY,'Content-Type':'application/json'},body:JSON.stringify({from:env.FROM_EMAIL,to:[env.OWNER_EMAIL],subject,text:body})});
+ if(!r.ok)throw Error('Сервис почты не принял сообщение (HTTP '+r.status+')');
+ return true;
+}
+async function emailOwner(env,subject,body){try{await sendOwnerEmail(env,subject,body);}catch(e){console.warn('Pakkasukko email notification failed:',e?.message);}}
 function csv(rows,keys,filename){const lines=[keys.map(csvCell).join(';'),...rows.map(row=>keys.map(k=>csvCell(row[k])).join(';'))];return new Response('\uFEFF'+lines.join('\r\n'),{headers:{'Content-Type':'text/csv; charset=utf-8','Content-Disposition':'attachment; filename="'+filename+'"','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});}
 async function api(req,env,ctx,url){
  const path=url.pathname,method=req.method;
  if(path.startsWith('/api/media/'))return mediaAPI(req,env,path,reply,false);
- if(path==='/api/health'&&method==='GET')return reply({project:'pakkasukko',databaseReady:Boolean(env.DB),mediaReady:Boolean(env.MEDIA),bookingsEnabled:live(env),environment:env.ENVIRONMENT||'preview'});
- if(path==='/api/public-config'&&method==='GET')return reply({site:await published(env),content:await getContent(env),turnstileSiteKey:live(env)?env.TURNSTILE_SITE_KEY:'',bookingsEnabled:live(env)});
+ if(path==='/api/health'&&method==='GET'){
+   const state=await bookingState(env);
+   return reply({project:'pakkasukko',databaseReady:Boolean(env.DB),mediaReady:Boolean(env.MEDIA),bookingsEnabled:state.enabled,environment:env.ENVIRONMENT||'preview'});
+ }
+ if(path==='/api/public-config'&&method==='GET'){
+   const state=await bookingState(env);
+   return reply({site:await published(env),content:await getContent(env),turnstileSiteKey:state.enabled?env.TURNSTILE_SITE_KEY:'',bookingsEnabled:state.enabled});
+ }
  if(path==='/api/slots'&&method==='GET'){if(!env.DB)return reply({slots:[],timezone:'Europe/Helsinki'});const s=await env.DB.prepare('SELECT id,start_at,end_at,status FROM slots WHERE start_at>=? ORDER BY start_at LIMIT 500').bind(fiNow().slice(0,10)+'T00:00').all();return reply({slots:s.results||[],timezone:'Europe/Helsinki'});}
  if(path==='/api/bookings'&&method==='POST'){
-   if(!live(env))return fail('Приём заявок пока не включён.',503);
+   if(!(await bookingState(env)).enabled)return fail('Приём заявок пока не включён.',503);
    const site=await published(env),cards=site.cards||[];
    const b=validateBooking(await parse(req),cards.map(c=>c.id));
    b.service=cards.find(c=>c.id===b.service)?.title||b.service;
@@ -44,7 +82,7 @@ async function api(req,env,ctx,url){
    return reply({id,status:'pending',message:'Ваша заявка отправлена. Пожалуйста, дождитесь личного подтверждения бронирования.'},201);
  }
  if(path==='/api/messages'&&method==='POST'){
-   if(!live(env))return fail('Сообщения пока не принимаются.',503);
+   if(!(await bookingState(env)).enabled)return fail('Сообщения пока не принимаются.',503);
    const b=await parse(req),name=clean(b.name,100),contact=clean(b.contact,150),message=clean(b.message,2000),token=clean(b.turnstileToken,2048);
    if(name.length<2||contact.length<5||message.length<8)return fail('Укажите имя, контакт и сообщение.');
    if(!await human(token,req,env))return fail('Пройдите проверку от спама.',403);
@@ -71,6 +109,31 @@ async function api(req,env,ctx,url){
  if(!await adminOK(req,env))return fail('Необходим вход владельца.',401);
  if(path.startsWith('/api/admin/media/'))return mediaAPI(req,env,path,reply,true);
  if(path==='/api/admin/editor')return await editorAPI(req,env,path,reply);
+ if(path==='/api/admin/booking-state'&&method==='GET')return reply(await bookingState(env));
+ if(path==='/api/admin/email-test'&&method==='POST'){
+   if(!env.RESEND_API_KEY||!env.FROM_EMAIL||!env.OWNER_EMAIL)return fail('Сначала настройте почтовые параметры Resend.',409);
+   try{
+     await sendOwnerEmail(env,'Pakkasukko: проверка уведомлений','Это тестовое письмо из календаря Pakkasukko. Если вы получили его, подтвердите получение в админке перед запуском приёма заявок.');
+     await setSetting(env,'mail_test',now());
+     await setSetting(env,'mail_received','false');
+     return reply({ok:true,message:'Почтовый сервис принял тестовое письмо. Проверьте входящие и папку спама.'});
+   }catch(e){return fail(e?.message||'Не удалось отправить тестовое письмо.',502);}
+ }
+ if(path==='/api/admin/booking-state'&&method==='POST'){
+   const body=await parse(req);
+   if(typeof body.enabled!=='boolean')return fail('Укажите, включать ли приём заявок.');
+   if(!body.enabled){
+     await setSetting(env,'enabled','false');
+     return reply(await bookingState(env));
+   }
+   if(body.mailReceived!==true||body.privacyConfirmed!==true)return fail('Подтвердите получение письма и публикацию политики конфиденциальности.',409);
+   await setSetting(env,'mail_received','true');
+   await setSetting(env,'privacy_confirmed','true');
+   const state=await bookingState(env);
+   if(!state.canEnable)return reply({error:'Не все условия выполнены.',missing:state.missing},409);
+   await setSetting(env,'enabled','true');
+   return reply(await bookingState(env));
+ }
  if(path==='/api/admin/dashboard'&&method==='GET'){
    const [slots,bookings,messages]=await Promise.all([env.DB.prepare('SELECT * FROM slots ORDER BY start_at LIMIT 1000').all(),env.DB.prepare('SELECT b.*,s.start_at,s.end_at,d.price,d.notes,d.final_status FROM bookings b JOIN slots s ON s.id=b.slot_id LEFT JOIN booking_details d ON d.booking_id=b.id ORDER BY s.start_at,b.created_at LIMIT 1000').all(),env.DB.prepare('SELECT * FROM messages ORDER BY created_at DESC LIMIT 500').all()]);
    return reply({slots:slots.results||[],bookings:bookings.results||[],messages:messages.results||[],content:await getContent(env)});

@@ -52,3 +52,9 @@ BEGIN UPDATE slots SET status='open',booking_id=NULL WHERE booking_id=NEW.bookin
 CREATE TRIGGER IF NOT EXISTS cancel_booking_insert AFTER INSERT ON booking_details
 WHEN NEW.final_status='cancelled'
 BEGIN UPDATE slots SET status='open',booking_id=NULL WHERE booking_id=NEW.booking_id; END;
+
+-- RUN-017: owner-controlled booking launch, OFF by default on every new database.
+CREATE TABLE IF NOT EXISTS booking_settings (
+ key TEXT PRIMARY KEY,
+ value TEXT NOT NULL
+);

@@ -259,3 +259,8 @@ main > section:not(.intro) > .section-media-frame,
 @media(max-width:760px){
   .cards.cards-four{grid-template-columns:minmax(0,1fr);max-width:470px}
 }
+
+/* RUN-017: When only viewing availability, time slots remain visible but cannot be selected. */
+.slot-readonly{display:inline-flex;align-items:center;justify-content:center;cursor:default;opacity:.85}
+#bookingSettingsPanel input[type=checkbox]{width:auto;min-height:0;margin-right:9px}
+#bookingSettingsPanel button:disabled{opacity:.45;cursor:not-allowed}
