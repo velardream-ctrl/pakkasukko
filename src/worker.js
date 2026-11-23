@@ -26,7 +26,7 @@ function csv(rows,keys,filename){const lines=[keys.map(csvCell).join(';'),...row
 async function api(req,env,ctx,url){
  const path=url.pathname,method=req.method;
  if(path.startsWith('/api/media/'))return mediaAPI(req,env,path,reply,false);
- if(path==='/api/health'&&method==='GET')return reply({project:'pakkasukko',databaseReady:Boolean(env.DB),bookingsEnabled:live(env),environment:env.ENVIRONMENT||'preview'});
+ if(path==='/api/health'&&method==='GET')return reply({project:'pakkasukko',databaseReady:Boolean(env.DB),mediaReady:Boolean(env.MEDIA),bookingsEnabled:live(env),environment:env.ENVIRONMENT||'preview'});
  if(path==='/api/public-config'&&method==='GET')return reply({site:await published(env),content:await getContent(env),turnstileSiteKey:live(env)?env.TURNSTILE_SITE_KEY:'',bookingsEnabled:live(env)});
  if(path==='/api/slots'&&method==='GET'){if(!env.DB)return reply({slots:[],timezone:'Europe/Helsinki'});const s=await env.DB.prepare('SELECT id,start_at,end_at,status FROM slots WHERE start_at>=? ORDER BY start_at LIMIT 500').bind(fiNow().slice(0,10)+'T00:00').all();return reply({slots:s.results||[],timezone:'Europe/Helsinki'});}
  if(path==='/api/bookings'&&method==='POST'){
