@@ -196,3 +196,50 @@ main > section:not(.intro) > .section-media-frame,
   /* Offset matte is static; never animate photo frames or crop controls. */
   .about-portrait,.section-media-frame,.routes-art,.hero-photo{transition:none}
 }
+
+
+/* RUN-014: Main hero becomes a full-size cinematic composition, never a framed card.
+   Owner's actual photo stays editable via existing per-device crop controls. */
+.hero{
+  overflow:hidden;
+  background:radial-gradient(ellipse at 80% 34%,#233c4a 0%,#081b2b 43%,#071522 76%);
+}
+.hero-photo{
+  inset:82px 0 0 43%;
+  height:auto;
+  overflow:hidden;
+  border:0;
+  border-radius:0;
+  box-shadow:none;
+  background-image:none!important;
+  -webkit-mask-image:linear-gradient(to right,transparent 0%,#000 24%,#000 100%);
+  mask-image:linear-gradient(to right,transparent 0%,#000 24%,#000 100%);
+}
+.hero-photo img{
+  object-fit:cover;
+  object-position:center top;
+  transform-origin:center top;
+}
+.hero-shade{pointer-events:none}
+.hero-inner{z-index:1}
+@media(max-width:980px){
+  .hero{display:block;min-height:100svh}
+  .hero-photo{
+    inset:66px 0 auto;
+    height:clamp(330px,42svh,490px);
+    border-radius:0;
+    box-shadow:none;
+    -webkit-mask-image:linear-gradient(to bottom,#000 0%,#000 84%,transparent 100%);
+    mask-image:linear-gradient(to bottom,#000 0%,#000 84%,transparent 100%);
+  }
+  .hero-photo img{object-position:center top}
+  .hero-inner{padding:calc(66px + clamp(330px,42svh,490px) + 20px) 0 75px}
+  .hero-inner>*{max-width:700px}
+  .hero h1{font-size:clamp(50px,9vw,83px)}
+  .hero-bottom{display:none}
+}
+@media(max-width:600px){
+  .hero-photo{height:clamp(315px,41svh,410px)}
+  .hero-inner{padding-top:calc(66px + clamp(315px,41svh,410px) + 16px);padding-bottom:60px}
+  .hero h1{font-size:clamp(52px,12vw,65px)}
+}
