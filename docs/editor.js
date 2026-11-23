@@ -1,4 +1,4 @@
-import {devices,baseCrop,initial,bindPage,renderPage,cropPhoto,mediaURL} from './site.js';
+import {setField,devices,baseCrop,initial,bindPage,renderPage,cropPhoto,mediaURL} from './site.js';
 const $=id=>document.getElementById(id);
 const frame=document.querySelector('iframe'), panel=document.querySelector('main');
 const names={header:'Шапка',top:'Первый экран',intro:'Вступление',programs:'Программы',about:'Об артисте',routes:'Города',booking:'Календарь',contact:'Контакты',privacy:'Конфиденциальность',footer:'Подвал'};
@@ -36,7 +36,13 @@ function assets(select,imagesOnly=false){
 function section(){
   const group=$('section').value;
   $('fields').replaceChildren();
-  for(const f of fields.filter(f=>f.group===group))input($('fields'),f.original.trim().slice(0,60),model.texts[f.key]??f.original,v=>{model.texts[f.key]=v;f.node.textContent=v;},'textarea');
+  const query=$('textSearch').value.trim().toLocaleLowerCase('ru');
+  for(const f of fields){
+    const value=model.texts[f.key]??f.original;
+    if(query ? !(value+' '+f.original).toLocaleLowerCase('ru').includes(query) : f.group!==group)continue;
+    const label=(query?names[f.group]+' · ':'')+(f.attribute==='placeholder'?'Подсказка поля · ':'')+f.original.trim().slice(0,80);
+    input($('fields'),label,value,v=>{model.texts[f.key]=v;setField(f,v);if(!f.node)draw();},'textarea');
+  }
   if(group==='programs')for(const link of doc.querySelectorAll('.card [data-service]')){
     const k=link.dataset.service;input($('fields'),'Длительность · '+link.closest('.card').querySelector('h3').textContent,model.durations[k]||'',v=>{model.durations[k]=v;draw();});
   }
@@ -100,7 +106,8 @@ async function init(){
 }
 $('device').onchange=()=>{landscape=false;layout();};
 action('rotate',()=>{landscape=!landscape;layout();});
-$('section').onchange=section;
+$('textSearch').oninput=section;
+$('section').onchange=()=>{$('textSearch').value='';section();};
 $('preset').onchange=e=>{if(e.target.value){Object.assign(crop(),{zoom:Number(e.target.value),x:0,y:0});draw();}};
 $('logo').onchange=e=>{model.logo=e.target.value;draw();};
 $('photo').onchange=e=>{crop().image=e.target.value;draw();};

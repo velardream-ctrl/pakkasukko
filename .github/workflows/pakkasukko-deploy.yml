@@ -6,6 +6,9 @@ on:
       - '.github/workflows/pakkasukko-deploy.yml'
       - 'scripts/deploy-preview.mjs'
       - 'wrangler.toml'
+      - 'docs/**'
+      - 'src/**'
+      - 'schema.sql'
   workflow_dispatch:
 permissions:
   contents: read

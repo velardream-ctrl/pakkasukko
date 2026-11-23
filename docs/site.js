@@ -17,6 +17,23 @@ export function cropPhoto(doc,crop,editing){
   if(img.getAttribute('src')!==src)img.setAttribute('src',src);
   img.style.transform='translate('+crop.x+'%, '+crop.y+'%) scale('+crop.zoom/100+')';
 }
+const messages={
+  "noDates": "Доступные даты пока не открыты. Свяжитесь с Дедом Морозом позже.",
+  "chooseTime": "Выберите свободное время",
+  "send": "Отправить заявку ↗",
+  "pending": "Это предварительная заявка. После отправки дождитесь личного подтверждения.",
+  "captcha": "Подтвердите проверку от спама.",
+  "sending": "Отправка...",
+  "error": "Не удалось отправить заявку",
+  "success": "Ваша заявка отправлена. Пожалуйста, дождитесь личного подтверждения бронирования",
+  "retry": "Повторить отправку",
+  "programButton": "Выбрать программу"
+};
+export const pageText=(model,key)=>model.texts['message-'+key]??messages[key];
+export function setField(field,value){
+  if(field.attribute)field.node.setAttribute(field.attribute,value);
+  else if(field.node)field.node.textContent=value;
+}
 export function bindPage(doc){
   const fields=[];
   doc.querySelector('.intro').id='intro';
@@ -29,10 +46,24 @@ export function bindPage(doc){
       fields.push({group,key:group+'-'+fields.filter(f=>f.group===group).length,node,original:node.textContent});
     }
   }
+  // Append non-text fields after collecting legacy keys so earlier revisions still match.
+  for(const node of doc.querySelectorAll('header *,main *,footer *')){
+    const section=node.closest('main > section,header,footer');
+    if(!section)continue;
+    const group=section.id||section.tagName.toLowerCase();
+    for(const attribute of ['placeholder','aria-label','alt','title']){
+      if(!node.hasAttribute(attribute))continue;
+      const name=node.name||node.id||node.classList[0]||node.tagName.toLowerCase();
+      fields.push({group,key:[group,attribute,name].join(':'),node,attribute,original:node.getAttribute(attribute)});
+    }
+  }
+  const year=doc.getElementById('year');
+  fields.push({group:'footer',key:'footer-year',node:year,original:String(new Date().getFullYear())});
+  for(const [key,original] of Object.entries(messages))fields.push({group:key==='programButton'?'programs':'booking',key:'message-'+key,original});
   return fields;
 }
 export function renderPage(doc,model,fields,device,editing=false){
-  for(const f of fields)f.node.textContent=model.texts[f.key]??f.original;
+  for(const f of fields)setField(f,model.texts[f.key]??f.original);
   for(const id of model.order){const section=doc.getElementById(id);if(section?.parentElement?.tagName==='MAIN')section.parentElement.append(section);}
   for(const section of doc.querySelectorAll('main > section')){
     section.hidden=model.hidden.includes(section.id);
@@ -64,7 +95,7 @@ export function renderPage(doc,model,fields,device,editing=false){
     }
     if(card.id){
       const option=doc.createElement('option');option.className='extra-option';option.value=card.id;option.textContent=card.title+' · '+card.price;doc.querySelector('#service').append(option);
-      const link=doc.createElement('a');link.href='#booking';link.textContent='Выбрать программу';link.onclick=()=>{doc.querySelector('#service').value=card.id;};box.append(link);
+      const link=doc.createElement('a');link.href='#booking';link.textContent=pageText(model,'programButton');link.onclick=()=>{doc.querySelector('#service').value=card.id;};box.append(link);
     }
     doc.querySelector('.cards').append(box);
   }
