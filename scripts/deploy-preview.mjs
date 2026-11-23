@@ -14,9 +14,17 @@ const dbName='pakkasukko-db',bucket='pakkasukko-preview-media';
 let db=(await call('/d1/database?name='+dbName)).find(item=>item.name===dbName);
 if(!db)db=await call('/d1/database',{method:'POST',body:JSON.stringify({name:dbName})});
 if(db.name!==dbName||!/^[a-f0-9-]{36}$/.test(db.uuid))throw Error('Unexpected D1 identity');
+let mediaEnabled=true;
+try {
 const buckets=await call('/r2/buckets?name_contains='+bucket);
 if(!buckets.buckets.some(item=>item.name===bucket))await call('/r2/buckets',{method:'POST',body:JSON.stringify({name:bucket})});
-const original=readFileSync('wrangler.toml','utf8');
+} catch(error) {
+ if(!error.message.includes('(codes 10042)'))throw error;
+ mediaEnabled=false;
+ console.warn('R2 subscription inactive. Publishing preview with bundled portrait.');
+}
+let original=readFileSync('wrangler.toml','utf8');
+if(!mediaEnabled)original=original.replace(/\[\[r2_buckets\]\]\s*binding = "MEDIA"\s*bucket_name = "pakkasukko-preview-media"/, '');
 if(!original.includes('name = "pakkasukko"')||!original.includes('ACCEPT_BOOKINGS = "false"'))throw Error('Unexpected deployment configuration');
 const config='.pakkasukko-preview.toml', secrets=process.env.RUNNER_TEMP+'/pakkasukko-worker-secrets.json';
 const wrangler=(...args)=>execFileSync('node_modules/.bin/wrangler',[...args,'--config',config],{stdio:'inherit'});
