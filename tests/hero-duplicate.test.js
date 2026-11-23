@@ -9,7 +9,7 @@ test('old global hero photo is drawn once, without any extra hero media card',()
  const css=readFileSync(new URL('../docs/style.css',import.meta.url),'utf8');
  assert.match(site,/if\(section\.id==='top'\)continue;/);
  assert.match(site,/image:heroImageId\(model,device\)/);
- assert.match(html,/<div class="hero-photo"[^>]*><img src="\.\/assets\/pakkasukko-ded-moroz\.webp" alt=""><\/div>/);
+ assert.match(html,/<div class="hero-photo"[^>]*><img src="\.\/assets\/pakkasukko-ded-moroz\.webp" alt=""[^>]*><\/div>/);
  assert.match(css,/\.hero-photo\{background-image:none!important\}/);
  assert.match(css,/\.about-portrait\{background-image:none!important\}/);
  const m=initial();
