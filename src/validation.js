@@ -13,11 +13,11 @@ export function addMinutes(stamp,minutes){
  if(!validStamp(stamp)||!Number.isInteger(minutes)||minutes<1||minutes>720)throw Error('Неверное время.');
  return new Date(Date.parse(stamp+':00Z')+minutes*60000).toISOString().slice(0,16);
 }
-export function validateBooking(input){
- const b={slotId:clean(input?.slotId,80),service:clean(input?.service,30),name:clean(input?.name,100),phone:clean(input?.phone,40),
+export function validateBooking(input,programs=[]){
+ const b={slotId:clean(input?.slotId,80),service:clean(input?.service,80),name:clean(input?.name,100),phone:clean(input?.phone,40),
  email:clean(input?.email,150),city:clean(input?.city,100),address:clean(input?.address,200),message:clean(input?.message,1200),turnstileToken:clean(input?.turnstileToken,2048)};
  if(!/^[\w-]{6,80}$/.test(b.slotId))throw Error('Выберите время.');
- if(!['gift','home','event'].includes(b.service))throw Error('Выберите формат праздника.');
+ if(!['gift','home','event',...programs].includes(b.service))throw Error('Выберите формат праздника.');
  if(b.name.length<2||b.phone.length<5||b.city.length<2||b.address.length<3)throw Error('Укажите имя, телефон, город и адрес.');
  if(b.email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(b.email))throw Error('Неверный email.');
  return b;

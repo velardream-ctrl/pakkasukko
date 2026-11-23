@@ -1,4 +1,4 @@
-name = "pakkasukko"
+name = "pakkasukko-preview"
 main = "src/worker.js"
 compatibility_date = "2026-10-01"
 workers_dev = true
@@ -21,3 +21,7 @@ OWNER_EMAIL = ""
 FROM_EMAIL = ""
 # Private values must be configured as Cloudflare Worker secrets,
 # never committed: ADMIN_PASSWORD, SESSION_SECRET, TURNSTILE_SECRET, RESEND_API_KEY.
+
+[[r2_buckets]]
+binding = "MEDIA"
+bucket_name = "pakkasukko-preview-media"

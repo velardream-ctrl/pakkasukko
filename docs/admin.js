@@ -1,6 +1,5 @@
 const $=id=>document.getElementById(id);
 let state=null;
-const labels={giftPrice:'Стоимость короткого поздравления',homePrice:'Стоимость домашней программы',eventPrice:'Стоимость корпоратива',bio:'История и опыт',travel:'География выездов'};
 const preview=location.hostname.endsWith('github.io')||location.hostname.endsWith('githack.com');
 if(preview){$('previewNotice').classList.remove('hidden');$('loginForm').querySelector('button').disabled=true;}
 async function request(path,method='GET',data){
@@ -17,10 +16,20 @@ async function reload(){
  try{state=await request('/api/admin/dashboard');$('loginBox').classList.add('hidden');$('dashboard').classList.remove('hidden');$('logout').classList.remove('hidden');render();}
  catch(e){$('dashboard').classList.add('hidden');$('loginBox').classList.remove('hidden');$('logout').classList.add('hidden');}
 }
+$('day').value=new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Helsinki'}).format(new Date());
+$('day').onchange=$('period').onchange=()=>render();
 function render(){
+ const start=new Date($('day').value+'T00:00:00Z');
+ if(!Number.isFinite(+start))return;
+ const period=$('period').value;
+ if(period==='month')start.setUTCDate(1);
+ if(period==='week')start.setUTCDate(start.getUTCDate()-(start.getUTCDay()+6)%7);
+ const end=new Date(start);
+ if(period==='month')end.setUTCMonth(end.getUTCMonth()+1);else end.setUTCDate(end.getUTCDate()+(period==='week'?7:1));
+ const slots=state.slots.filter(s=>s.start_at<end.toISOString().slice(0,16)&&s.end_at>start.toISOString().slice(0,16));
  const s=$('slotList'),b=$('bookingList'),m=$('messageList');s.replaceChildren();b.replaceChildren();m.replaceChildren();
- if(!state.slots.length)textBlock(s,'p','Интервалы пока не добавлены.','muted');
- for(const slot of state.slots){
+ if(!slots.length)textBlock(s,'p','Интервалы пока не добавлены.','muted');
+ for(const slot of slots){
   const item=el('article',undefined,'record');textBlock(item,'h3',format(slot.start_at)+' — '+format(slot.end_at));
   textBlock(item,'span',({open:'Свободно',blocked:'Заблокировано',reserved:'Подтверждено'}[slot.status]||slot.status),'pill');
   if(slot.note)textBlock(item,'p',slot.note);
@@ -30,14 +39,24 @@ function render(){
  if(!state.bookings.length)textBlock(b,'p','Заявок пока нет.','muted');
  for(const v of state.bookings){
   const item=el('article',undefined,'record');textBlock(item,'h3',format(v.start_at)+' — '+format(v.end_at));
-  textBlock(item,'span',({pending:'Ожидает',confirmed:'Подтверждено',declined:'Отклонено'}[v.status]||v.status),'pill '+v.status);
+  textBlock(item,'span',({pending:'Ожидает',confirmed:'Подтверждено',declined:'Отклонено',completed:'Выполнено',cancelled:'Отменено'}[v.final_status||v.status]||v.status),'pill '+v.status);
   textBlock(item,'p',v.name+' · '+v.service);
   textBlock(item,'p','Телефон: '+v.phone+' · Email: '+(v.email||'—'));
   textBlock(item,'p','Адрес: '+v.city+', '+v.address);
   if(v.message)textBlock(item,'p',v.message);
   textBlock(item,'small','Заявка: '+v.id+' · '+v.created_at);
-  if(v.status==='pending')for(const [label,next,cls] of [['Подтвердить','confirmed','confirm'],['Отклонить','declined','decline']]){
+  if(!v.final_status&&v.status==='pending')for(const [label,next,cls] of [['Подтвердить','confirmed','confirm'],['Отклонить','declined','decline']]){
    button(item,label,async()=>{if(!confirm('Обработать заявку: '+label+'?'))return;try{await request('/api/admin/bookings/status','POST',{id:v.id,status:next});await reload();}catch(e){alert(e.message);}},cls);
+  }
+  if(!v.final_status&&['pending','confirmed'].includes(v.status)){
+   for(const [key,title] of [['cancelled','Отменить'],...(v.status==='confirmed'?[['completed','Выполнено']]:[])]){
+    button(item,title,async()=>{try{await request('/api/admin/bookings/status','POST',{id:v.id,status:key});await reload();}catch(e){alert(e.message);}});
+   }
+   const values={};
+   for(const [key,title,value] of [['price','Стоимость',v.price],['minutes','Минуты интервала',(+new Date(v.end_at+'Z')-new Date(v.start_at+'Z'))/60000],['notes','Заметки',v.notes]]){
+    const label=el('label',title),input=el('input');values[key]=input;input.value=value??'';label.append(input);item.append(label);
+   }
+   button(item,'Сохранить детали',async()=>{try{await request('/api/admin/bookings/details','POST',{id:v.id,...Object.fromEntries(Object.entries(values).map(([k,i])=>[k,i.value]))});await reload();}catch(e){alert(e.message);}});
   }
   b.append(item);
  }
@@ -48,13 +67,9 @@ function render(){
   if(v.status==='unread')button(item,'Отметить прочитанным',async()=>{try{await request('/api/admin/messages/read','POST',{id:v.id});await reload();}catch(e){alert(e.message);}});
   m.append(item);
  }
- const fields=$('contentFields');fields.replaceChildren();
- for(const [key,label] of Object.entries(labels)){
-  const wrap=el('label',label);const multiline=['bio','travel'].includes(key);const input=document.createElement(multiline?'textarea':'input');input.name=key;input.value=state.content?.[key]||'';input.maxLength=multiline?2000:80;if(multiline){input.rows=4;wrap.classList.add('wide');}wrap.append(input);fields.append(wrap);
- }
+
 }
-$('loginForm').addEventListener('submit',async e=>{e.preventDefault();try{await request('/api/admin/login','POST',Object.fromEntries(new FormData(e.currentTarget)));e.currentTarget.reset();status('loginStatus','');await reload();}catch(err){status('loginStatus',err.message,true);}});
+$('loginForm').addEventListener('submit',async e=>{e.preventDefault();try{await request('/api/admin/login','POST',Object.fromEntries(new FormData(e.currentTarget)));$('loginForm').reset();status('loginStatus','');await reload();}catch(err){status('loginStatus',err.message,true);}});
 $('logout').addEventListener('click',async()=>{try{await request('/api/admin/logout','POST');}finally{await reload();}});
 $('slotForm').addEventListener('submit',async e=>{e.preventDefault();const values=Object.fromEntries(new FormData(e.currentTarget));try{await request('/api/admin/slots','POST',values);status('slotStatus','Интервал добавлен.');await reload();}catch(err){status('slotStatus',err.message,true);}});
-$('contentForm').addEventListener('submit',async e=>{e.preventDefault();try{await request('/api/admin/content','POST',Object.fromEntries(new FormData(e.currentTarget)));status('contentStatus','Сохранено.');await reload();}catch(err){status('contentStatus',err.message,true);}});
 if(!preview)reload();

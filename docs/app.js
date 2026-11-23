@@ -1,3 +1,4 @@
+import {initial,bindPage,renderPage,cropPhoto,baseCrop,deviceFor} from './site.js';
 const $=(s)=>document.querySelector(s);
 $('#year').textContent=new Date().getFullYear();
 document.querySelectorAll('[data-service]').forEach(a=>a.addEventListener('click',()=>{$('#service').value=a.dataset.service;}));
@@ -11,6 +12,10 @@ async function activate(){
     for(const [id,key] of [['priceGift','giftPrice'],['priceHome','homePrice'],['priceEvent','eventPrice'],['bio','bio'],['travel','travel']]){
       if(config.content&&typeof config.content[key]==='string'&&config.content[key])document.getElementById(id).textContent=config.content[key];
     }
+    const model=Object.assign(initial(),config.site);
+    const currentDevice=()=>deviceFor(innerWidth,innerHeight);
+    renderPage(document,model,bindPage(document),currentDevice());
+    addEventListener('resize',()=>cropPhoto(document,model.crops[currentDevice()]||baseCrop()));
     if(!config.bookingsEnabled||!config.turnstileSiteKey) return;
     const slotsResp=await fetch('/api/slots',{cache:'no-store'});
     if(!slotsResp.ok)return;
@@ -19,7 +24,7 @@ async function activate(){
     const select=$('#dateSelect'),area=$('#slots'),form=$('#bookingForm'),submit=$('#bookingSubmit');
     const dates=[...new Set(slots.map(s=>s.start_at.slice(0,10)))].sort();
     if(!dates.length){$('#bookingMode').textContent='Доступные даты пока не открыты. Свяжитесь с Дедом Морозом позже.';return;}
-    select.disabled=false;select.replaceChildren(...dates.map(d=>new Option(new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(d+'T12:00:00Z')),d)));
+    $('#bookingFields').disabled=false;select.disabled=false;select.replaceChildren(...dates.map(d=>new Option(new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(d+'T12:00:00Z')),d)));
     function fill(){area.replaceChildren();$('#slotId').value='';submit.disabled=true;submit.textContent='Выберите свободное время';
       slots.filter(s=>s.start_at.startsWith(select.value)).forEach(s=>{const btn=document.createElement('button');btn.type='button';btn.className='slot';btn.textContent=s.start_at.slice(11,16)+'–'+s.end_at.slice(11,16);btn.addEventListener('click',()=>{area.querySelectorAll('button').forEach(b=>b.classList.remove('selected'));btn.classList.add('selected');$('#slotId').value=s.id;submit.disabled=false;submit.textContent='Отправить заявку ↗';});area.append(btn);});
     }

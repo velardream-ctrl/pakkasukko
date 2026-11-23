@@ -39,7 +39,7 @@
 <div class="preview-banner" id="bookingMode" role="status">Подключение защищённого календаря ещё не завершено. Пока доступен просмотр дизайна.</div>
 <label class="field-label" for="dateSelect">Выберите день</label><select id="dateSelect" disabled><option>Даты пока не опубликованы</option></select>
 <div class="slot-area" id="slots"><p>Доступные интервалы появятся после настройки расписания администратором.</p></div>
-<form id="bookingForm" class="booking-form" novalidate>
+<form id="bookingForm" class="booking-form" novalidate><fieldset id="bookingFields" disabled>
 <input type="hidden" name="slotId" id="slotId">
 <label>Формат праздника<select id="service" name="service" required><option value="gift">Поздравление с подарком · от 50 €</option><option value="home" selected>Домашняя программа · от 100 €</option><option value="event">Корпоратив / утренник / дискотека</option></select></label>
 <div class="form-row"><label>Как к вам обращаться<input name="name" autocomplete="name" maxlength="100" required placeholder="Имя"></label><label>Телефон<input name="phone" autocomplete="tel" maxlength="40" required placeholder="+358 ..."></label></div>
@@ -50,7 +50,7 @@
 <label class="consent"><input type="checkbox" name="consent" required> Я ознакомился(-ась) с <a href="#privacy">информацией об обработке данных</a> и согласен(-на) отправить заявку для связи по поводу праздника.</label>
 <button id="bookingSubmit" type="submit" class="btn btn-dark" disabled>Бронирование пока недоступно</button>
 <p class="form-message" id="bookingMessage" role="status"></p>
-</form></div></div></section>
+</fieldset></form></div></div></section>
 <section class="contact section" id="contact"><div class="container contact-grid"><div><p class="section-kicker">ОСОБЕННОЕ ПОЖЕЛАНИЕ?</p><h2>Напишите<br><em>Деду Морозу</em></h2><p>Корпоратив, детский утренник, необычный сюрприз или поездка в другой город — каждую идею можно обсудить индивидуально.</p></div><div class="contact-box"><span class="panel-overline">ОБРАТНАЯ СВЯЗЬ</span><p>Форма сообщений появится после подключения защищённой базы и уведомлений на электронную почту.</p><a class="btn btn-gold" href="#booking">Сначала посмотрим даты ↗</a></div></div></section>
 <section class="privacy section" id="privacy"><div class="container"><p class="section-kicker">ВАШИ ДАННЫЕ — ПОД ЗАЩИТОЙ</p><h2>Конфиденциальность</h2><p>До публикации политики конфиденциальности и реквизитов организатора приём заявок отключён. После запуска данные о бронировании будут использоваться только для согласования мероприятия, храниться в отдельной базе Pakkasukko и не публиковаться в календаре.</p></div></section>
 </main>
