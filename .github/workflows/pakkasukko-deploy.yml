@@ -1,0 +1,28 @@
+name: Deploy Pakkasukko preview
+on:
+  push:
+    branches: [preview]
+    paths:
+      - '.github/workflows/pakkasukko-deploy.yml'
+      - 'scripts/deploy-preview.mjs'
+      - 'wrangler.toml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency: pakkasukko-cloudflare-preview
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/preview'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm test
+      - run: npm install --no-save --no-package-lock wrangler@4.167.0
+      - run: node scripts/deploy-preview.mjs
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          PAKKASUKKO_ADMIN_PASSWORD: ${{ secrets.PAKKASUKKO_ADMIN_PASSWORD }}
