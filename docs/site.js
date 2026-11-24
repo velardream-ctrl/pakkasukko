@@ -137,7 +137,13 @@ const messages={
 export const pageText=(model,key)=>model.texts['message-'+key]??messages[key];
 export function setField(field,value){
   if(field.attribute)field.node.setAttribute(field.attribute,value);
-  else if(field.node)field.node.textContent=value;
+  else if(field.node){
+    field.node.textContent=value;
+    if(field.node.parentElement?.id==='provider-details'){
+      const copy=field.node.ownerDocument.querySelector('[data-provider-copy]');
+      if(copy)copy.textContent=value;
+    }
+  }
 }
 export function bindPage(doc){
   const fields=[];
@@ -147,7 +153,7 @@ export function bindPage(doc){
     const walker=doc.createTreeWalker(section,4);
     let node;
     while(node=walker.nextNode()){
-      if(!node.textContent.trim()||node.parentElement.closest('#year,script,style,.snow'))continue;
+      if(!node.textContent.trim()||node.parentElement.closest('#year,script,style,.snow,[data-provider-copy]'))continue;
       fields.push({group,key:group+'-'+fields.filter(f=>f.group===group).length,node,original:node.textContent});
     }
   }
