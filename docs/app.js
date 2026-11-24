@@ -64,7 +64,25 @@ async function activate(){
     select.disabled=false;
     select.replaceChildren(...dates.map(d=>new Option(dateLabel(d),d)));
 
+    let submissionKey='',previousSelection='';
+    const chosen=new Map(),addressInputs=new Map(),originalAddress=form.elements.address;
+    const addressLabel=originalAddress.closest('label'),addressList=document.createElement('div');
+    addressLabel.after(addressList);
+    function syncVisits(){
+      const list=[...chosen.values()].sort((a,b)=>a.start_at.localeCompare(b.start_at));
+      if(!addressInputs.size&&list.length===1&&!addressInputs.has(list[0].id))addressInputs.set(list[0].id,originalAddress.value);
+      addressList.replaceChildren();addressLabel.hidden=Boolean(list.length);originalAddress.required=!list.length;
+      for(const slot of list){
+        const label=document.createElement('label'),field=document.createElement('input');
+        label.textContent='Адрес на '+slot.start_at.slice(11,16);field.required=true;field.maxLength=200;field.minLength=3;
+        field.value=addressInputs.get(slot.id)||'';field.placeholder='Улица и дом';
+        field.oninput=()=>addressInputs.set(slot.id,field.value);label.append(field);addressList.append(label);
+      }
+      $('#slotId').value=list[0]?.id||'';fare.setCount(list.length);
+      submit.disabled=!list.length;submit.textContent=list.length?pageText(model,'send'):pageText(model,'chooseTime');
+    }
     function fill(){
+      chosen.clear();addressInputs.clear();addressList.replaceChildren();addressLabel.hidden=false;originalAddress.required=true;fare.setCount(1);
       area.replaceChildren();$('#slotId').value='';submit.disabled=true;
       submit.textContent=selectable?pageText(model,'chooseTime'):'Приём заявок пока закрыт';
       for(const slot of slots.filter(s=>s.start_at.startsWith(select.value))){
@@ -74,9 +92,9 @@ async function activate(){
         if(selectable){
           element.type='button';
           element.addEventListener('click',()=>{
-            area.querySelectorAll('button').forEach(b=>b.classList.remove('selected'));
-            element.classList.add('selected');$('#slotId').value=slot.id;
-            submit.disabled=false;submit.textContent=pageText(model,'send');
+            if(chosen.has(slot.id))chosen.delete(slot.id);
+            else{if(chosen.size>=25){alert('За одну заявку можно выбрать до 25 адресов.');return;}chosen.set(slot.id,slot);}
+            element.classList.toggle('selected',chosen.has(slot.id));element.setAttribute('aria-pressed',String(chosen.has(slot.id)));syncVisits();
           });
         }else element.title='Интервал открыт для просмотра. Отправка заявки пока выключена.';
         area.append(element);
@@ -91,8 +109,11 @@ async function activate(){
     const script=document.createElement('script');script.src='https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';script.async=true;script.onload=()=>{window.turnstile?.render('#captcha',{sitekey:config.turnstileSiteKey,callback:(token)=>{form.dataset.captcha=token;},'expired-callback':()=>{form.dataset.captcha='';}});};document.head.append(script);
     form.addEventListener('submit',async e=>{e.preventDefault();const out=$('#bookingMessage');out.textContent='';if(!form.reportValidity())return;
       if(!form.dataset.captcha){out.textContent=pageText(model,'captcha');return;}
-      const fd=new FormData(form);const payload={...Object.fromEntries(fd.entries()),...fare.payload()};delete payload.consent;payload.turnstileToken=form.dataset.captcha;submit.disabled=true;submit.textContent=pageText(model,'sending');
-      try{const r=await fetch('/api/bookings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});const res=await r.json();if(!r.ok){if(res.fares){Object.assign(config,{fares:res.fares,services:res.services});fare.update();}throw Error(res.error||pageText(model,'error'));}out.textContent=pageText(model,'success')+' '+res.summary;form.reset();$('#slotId').value='';$('#dateSelect').dispatchEvent(new Event('change'));window.turnstile?.reset();form.dataset.captcha='';}catch(err){out.textContent=err.message;submit.disabled=false;submit.textContent=pageText(model,'retry');}
+      const fd=new FormData(form);const payload={...Object.fromEntries(fd.entries()),...fare.payload()};payload.visits=[...chosen.values()].sort((a,b)=>a.start_at.localeCompare(b.start_at)).map(s=>({slotId:s.id,address:addressInputs.get(s.id)||''}));delete payload.consent;
+      const signature=JSON.stringify(payload);
+      if(signature!==previousSelection){submissionKey=crypto.randomUUID();previousSelection=signature;}
+      payload.submissionKey=submissionKey;payload.turnstileToken=form.dataset.captcha;submit.disabled=true;submit.textContent=pageText(model,'sending');
+      try{const r=await fetch('/api/bookings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});const res=await r.json();if(!r.ok){if(res.fares){Object.assign(config,{fares:res.fares,services:res.services});fare.update();}throw Error(res.error||pageText(model,'error'));}previousSelection='';out.textContent=pageText(model,'success')+' '+res.summary;for(const visit of res.receipts||[]){const link=document.createElement('a');link.href='./trip.html#'+visit.id;link.textContent='Расчёт по визиту '+visit.time.replace('T',' ');out.append(document.createElement('br'),link);}form.reset();$('#slotId').value='';$('#dateSelect').dispatchEvent(new Event('change'));window.turnstile?.reset();form.dataset.captcha='';}catch(err){out.textContent=err.message;submit.disabled=false;submit.textContent=pageText(model,'retry');}
     });
   }catch(error){console.warn('Pakkasukko API not ready',error.message);}
 }

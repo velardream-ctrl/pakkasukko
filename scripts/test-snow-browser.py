@@ -105,5 +105,25 @@ with sync_playwright() as playwright:
         const ratio = header.querySelector('small').offsetWidth / header.querySelector('.brand-name').offsetWidth;
         return Math.abs(ratio - 0.7) < 0.025;
     }""")
+    # Public calendar: pick later time first, then add an earlier address.
+    page.unroute("**/api/admin/editor")
+    page.route("**/api/public-config", lambda r: r.fulfill(json={"bookingsEnabled": True, "turnstileSiteKey": "test", "site": {}}))
+    times = ["10:00", "11:00"]
+    page.route("**/api/slots", lambda r: r.fulfill(json={"slots": [
+        {"id": "slot-" + str(i), "start_at": "2099-12-24T" + t, "end_at": "2099-12-24T" + t[:3] + "30", "status": "open"}
+        for i, t in enumerate(times)
+    ]}))
+    page.goto(f"http://127.0.0.1:{server.server_port}/", wait_until="domcontentloaded")
+    page.get_by_role("button", name="11:00–11:30").click()
+    page.get_by_label("Адрес на 11:00").fill("Road 2")
+    page.get_by_role("button", name="10:00–10:30").click()
+    page.get_by_label("Адрес на 10:00").fill("Road 1")
+    expect(page.get_by_label("Адрес на 11:00")).to_have_value("Road 2")
+    page.get_by_role("combobox", name="Город праздника").select_option("Tohmajärvi")
+    page.locator("#service").select_option("gift")
+    expect(page.locator(".fare-summary strong")).to_contain_text("108,80")
+    page.get_by_role("button", name="10:00–10:30").click()
+    expect(page.get_by_label("Адрес на 10:00")).to_have_count(0)
+    expect(page.get_by_label("Адрес на 11:00")).to_have_value("Road 2")
     assert not errors, errors
     browser.close()

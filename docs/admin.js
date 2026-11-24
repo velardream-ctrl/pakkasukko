@@ -1,3 +1,4 @@
+import {sellerForm,invoiceControls} from './billing-panel.js';
 import {applyBrand} from './site.js';
 const $=id=>document.getElementById(id);
 let state=null;
@@ -138,6 +139,7 @@ function render(){
    }
    button(item,'Сохранить детали',async()=>{try{await request('/api/admin/bookings/details','POST',{id:v.id,...Object.fromEntries(Object.entries(values).map(([k,i])=>[k,i.value]))});await reload();}catch(e){alert(e.message);}});
   }
+  invoiceControls(item,v,request,reload);
   b.append(item);
  }
  if(!state.messages.length)textBlock(m,'p','Сообщений пока нет.','muted');
@@ -153,3 +155,5 @@ $('loginForm').addEventListener('submit',async e=>{e.preventDefault();try{await 
 $('logout').addEventListener('click',async()=>{try{await request('/api/admin/logout','POST');}finally{await reload();}});
 $('slotForm').addEventListener('submit',async e=>{e.preventDefault();const values=Object.fromEntries(new FormData(e.currentTarget));try{await request('/api/admin/slots','POST',values);status('slotStatus','Интервал добавлен.');await reload();}catch(err){status('slotStatus',err.message,true);}});
 if(!preview)reload();
+
+document.getElementById('billingSettings').ontoggle=e=>{if(e.target.open)sellerForm(document.getElementById('sellerForm'),request).catch(err=>alert(err.message));};

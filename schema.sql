@@ -64,3 +64,15 @@ CREATE TABLE IF NOT EXISTS booking_quotes (
  booking_id TEXT PRIMARY KEY REFERENCES bookings(id),
  snapshot TEXT NOT NULL, summary TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS trip_shares (
+ booking_id TEXT PRIMARY KEY REFERENCES bookings(id), trip_id TEXT NOT NULL,
+ participants INTEGER NOT NULL, pool INTEGER NOT NULL, share INTEGER NOT NULL, departed TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS invoices (
+ number INTEGER PRIMARY KEY AUTOINCREMENT, booking_id TEXT UNIQUE NOT NULL REFERENCES bookings(id),
+ document TEXT NOT NULL, sent_at TEXT
+);
+CREATE TABLE IF NOT EXISTS booking_submissions (
+ token TEXT PRIMARY KEY, fingerprint TEXT NOT NULL, result TEXT NOT NULL
+);

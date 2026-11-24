@@ -1,4 +1,5 @@
-import {defaultFare,validFare,prices,quote,describe} from '../docs/fares.js';
+import {billing} from './billing.js';
+import {defaultFare,validFare,prices,quote,describe,visitQuote,euros} from '../docs/fares.js';
 import {mediaAPI} from './media.js';
 import {published,editorAPI} from './editor.js';
 import {DEFAULT_CONTENT,clean,normalizeContent,validStamp,addMinutes,validateBooking,csvCell} from './validation.js';
@@ -62,6 +63,7 @@ async function emailOwner(env,subject,body){try{await sendOwnerEmail(env,subject
 function csv(rows,keys,filename){const lines=[keys.map(csvCell).join(';'),...rows.map(row=>keys.map(k=>csvCell(row[k])).join(';'))];return new Response('\uFEFF'+lines.join('\r\n'),{headers:{'Content-Type':'text/csv; charset=utf-8','Content-Disposition':'attachment; filename="'+filename+'"','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});}
 async function api(req,env,ctx,url){
  const path=url.pathname,method=req.method;
+ if(path==='/api/trip'&&method==='GET')return billing(req,env,'share',reply);
  if(path.startsWith('/api/media/'))return mediaAPI(req,env,path,reply,false);
  if(path==='/api/health'&&method==='GET'){
    const state=await bookingState(env);
@@ -77,21 +79,44 @@ async function api(req,env,ctx,url){
    if(!(await bookingState(env)).enabled)return fail('Приём заявок пока не включён.',503);
    const site=await published(env),cards=site.cards||[];
    const input=await parse(req);
-   const b=validateBooking(input,cards.map(c=>c.id));
+   const key=input.submissionKey||'';
+   if(key&&!/^[a-f0-9-]{36}$/.test(key))return fail('Неверный идентификатор отправки.');
+   const fingerprint=key?await mac(env.SESSION_SECRET,JSON.stringify({...input,turnstileToken:''})):'';
+   const replay=async()=>{
+     const stored=key&&await env.DB.prepare('SELECT fingerprint,result FROM booking_submissions WHERE token=?').bind(key).first();
+     return stored?(same(stored.fingerprint,fingerprint)?reply(JSON.parse(stored.result),201):fail('Данные отправки изменились.',409)):null;
+   };
+   if(key){const previous=await replay();if(previous)return previous;}
+   const visits=input.visits??[{slotId:input.slotId,address:input.address}];
+   if(!Array.isArray(visits)||!visits.length||visits.length>25||visits.some(v=>!v||typeof v!=='object')||new Set(visits.map(v=>v.slotId)).size!==visits.length)return fail('Выберите от 1 до 25 разных интервалов.');
+   let orders;
+   try{orders=visits.map(v=>validateBooking({...input,slotId:v.slotId,address:v.address},cards.map(c=>c.id)));}
+   catch(e){return fail(e.message);}
+   const b=orders[0];
    const services=prices(site,await getContent(env)),fares=await fareSettings(env);
-   const snapshot=quote(fares,services[b.service],b.city,input.group===true);
+   const snapshot=quote(fares,services[b.service],b.city,orders.length>1||(!input.visits&&input.group===true));
    if(JSON.stringify(snapshot)!==input.quoteToken)return reply({error:'Тариф изменился. Проверьте новый расчёт и отправьте заявку ещё раз.',fares,services},409);
    const summary=describe(snapshot);
    b.service=cards.find(c=>c.id===b.service)?.title||b.service;
    if(!await human(b.turnstileToken,req,env))return fail('Пройдите проверку от спама.',403);
    if(!await rateLimit(req,env,'booking',5,60))return fail('Слишком много запросов.',429);
-   const slot=await env.DB.prepare('SELECT id,start_at,end_at,status FROM slots WHERE id=?').bind(b.slotId).first();
-   if(!slot||slot.status!=='open'||slot.start_at<=fiNow())return fail('Время уже недоступно.',409);
-   const id=crypto.randomUUID();
-   await env.DB.batch([env.DB.prepare("INSERT INTO bookings(id,slot_id,service,name,phone,email,city,address,message,status,created_at) VALUES(?,?,?,?,?,?,?,?,?,'pending',?)").bind(id,b.slotId,b.service,b.name,b.phone,b.email,b.city,b.address,b.message,now()),
-     env.DB.prepare("INSERT INTO booking_quotes(booking_id,snapshot,summary) VALUES(?,?,?)").bind(id,JSON.stringify(snapshot),summary)]);
-   ctx.waitUntil(emailOwner(env,'Новая заявка Pakkasukko',['Новая предварительная заявка. Нуждается в подтверждении.','Дата: '+slot.start_at+' — '+slot.end_at,'Формат: '+b.service,summary,'Имя: '+b.name,'Телефон: '+b.phone,'Email: '+b.email,'Город: '+b.city,'Адрес: '+b.address,'Пожелания: '+b.message,'ID: '+id].join('\n')));
-   return reply({id,summary,status:'pending',message:'Ваша заявка отправлена. Пожалуйста, дождитесь личного подтверждения бронирования.'},201);
+   const placeholders=orders.map(()=>'?').join(',');
+   const {results:slots}=await env.DB.prepare('SELECT * FROM slots WHERE id IN ('+placeholders+') ORDER BY start_at').bind(...orders.map(o=>o.slotId)).all();
+   if(slots.length!==orders.length||slots.some(s=>s.status!=='open'||s.start_at<=fiNow()||s.start_at.slice(0,10)!==slots[0].start_at.slice(0,10)))return fail('Один из интервалов недоступен. Выберите свободное время в один день.',409);
+   const groupId=crypto.randomUUID(),statements=[],receipts=[];
+   for(const [index,slot] of slots.entries()){
+     const order=orders.find(o=>o.slotId===slot.id),id=crypto.randomUUID();
+     const saved={...visitQuote(snapshot,slots.length,index),groupId};
+     const detail=slots.length===1?summary:'Визит '+(index+1)+'/'+slots.length+' · Доля дороги '+(saved.travel==null?'по согласованию':euros(saved.travel))+' · Итого '+(saved.total==null?'по согласованию':euros(saved.total));
+     statements.push(env.DB.prepare("INSERT INTO bookings(id,slot_id,service,name,phone,email,city,address,message,status,created_at) VALUES(?,(SELECT id FROM slots WHERE id=? AND status='open'),?,?,?,?,?,?,?,'pending',?)").bind(id,slot.id,b.service,b.name,b.phone,b.email,b.city,order.address,b.message,now()),
+       env.DB.prepare("INSERT INTO booking_quotes(booking_id,snapshot,summary) VALUES(?,?,?)").bind(id,JSON.stringify(saved),detail));
+     receipts.push({id,time:slot.start_at,address:order.address,summary:detail});
+   }
+   const result={id:receipts[0].id,receipts,status:'pending',summary:receipts.map(v=>v.summary).join(' / ')};
+   if(key)statements.unshift(env.DB.prepare('INSERT INTO booking_submissions VALUES(?,?,?)').bind(key,fingerprint,JSON.stringify(result)));
+   try{await env.DB.batch(statements);}catch(e){if(key){const previous=await replay();if(previous)return previous;}if(String(e).includes('NOT NULL'))return fail('Один из интервалов уже занят.',409);throw e;}
+   ctx.waitUntil(emailOwner(env,'Новая заявка Pakkasukko',[b.service,b.name,b.phone,b.email,b.city,b.message,...receipts.map(v=>v.time+' · '+v.address+' · '+v.summary)].join('\n')));
+   return reply(result,201);
  }
  if(path==='/api/messages'&&method==='POST'){
    if(!(await bookingState(env)).enabled)return fail('Сообщения пока не принимаются.',503);
@@ -119,6 +144,7 @@ async function api(req,env,ctx,url){
    return reply({ok:true},200,{'Set-Cookie':'pakkasukko_session=; Path=/api/admin; HttpOnly; SameSite=Strict; Max-Age=0'});
  }
  if(!await adminOK(req,env))return fail('Необходим вход владельца.',401);
+ if(path.startsWith('/api/admin/billing/'))return billing(req,env,path.split('/').pop(),reply);
  if(path.startsWith('/api/admin/media/'))return mediaAPI(req,env,path,reply,true);
  if(path==='/api/admin/travel-fare'&&method==='POST'){
    const f=await parse(req);
@@ -154,7 +180,7 @@ async function api(req,env,ctx,url){
    return reply(await bookingState(env));
  }
  if(path==='/api/admin/dashboard'&&method==='GET'){
-   const [slots,bookings,messages]=await Promise.all([env.DB.prepare('SELECT * FROM slots ORDER BY start_at LIMIT 1000').all(),env.DB.prepare('SELECT b.*,q.summary AS quote_summary,s.start_at,s.end_at,d.price,d.notes,d.final_status FROM bookings b JOIN slots s ON s.id=b.slot_id LEFT JOIN booking_details d ON d.booking_id=b.id LEFT JOIN booking_quotes q ON q.booking_id=b.id ORDER BY s.start_at,b.created_at LIMIT 1000').all(),env.DB.prepare('SELECT * FROM messages ORDER BY created_at DESC LIMIT 500').all()]);
+   const [slots,bookings,messages]=await Promise.all([env.DB.prepare('SELECT * FROM slots ORDER BY start_at LIMIT 1000').all(),env.DB.prepare('SELECT b.*,q.summary AS quote_summary,q.snapshot AS quote_snapshot,t.share,t.participants,i.number AS invoice_number,i.sent_at,s.start_at,s.end_at,d.price,d.notes,d.final_status FROM bookings b JOIN slots s ON s.id=b.slot_id LEFT JOIN booking_details d ON d.booking_id=b.id LEFT JOIN booking_quotes q ON q.booking_id=b.id LEFT JOIN trip_shares t ON t.booking_id=b.id LEFT JOIN invoices i ON i.booking_id=b.id ORDER BY s.start_at,b.created_at LIMIT 1000').all(),env.DB.prepare('SELECT * FROM messages ORDER BY created_at DESC LIMIT 500').all()]);
    return reply({fares:await fareSettings(env),slots:slots.results||[],bookings:bookings.results||[],messages:messages.results||[],content:await getContent(env)});
  }
  if(path==='/api/admin/content'&&method==='POST'){const value=normalizeContent(await parse(req));await env.DB.prepare("INSERT INTO content(key,value) VALUES('site',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").bind(JSON.stringify(value)).run();return reply({ok:true,content:value});}

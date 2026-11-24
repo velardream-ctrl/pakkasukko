@@ -53,3 +53,10 @@ export function describe(q){
   if(q.group)parts.push('Коллективная заявка');
   return parts.join(' · ');
 }
+
+// Distribute integer cents in chronological order, without losing a rounding cent.
+export function visitQuote(q,count,index){
+ if(count===1)return q;
+ const travel=q.travel===null?null:Math.floor(q.travel/count)+(index<q.travel%count?1:0);
+ return {...q,group:true,groupSize:count,tripCost:q.travel,travel,total:q.base===null||travel===null?null:q.base+travel};
+}

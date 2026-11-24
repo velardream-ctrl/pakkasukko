@@ -1,0 +1,9 @@
+<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><meta name="robots" content="noindex"><title>Расчёт поездки · Pakkasukko</title><link rel="stylesheet" href="./style.css"><main class="container section"><h1>Расчёт поездки</h1><p id="result" role="status">Загружаем расчёт…</p><a href="/">Pakkasukko</a></main><script type="module">
+import {euros} from './fares.js';
+try{
+ const res=await fetch('/api/trip?id='+encodeURIComponent(location.hash.slice(1)),{cache:'no-store'});
+ if(!res.ok)throw Error();
+ const v=await res.json(),amount=n=>n==null?'по согласованию':euros(n);
+ document.querySelector('#result').textContent=v.cancelled?'Заявка отменена или отклонена.':[v.day+' · '+v.city,'Максимум при бронировании: '+amount(v.maximum),v.share!=null?'Расходы на поездку '+euros(v.pool)+' · Заказов: '+v.participants+' · Ваша доля: '+euros(v.share)+' · Итого: '+amount(v.base==null?null:v.base+v.share):'Расходы на дорогу: '+amount(v.travel)+'. При совместном выезде доля фиксируется в день поездки.'].join(' · ');
+}catch{document.querySelector('#result').textContent='Расчёт недоступен. Проверьте ссылку.'}
+</script></html>

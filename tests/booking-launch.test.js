@@ -115,3 +115,43 @@ test('booking freezes the accepted price before confirmation and refuses stale q
    assert.equal(saved().total,5880);
  }finally{globalThis.fetch=original;}
 });
+
+test('multiple times keep their own addresses, freeze a single trip and produce immutable invoices',async()=>{
+ const {request,login,sqlite,env}=fixture();
+ const {quote}=await import('../docs/fares.js');
+ env.DB.batch=async statements=>{sqlite.exec('BEGIN');try{for(const s of statements)s.run();sqlite.exec('COMMIT');}catch(e){sqlite.exec('ROLLBACK');throw e;}};
+ Object.assign(env,{TURNSTILE_SITE_KEY:'site',TURNSTILE_SECRET:'secret',OWNER_EMAIL:'owner@example.test',FROM_EMAIL:'from@example.test',RESEND_API_KEY:'test'});
+ for(const key of ['enabled','mail_test','mail_received','privacy_confirmed'])sqlite.prepare('INSERT INTO booking_settings VALUES(?,?)').run(key,'true');
+ await login();
+ for(const time of ['10:00','12:00','14:00'])await request('admin/slots',{startAt:'2099-12-24T'+time,minutes:30});
+ const [first,second,third]=sqlite.prepare('SELECT id FROM slots ORDER BY start_at').all();
+ const config=await (await request('public-config')).json();
+ const payload={service:'gift',city:'Tohmajärvi',name:'Test',phone:'123456',turnstileToken:'test',
+   visits:[{slotId:second.id,address:'Second 2'},{slotId:first.id,address:'First 1'}]};
+ const token=group=>JSON.stringify(quote(config.fares,config.services.gift,payload.city,group));
+ const original=globalThis.fetch;
+ try{
+   globalThis.fetch=async()=>Response.json({success:true});
+   const invalid=await request('bookings',{...payload,visits:[payload.visits[0],{slotId:'missing-id',address:'Unknown'}],quoteToken:token(true)});
+   assert.equal(invalid.status,409);assert.equal(sqlite.prepare('SELECT COUNT(*) n FROM bookings').get().n,0);
+   const response=await request('bookings',{...payload,quoteToken:token(true)});
+   assert.equal(response.status,201);
+   const {receipts}=await response.json();assert.deepEqual(receipts.map(v=>v.address),['First 1','Second 2']);
+   const other=await (await request('bookings',{...payload,visits:[{slotId:third.id,address:'Third 3'}],quoteToken:token(false)})).json();
+   const id=receipts[0].id;
+   for(const v of [...receipts,...other.receipts])await request('admin/bookings/status',{id:v.id,status:'confirmed'});
+   sqlite.exec("UPDATE slots SET start_at=replace(start_at,'2099','2020'),end_at=replace(end_at,'2099','2020')");
+   assert.equal((await request('admin/billing/depart?id='+id,{})).status,200);
+   const splits=sqlite.prepare('SELECT * FROM trip_shares ORDER BY share').all();
+   assert.deepEqual(splits.map(v=>v.share),[293,293,294]);
+   const result=await (await request('trip?id='+id)).json();
+   assert.equal(result.maximum,5440);assert.equal(result.share,294);
+   const seller=await (await request('admin/billing/profile')).json();
+   Object.assign(seller,{address:'Test street',iban:'FI test',vatRate:'0',vatNote:'Example only'});
+   assert.equal((await request('admin/billing/profile',seller)).status,200);
+   const issue=()=>request('admin/billing/issue?id='+id,{buyer:'Buyer',address:'Test address'});
+   assert.equal((await issue()).status,200);await issue();
+   const invoices=sqlite.prepare('SELECT * FROM invoices').all();assert.equal(invoices.length,1);
+   assert.equal(JSON.parse(invoices[0].document).total,5294);
+ }finally{globalThis.fetch=original;}
+});

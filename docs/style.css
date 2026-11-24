@@ -294,3 +294,4 @@ main > section:not(.intro) > .section-media-frame,
 .fare-summary{border-left:3px solid #b68a42;background:#f7f2e8;color:#243747;padding:12px 16px;margin:12px 0}.fare-summary p{margin:0 0 6px}.fare-summary .consent{margin:10px 0 0}.booking-form input[hidden]{display:none}
 
 .provider-booking,#provider-details{font:500 14px/1.55 Manrope,sans-serif}.provider-booking{margin:16px 0;color:inherit}#provider-details{margin:0;padding:0 0 24px}
+.booking-form label[hidden]{display:none}
