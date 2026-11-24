@@ -120,7 +120,11 @@ async function api(req,env,ctx,url){
  }
  if(path==='/api/messages'&&method==='POST'){
    if(!(await bookingState(env)).enabled)return fail('Сообщения пока не принимаются.',503);
-   const b=await parse(req),name=clean(b.name,100),contact=clean(b.contact,150),message=clean(b.message,2000),token=clean(b.turnstileToken,2048);
+   const b=await parse(req),name=clean(b.name,100),contact=clean(b.contact,150),body=clean(b.message,1800),token=clean(b.turnstileToken,2048),topic=clean(b.topic,100);
+   const topics=['Вопрос о бронировании','Особенное поздравление','Корпоративный праздник','Сотрудничество','Персональные данные','Другое'];
+   if(topic&&!topics.includes(topic))return fail('Выберите тему письма.');
+   if(body.length<8)return fail('Напишите сообщение.');
+   const message=topic?'Тема: '+topic+'\n\n'+body:body;
    if(name.length<2||contact.length<5||message.length<8)return fail('Укажите имя, контакт и сообщение.');
    if(!await human(token,req,env))return fail('Пройдите проверку от спама.',403);
    if(!await rateLimit(req,env,'message',5,60))return fail('Слишком много сообщений.',429);

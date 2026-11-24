@@ -167,3 +167,9 @@ test('multiple times keep their own addresses, freeze a single trip and produce 
    const html=await view.text();assert.ok(html.includes('52,94 €'));assert.ok(html.includes('Открыть PDF'));
  }finally{globalThis.fetch=original;}
 });
+
+test('Santa mail uses protected existing inbox and never exposes owner email',async()=>{
+ const {request,env,sqlite,login}=fixture();Object.assign(env,{TURNSTILE_SITE_KEY:'site',TURNSTILE_SECRET:'secret',OWNER_EMAIL:'owner@example.test',FROM_EMAIL:'from@example.test',RESEND_API_KEY:'test'});for(const key of ['enabled','mail_test','mail_received','privacy_confirmed'])sqlite.prepare('INSERT INTO booking_settings VALUES(?,?)').run(key,'true');
+ const original=globalThis.fetch;try{globalThis.fetch=async()=>Response.json({success:true});const result=await request('messages',{name:'Test',contact:'client@example.test',topic:'Сотрудничество',message:'Testing Santa mail',turnstileToken:'test'});assert.equal(result.status,201);const saved=sqlite.prepare('SELECT * FROM messages').get();assert.match(saved.message,/Сотрудничество/);assert.equal(saved.contact,'client@example.test');assert.equal(saved.status,'unread');assert.equal((await request('admin/dashboard')).status,401);await login();const dashboard=await (await request('admin/dashboard')).json();assert.equal(dashboard.messages.length,1);assert.doesNotMatch(JSON.stringify(await (await request('public-config')).json()),/owner@example.test/);}finally{globalThis.fetch=original;}
+ const html=readFileSync(new URL('../docs/contact.html',import.meta.url),'utf8');assert.match(html,/letterForm/);assert.match(html,/privacy\.html/);assert.doesNotMatch(html,/@gmail\.com/);
+});
