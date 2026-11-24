@@ -52,7 +52,7 @@ export function applySectionCrop(doc,model,section,device,editing=false){
   img.style.transform='translate('+Math.max(-100,Math.min(100,Number(crop.x)||0))+'%, '+Math.max(-100,Math.min(100,Number(crop.y)||0))+'%) scale('+Math.max(.35,Math.min(3,(Number(crop.zoom)||100)/100))+')';
 }
 
-export const initial = () => ({sections:[],headingOverrides:{},texts:{},crops:{},sectionCrops:{},shades:{},hidden:[],order:[],cards:[],pictures:{},seo:{},logo:"",contacts:{},durations:{}});
+export const initial = () => ({sections:[],headingOverrides:{},texts:{},crops:{},sectionCrops:{},shades:{},routesShades:{},hidden:[],order:[],cards:[],pictures:{},seo:{},logo:"",contacts:{},durations:{}});
 // Additional programs use the same visual structure as the three original cards.
 // Presentation defaults are derived at render time, so old D1 drafts stay intact.
 export function programPresentation(card,index){
@@ -79,6 +79,16 @@ export function heroShadePercent(model,device){
 export function applyHeroShade(doc,model,device){
   const overlay=doc.querySelector('.hero-shade');
   if(overlay)overlay.style.opacity=String(heroShadePercent(model,device)/100);
+}
+// Darken only a small strip at the foot of the arched Routes photo.
+// Saved independently of the top hero overlay and separately per device.
+export function routesShadePercent(model,device){
+  const value=Number(model?.routesShades?.[device] ?? 48);
+  return Number.isFinite(value)?Math.max(0,Math.min(100,value)):48;
+}
+export function applyRoutesShade(doc,model,device){
+  const arch=doc.querySelector('#routes .routes-art');
+  if(arch)arch.style.setProperty('--pk-routes-shade-opacity',String(routesShadePercent(model,device)/100));
 }
 export function deviceFor(width,height){
   if(width<=600 || (width<=940 && height<=520))return 'phone';
@@ -236,5 +246,6 @@ export function renderPage(doc,model,fields,device,editing=false){
   if(model.seo.description)doc.querySelector('meta[name=description]').content=model.seo.description;
   cropPhoto(doc,{...baseCrop(),...(model.crops[device]||{}),image:heroImageId(model,device)},editing);
   applyHeroShade(doc,model,device);
+  applyRoutesShade(doc,model,device);
   for(const section of doc.querySelectorAll('main > section'))if(section.id!=='top')applySectionCrop(doc,model,section.id,device,editing);
 }

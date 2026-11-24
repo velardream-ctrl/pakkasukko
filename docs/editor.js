@@ -1,4 +1,4 @@
-import {setField,devices,baseCrop,baseSectionCrop,initial,bindPage,renderPage,cropPhoto,applySectionCrop,applyHeroShade,heroShadePercent,heroImageId,setHeroDeviceImage,setHeroGlobalImage,mediaURL} from './site.js';
+import {setField,devices,baseCrop,baseSectionCrop,initial,bindPage,renderPage,cropPhoto,applySectionCrop,applyHeroShade,heroShadePercent,applyRoutesShade,routesShadePercent,heroImageId,setHeroDeviceImage,setHeroGlobalImage,mediaURL} from './site.js';
 const $=id=>document.getElementById(id);
 const frame=document.querySelector('iframe'), panel=document.querySelector('main');
 const names={header:'Шапка',top:'Первый экран',intro:'Вступление',programs:'Программы',about:'Об артисте',routes:'Города',booking:'Календарь',contact:'Контакты',privacy:'Конфиденциальность',footer:'Подвал'};
@@ -77,6 +77,10 @@ function draw(){
   $('heroShadeHint').hidden=target()!=='top';
   $('heroShade').value=String(heroShadePercent(model,device()));
   $('heroShadeValue').textContent=heroShadePercent(model,device())+'%';
+  $('routesShadeLabel').hidden=target()!=='routes';
+  $('routesShadeHint').hidden=target()!=='routes';
+  $('routesShade').value=String(routesShadePercent(model,device()));
+  $('routesShadeValue').textContent=routesShadePercent(model,device())+'%';
 }
 function layout(){
   let [w,h]=devices[device()];if(landscape)[w,h]=[h,w];
@@ -264,6 +268,12 @@ $('heroShade').oninput=e=>{
   model.shades??={};model.shades[device()]=Number(e.target.value);
   $('heroShadeValue').textContent=heroShadePercent(model,device())+'%';
   applyHeroShade(doc,model,device());
+};
+$('routesShade').oninput=e=>{
+  if(target()!=='routes')return;
+  model.routesShades??={};model.routesShades[device()]=Number(e.target.value);
+  $('routesShadeValue').textContent=routesShadePercent(model,device())+'%';
+  applyRoutesShade(doc,model,device());
 };
 action('rotate',()=>{landscape=!landscape;layout();});
 $('textSearch').oninput=section;

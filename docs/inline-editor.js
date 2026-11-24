@@ -1,4 +1,4 @@
-import {initial,mediaURL,baseCrop,baseSectionCrop,cropPhoto,applySectionCrop,renderPage,setField,applyHeroShade,heroShadePercent,heroImageId,setHeroDeviceImage} from './site.js';
+import {initial,mediaURL,baseCrop,baseSectionCrop,cropPhoto,applySectionCrop,renderPage,setField,applyHeroShade,heroShadePercent,applyRoutesShade,routesShadePercent,heroImageId,setHeroDeviceImage} from './site.js';
 
 // RUN-009: In-page controls are loaded only after the protected /api/admin/editor request succeeds.
 export function editableFields(fields,element){
@@ -81,7 +81,7 @@ export async function startInlineEditor({model,fields,currentDevice,onAdmin}){
   function replaceModel(value){
     for(const key of Object.keys(model))delete model[key];
     Object.assign(model,initial(),structuredClone(value||{}));
-    model.sectionCrops??={};model.shades??={};model.pictures??={};model.hidden??=[];model.order??=[];model.cards??=[];model.sections??=[];
+    model.sectionCrops??={};model.shades??={};model.routesShades??={};model.pictures??={};model.hidden??=[];model.order??=[];model.cards??=[];model.sections??=[];
     if(!model.order.length)model.order=['top','intro','programs','about','routes','booking','contact','privacy'];
   }
   baseline=structuredClone(result.model||{});
@@ -323,6 +323,24 @@ export async function startInlineEditor({model,fields,currentDevice,onAdmin}){
         slider.value='0';value.textContent='0%';applyHeroShade(document,model,currentDevice());changed();
       });
     }
+    if(target==='routes'){
+      const wrapper=make('label','pk-field');wrapper.append(make('span','','Затемнение только снизу арки (0–100%)'));
+      const slider=make('input');slider.type='range';slider.min='0';slider.max='100';slider.step='1';
+      const value=make('strong','',routesShadePercent(model,currentDevice())+'%');
+      slider.value=String(routesShadePercent(model,currentDevice()));
+      slider.addEventListener('input',()=>{
+        model.routesShades??={};model.routesShades[currentDevice()]=Number(slider.value);
+        value.textContent=routesShadePercent(model,currentDevice())+'%';
+        applyRoutesShade(document,model,currentDevice());changed();
+      });
+      wrapper.append(slider,value);panelBody.append(wrapper);
+      button(panelBody,'Убрать затемнение (0%)',()=>{
+        model.routesShades??={};model.routesShades[currentDevice()]=0;
+        slider.value='0';value.textContent='0%';
+        applyRoutesShade(document,model,currentDevice());changed();
+      });
+      panelBody.append(make('p','pk-hint','Верх и середина фотографии остаются без затемнения. Настройка индивидуальна для каждого устройства.'));
+    }
     if(target!=='top'){
       const fLabel=make('label','pk-field');fLabel.append(make('span','','Отображение'));
       const fit=make('select');option(fit,'contain','Показать целиком');option(fit,'cover','Заполнить рамку');
@@ -334,6 +352,7 @@ export async function startInlineEditor({model,fields,currentDevice,onAdmin}){
       const wrapper=make('label','pk-field');wrapper.append(make('span','',label));
       const row=make('div','pk-range-row');const slider=make('input');slider.type='range';slider.min=String(min);slider.max=String(max);slider.step='1';
       const num=make('input');num.type='number';num.min=String(min);num.max=String(max);num.step='1';num.className='pk-number';
+      slider.dataset.cropAxis=key;num.dataset.cropAxis=key;
       slider.value=String(photoState(model,target,currentDevice())[key]);num.value=slider.value;
       const update=value=>{
         const n=Number(value);if(!Number.isFinite(n)||n<min||n>max)return;
@@ -366,8 +385,10 @@ export async function startInlineEditor({model,fields,currentDevice,onAdmin}){
       c.x=cropBounds(dragStart.x0+100*(e.clientX-dragStart.x)/dragStart.width);
       c.y=cropBounds(dragStart.y0+100*(e.clientY-dragStart.y)/dragStart.height);
       applyCrop(target);changed();e.preventDefault();
-      panelBody.querySelectorAll('input[type=range]').forEach((el,i)=>{if(i===0)el.value=String(c.x);if(i===1)el.value=String(c.y);});
-      panelBody.querySelectorAll('input[type=number]').forEach((el,i)=>{if(i===0)el.value=String(c.x);if(i===1)el.value=String(c.y);});
+      for(const input of panelBody.querySelectorAll('[data-crop-axis]')){
+        const axis=input.dataset.cropAxis;
+        if(axis==='x'||axis==='y')input.value=String(c[axis]);
+      }
     };
     dragSurface.onlostpointercapture=()=>dragStart=null;
     positionDrag();
