@@ -31,7 +31,14 @@ export function setHeroGlobalImage(model,id,caption=''){
 export const baseSectionCrop = () => ({x:0,y:0,zoom:100,fit:'contain'});
 export function sectionCrop(model,section,device){
   const positions=model.sectionCrops?.[section];
-  return positions?.[device]|| (section==='routes'?{...baseSectionCrop(),fit:'cover'}:baseSectionCrop());
+  const crop=positions?.[device]|| (section==='routes'?{...baseSectionCrop(),fit:'cover'}:baseSectionCrop());
+  // RUN-020: the landscape photo in the tall About arch was letterboxed
+  // on phones. Fill the arch by default, including legacy saved "contain"
+  // crops. Explicit user choices made with the updated editor still win.
+  if(section==='about'&&device==='phone'&&crop.fitCustomized!==true){
+    return {...crop,fit:'cover'};
+  }
+  return crop;
 }
 export function applySectionCrop(doc,model,section,device,editing=false){
   const crop=sectionCrop(model,section,device);

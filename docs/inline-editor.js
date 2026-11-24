@@ -1,4 +1,4 @@
-import {initial,mediaURL,baseCrop,baseSectionCrop,cropPhoto,applySectionCrop,renderPage,setField,applyHeroShade,heroShadePercent,applyRoutesShade,routesShadePercent,heroImageId,setHeroDeviceImage} from './site.js';
+import {initial,mediaURL,baseCrop,baseSectionCrop,sectionCrop,cropPhoto,applySectionCrop,renderPage,setField,applyHeroShade,heroShadePercent,applyRoutesShade,routesShadePercent,heroImageId,setHeroDeviceImage} from './site.js';
 
 // RUN-009: In-page controls are loaded only after the protected /api/admin/editor request succeeds.
 export function editableFields(fields,element){
@@ -344,8 +344,12 @@ export async function startInlineEditor({model,fields,currentDevice,onAdmin}){
     if(target!=='top'){
       const fLabel=make('label','pk-field');fLabel.append(make('span','','Отображение'));
       const fit=make('select');option(fit,'contain','Показать целиком');option(fit,'cover','Заполнить рамку');
-      fit.value=photoState(model,target,currentDevice()).fit==='cover'?'cover':'contain';
-      fit.onchange=()=>{photoState(model,target,currentDevice()).fit=fit.value;applyCrop(target);changed();};
+      fit.value=sectionCrop(model,target,currentDevice()).fit==='cover'?'cover':'contain';
+      fit.onchange=()=>{
+        const crop=photoState(model,target,currentDevice());
+        crop.fit=fit.value;crop.fitCustomized=true;
+        applyCrop(target);changed();
+      };
       fLabel.append(fit);panelBody.append(fLabel);
     }
     for(const [key,label,min,max] of [['x','Смещение по горизонтали (%)',-100,100],['y','Смещение по вертикали (%)',-100,100],['zoom','Масштаб (%)',35,300]]){
@@ -361,7 +365,10 @@ export async function startInlineEditor({model,fields,currentDevice,onAdmin}){
       slider.oninput=()=>update(slider.value);num.oninput=()=>update(num.value);
       row.append(slider,num);wrapper.append(row);panelBody.append(wrapper);
     }
-    button(panelBody,'Сбросить положение',()=>{Object.assign(photoState(model,target,currentDevice()),{x:0,y:0,zoom:100,fit:'contain'});applyCrop(target);changed();photoPanel(target);});
+    button(panelBody,'Сбросить положение',()=>{
+      Object.assign(photoState(model,target,currentDevice()),{x:0,y:0,zoom:100,fit:'contain',fitCustomized:false});
+      applyCrop(target);changed();photoPanel(target);
+    });
     button(panelBody,'Проверить другой экран',()=>{
       const order=['desktop','tablet','phone'];const next=order[(order.indexOf(currentDevice())+1)%3];
       info('Для проверки '+(next==='phone'?'телефона':next==='tablet'?'планшета':'компьютера')+' измените ширину окна либо используйте полный редактор.');

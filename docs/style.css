@@ -264,3 +264,28 @@ main > section:not(.intro) > .section-media-frame,
 .slot-readonly{display:inline-flex;align-items:center;justify-content:center;cursor:default;opacity:.85}
 #bookingSettingsPanel input[type=checkbox]{width:auto;min-height:0;margin-right:9px}
 #bookingSettingsPanel button:disabled{opacity:.45;cursor:not-allowed}
+
+/* RUN-020 — A mobile About portrait must fill its arched frame:
+   no dark empty semicircle above landscape imagery. The original photo
+   remains untouched, and explicit object-fit controls still work. */
+@media(max-width:760px){
+  .about-portrait{
+    width:100%;
+    max-width:470px;
+    min-height:0;
+    aspect-ratio:1 / 1;
+    margin-inline:auto;
+  }
+  .about-portrait::after{
+    content:"";
+    position:absolute;left:0;right:0;bottom:0;height:26%;
+    background:linear-gradient(to top,rgba(5,17,28,.8),rgba(5,17,28,0));
+    pointer-events:none;z-index:1;
+  }
+  .about-portrait>.portrait-label{
+    left:18px;right:18px;bottom:19px;
+    text-align:center;
+    font-size:clamp(8px,2.45vw,10px);
+    line-height:1.45;
+  }
+}
