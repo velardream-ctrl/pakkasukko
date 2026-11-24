@@ -1,3 +1,5 @@
+import {applySnow} from './snow.js';
+import {snowPanel} from './snow-panel.js';
 import {initial,mediaURL,baseCrop,baseSectionCrop,sectionCrop,cropPhoto,applySectionCrop,renderPage,setField,applyHeroShade,heroShadePercent,applyRoutesShade,routesShadePercent,heroImageId,setHeroDeviceImage} from './site.js';
 
 // RUN-009: In-page controls are loaded only after the protected /api/admin/editor request succeeds.
@@ -63,7 +65,11 @@ export async function startInlineEditor({model,fields,currentDevice,onAdmin}){
   const pins=make('div','pk-pin-layer');host.append(pins);
   const bar=make('div','pk-toolbar');
   const status=make('span','pk-status','Режим администратора');
-  const editToggle=button(bar,'✎ Редактирование',()=>{active=!active;editToggle.textContent=active?'✎ Редактирование':'✎ Включить правки';pins.hidden=!active;if(!active)closePanel();else refreshPins();});
+  const editToggle=button(bar,'✎ Редактирование',()=>{active=!active;editToggle.textContent=active?'✎ Редактирование':'✎ Включить правки';pins.hidden=!active;snowButton.hidden=!active;if(!active)closePanel();else refreshPins();});
+  const snowButton=button(bar,'Настроить снег',()=>{
+    openPanel('Снег и зимние эффекты');
+    snowPanel(panelBody,model.snow,value=>{model.snow=value;applySnow(document,value,currentDevice());changed();});
+  });
   const sectionsButton=button(bar,'☷ Разделы',()=>sectionPanel());
   const addButton=button(bar,'＋ Раздел',()=>addSection());
   const saveButton=button(bar,'Сохранить черновик',()=>save(false),'pk-save');

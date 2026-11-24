@@ -1,3 +1,5 @@
+import {applySnow} from './snow.js';
+import {snowPanel} from './snow-panel.js';
 import {setField,devices,baseCrop,baseSectionCrop,sectionCrop,initial,bindPage,renderPage,cropPhoto,applySectionCrop,applyHeroShade,heroShadePercent,applyRoutesShade,routesShadePercent,heroImageId,setHeroDeviceImage,setHeroGlobalImage,mediaURL} from './site.js';
 const $=id=>document.getElementById(id);
 const frame=document.querySelector('iframe'), panel=document.querySelector('main');
@@ -212,6 +214,7 @@ function library(){
 async function refreshMedia(){data.media=(await api('editor')).media;library();section();draw();}
 function reset(){
   model=Object.assign(initial(),structuredClone(data.model));
+  snowPanel($('snowFields'),model.snow,value=>{model.snow=value;applySnow(doc,value,device());});
   if(!model.order.length)model.order=Object.keys(names).filter(k=>!['header','footer'].includes(k));
   outline();library();section();cards();$('contacts').replaceChildren();for(const [k,label] of [['email','Email'],['phone','Телефон']])input($('contacts'),label,model.contacts[k]||'',v=>{model.contacts[k]=v;draw();});$('seo').replaceChildren();
   for(const [key,label,v] of [['title','Заголовок',doc.title],['description','Описание',doc.querySelector('meta[name=description]').content]])input($('seo'),label,model.seo[key]??v,text=>model.seo[key]=text);

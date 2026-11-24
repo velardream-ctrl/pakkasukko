@@ -5,6 +5,9 @@ document.querySelectorAll('[data-service]').forEach(a=>a.addEventListener('click
 const pageIsPreview=location.hostname.endsWith('github.io')||location.hostname.endsWith('githack.com')||location.hostname==='localhost'&&location.port===''; 
 async function activate(){
   if(pageIsPreview){
+  const {applySnow}=await import("./snow.js");
+  const drawSnow=()=>applySnow(document,undefined,deviceFor(innerWidth,innerHeight));
+  drawSnow();addEventListener("resize",drawSnow);
   $('#bookingMode').textContent='Это статический макет. Актуальные свободные даты смотрите на сайте Pakkasukko в Cloudflare.';
   return;
 }
