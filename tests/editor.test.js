@@ -68,3 +68,5 @@ test('RUN-031: long stock privacy text migrates to short homepage copy',()=>{
  const html=readFileSync(new URL('../docs/index.html',import.meta.url),'utf8');assert.ok(html.includes(next.texts['privacy-2']));assert.ok(!html.includes(model.texts['privacy-2']));
  const policy=readFileSync(new URL('../docs/privacy.html',import.meta.url),'utf8');assert.match(policy,/Конфиденциальность во время праздника/);
 });
+
+test('music config is public only when enabled and admin is protected',async()=>{const {request,login}=fixture();assert.equal((await request('admin/music/config')).status,401);const config=await (await request('music/config')).json();assert.equal(config.volume,15);assert.equal(config.autoplay,true);assert.deepEqual(config.tracks,[]);await login();assert.equal((await request('admin/music/config')).status,200);assert.equal((await request('admin/music/config',{enabled:true,autoplay:true,volume:15,tracks:[]})).status,503);});

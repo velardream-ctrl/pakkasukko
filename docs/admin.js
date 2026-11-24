@@ -1,5 +1,7 @@
 import {sellerForm,invoiceControls} from './billing-panel.js';
 import {applyBrand} from './site.js';
+import {musicAdmin} from './music-admin.js';
+
 const $=id=>document.getElementById(id);
 let state=null;
 const preview=location.hostname.endsWith('github.io')||location.hostname.endsWith('githack.com');
@@ -163,3 +165,5 @@ $('slotForm').addEventListener('submit',async e=>{e.preventDefault();const value
 if(!preview)reload();
 
 document.getElementById('billingSettings').ontoggle=e=>{if(e.target.open)sellerForm(document.getElementById('sellerForm'),request).catch(err=>alert(err.message));};
+
+document.getElementById('musicSettings').ontoggle=e=>{if(e.target.open)musicAdmin(document.getElementById('musicForm'),request).catch(err=>alert(err.message));};

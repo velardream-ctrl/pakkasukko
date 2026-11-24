@@ -1,6 +1,7 @@
 import {billing} from './billing.js';
 import {defaultFare,validFare,prices,quote,describe,visitQuote,euros} from '../docs/fares.js';
 import {mediaAPI} from './media.js';
+import {musicAPI} from './music.js';
 import {published,editorAPI} from './editor.js';
 import {DEFAULT_CONTENT,clean,normalizeContent,validStamp,addMinutes,validateBooking,csvCell} from './validation.js';
 const headers={'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'};
@@ -64,6 +65,7 @@ function csv(rows,keys,filename){const lines=[keys.map(csvCell).join(';'),...row
 async function api(req,env,ctx,url){
  const path=url.pathname,method=req.method;
  if(path==='/api/trip'&&method==='GET')return billing(req,env,'share',reply);
+ if(path.startsWith('/api/music/'))return musicAPI(req,env,path,reply,false);
  if(path.startsWith('/api/media/'))return mediaAPI(req,env,path,reply,false);
  if(path==='/api/health'&&method==='GET'){
    const state=await bookingState(env);
@@ -149,6 +151,7 @@ async function api(req,env,ctx,url){
  }
  if(!await adminOK(req,env))return fail('Необходим вход владельца.',401);
  if(path.startsWith('/api/admin/billing/'))return billing(req,env,path.split('/').pop(),reply);
+ if(path.startsWith('/api/admin/music/'))return musicAPI(req,env,path,reply,true);
  if(path.startsWith('/api/admin/media/'))return mediaAPI(req,env,path,reply,true);
  if(path==='/api/admin/travel-fare'&&method==='POST'){
    const f=await parse(req);
