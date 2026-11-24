@@ -47,10 +47,10 @@ export function invoiceControls(box,b,request,reload){
    const travel=q.travel==null?input(panel,'Согласованная стоимость дороги, €','','number'):null;
    button(panel,'Выписать счёт',async()=>{
      if(!confirm('Зафиксировать сумму и присвоить номер счёта?'))return;
-     await request(url('issue'),'POST',{buyer:buyer.value,address:address.value,base:base?.value?Number(base.value):null,travel:travel?.value?Number(travel.value):null});await reload();
+     await request(url('issue'),'POST',{buyer:buyer.value,address:address.value,base:base?.value?Number(base.value):null,travel:travel?.value?Number(travel.value):null});location.assign(url('view'));
    });
  }else{
-   const link=document.createElement('a');link.href=url('pdf');link.target='_blank';link.rel='noopener';link.textContent='Счёт № '+b.invoice_number+' · Открыть PDF для печати или сохранения';box.append(link);
+   const link=document.createElement('a');link.href=url('view');link.style.display='block';link.textContent='Открыть счёт № '+b.invoice_number;box.append(link);
    if(b.sent_at){const p=document.createElement('p');p.textContent='Письмо принято почтовым сервисом '+b.sent_at.slice(0,10);box.append(p);}
    else{const email=input(box,'Email для отправки PDF',b.email,'email');
      button(box,'Отправить счёт клиенту',async()=>{if(!email.value||!email.reportValidity()||!confirm('Отправить PDF на '+email.value+'?'))return;

@@ -153,5 +153,8 @@ test('multiple times keep their own addresses, freeze a single trip and produce 
    assert.equal((await issue()).status,200);await issue();
    const invoices=sqlite.prepare('SELECT * FROM invoices').all();assert.equal(invoices.length,1);
    assert.equal(JSON.parse(invoices[0].document).total,5294);
+   const view=await request('admin/billing/view?id='+id);
+   assert.equal(view.status,200);assert.match(view.headers.get('content-type'),/text\/html/);
+   const html=await view.text();assert.ok(html.includes('52,94 €'));assert.ok(html.includes('Открыть PDF'));
  }finally{globalThis.fetch=original;}
 });

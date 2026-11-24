@@ -1,3 +1,4 @@
+import {invoiceView} from './invoice-view.js';
 const eligible=`SELECT b.id,s.start_at,b.city,json_extract(q.snapshot,'$.travel') AS cap,coalesce(json_extract(q.snapshot,'$.tripCost'),json_extract(q.snapshot,'$.travel')) AS cost,
  json_extract(q.snapshot,'$.mode') AS mode
  FROM bookings b JOIN slots s ON s.id=b.slot_id JOIN booking_quotes q ON q.booking_id=b.id
@@ -66,6 +67,7 @@ export async function billing(req,env,path,reply){
    return invoice?reply({number:invoice.number}):fail('Заказ отменён.',409);
  }
  if(!invoice)return fail('Сначала выпишите счёт.',409);
+ if(path==='view'&&req.method==='GET')return invoiceView(invoice,id);
  if((path==='pdf'&&req.method==='GET')||(path==='send'&&req.method==='POST')){
    const sending=path==='send';
    if(sending&&invoice.sent_at)return reply({ok:true,alreadySent:true});
