@@ -1,6 +1,6 @@
 import {applySnow} from './snow.js';
 import {snowPanel} from './snow-panel.js';
-import {setField,devices,baseCrop,baseSectionCrop,sectionCrop,initial,bindPage,renderPage,cropPhoto,applySectionCrop,applyHeroShade,heroShadePercent,applyRoutesShade,routesShadePercent,heroImageId,setHeroDeviceImage,setHeroGlobalImage,mediaURL} from './site.js';
+import {applyBrand,setField,devices,baseCrop,baseSectionCrop,sectionCrop,initial,bindPage,renderPage,cropPhoto,applySectionCrop,applyHeroShade,heroShadePercent,applyRoutesShade,routesShadePercent,heroImageId,setHeroDeviceImage,setHeroGlobalImage,mediaURL} from './site.js';
 const $=id=>document.getElementById(id);
 const frame=document.querySelector('iframe'), panel=document.querySelector('main');
 const names={header:'Шапка',top:'Первый экран',intro:'Вступление',programs:'Программы',about:'Об артисте',routes:'Города',booking:'Календарь',contact:'Контакты',privacy:'Конфиденциальность',footer:'Подвал'};
@@ -70,6 +70,7 @@ const displayTarget=()=>{
   else doc.getElementById(target())?.scrollIntoView({block:'start'});
 };
 function draw(){
+  applyBrand(document,model.logo,true);
   renderPage(doc,model,fields,device(),true);
   for(const key of ['x','y','zoom'])$(key).value=crop()[key];
   $('photo').value=source();
@@ -190,7 +191,7 @@ function cards(){
   }
 }
 function library(){
-  assets($('logo'),true);$('logo').options[0].text='Текстовый логотип';$('logo').value=model.logo;assets($('picture'));assets($('photo'),true);$('library').replaceChildren();
+  assets($('logo'),true);$('logo').options[0].text='Дед Мороз в золотом медальоне (по умолчанию)';$('logo').value=model.logo;assets($('picture'));assets($('photo'),true);$('library').replaceChildren();
   for(const item of data.media){
     const box=document.createElement('article'), view=document.createElement(item.mime.startsWith('image')?'img':'video');
     view.src=mediaURL(item.id,true);view.controls=true;box.append(view);

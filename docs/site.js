@@ -105,6 +105,15 @@ export function mediaURL(id,editing=false){
   if(id==='pakkasukko-gifts')return './assets/pakkasukko-gifts.webp';
   return /^[a-f0-9-]{36}$/.test(id)?'/api/'+(editing?'admin/':'')+'media/'+id:portrait;
 }
+export function applyBrand(doc,id,editing=false){
+  const url=id?mediaURL(id,editing):'./assets/pakkasukko-medallion.png';
+  for(const link of doc.querySelectorAll('link[rel="icon"],link[rel="apple-touch-icon"]')){
+    if(link.getAttribute('href')!==url)link.setAttribute('href',url);
+  }
+  for(const image of doc.querySelectorAll('.brand .owner-logo')){
+    if(image.getAttribute('src')!==url)image.setAttribute('src',url);
+  }
+}
 export function cropPhoto(doc,crop,editing){
   const photo=doc.querySelector('.hero-photo');
   let img=photo.querySelector('img');
@@ -207,10 +216,8 @@ export function renderPage(doc,model,fields,device,editing=false){
     }
   }
   doc.querySelectorAll('.extra-card').forEach(el=>el.remove());
-  doc.querySelectorAll('.extra-option,.owner-contact,.owner-logo').forEach(el=>el.remove());
-  if(model.logo)for(const brand of doc.querySelectorAll('.brand')){
-    const img=doc.createElement('img');img.className='owner-logo';img.alt='';img.src=mediaURL(model.logo,editing);brand.prepend(img);
-  }
+  doc.querySelectorAll('.extra-option,.owner-contact').forEach(el=>el.remove());
+  applyBrand(doc,model.logo,editing);
   for(const [key,value] of Object.entries(model.contacts||{})){
     if(!value)continue;
     const link=doc.createElement('a');link.className='owner-contact';link.textContent=value;

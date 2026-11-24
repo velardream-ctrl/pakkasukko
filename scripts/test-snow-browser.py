@@ -60,5 +60,23 @@ with sync_playwright() as playwright:
     panel.get_by_label("С даты").fill("2000-01-01")
     panel.get_by_label("По дату").fill("2099-12-31")
     expect(canvas).to_be_visible()
+    # Exercise the same revision returned to the owner after saving a draft.
+    logo = "12345678-1234-1234-1234-123456789abc"
+    page.route("**/api/admin/editor", lambda route: route.fulfill(json={
+        "history": [], "media": [{"id": logo, "mime": "image/png", "caption": "Test logo"}],
+        "model": {"logo": logo}, "id": 1
+    }))
+    page.goto(f"http://127.0.0.1:{server.server_port}/editor.html", wait_until="domcontentloaded")
+    choice = page.locator("#logo")
+    expect(choice).to_have_value(logo)
+    draft_url = "/api/admin/media/" + logo
+    expect(page.locator('link[rel="icon"]')).to_have_attribute("href", draft_url)
+    header = page.frame_locator("iframe").locator("header .brand")
+    expect(header.locator("img")).to_have_count(1)
+    expect(header.locator("img")).to_have_attribute("src", draft_url)
+    expect(header.locator(".brand-flake")).to_be_hidden()
+    choice.select_option("")
+    expect(header.locator("img")).to_have_attribute("src", "./assets/pakkasukko-medallion.png")
+    expect(page.locator('link[rel="icon"]')).to_have_attribute("href", "./assets/pakkasukko-medallion.png")
     assert not errors, errors
     browser.close()

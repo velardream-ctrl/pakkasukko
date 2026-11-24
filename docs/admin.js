@@ -1,6 +1,8 @@
+import {applyBrand} from './site.js';
 const $=id=>document.getElementById(id);
 let state=null;
 const preview=location.hostname.endsWith('github.io')||location.hostname.endsWith('githack.com');
+if(!preview)request('/api/public-config').then(config=>applyBrand(document,config.site?.logo)).catch(()=>{});
 if(preview){$('previewNotice').classList.remove('hidden');$('loginForm').querySelector('button').disabled=true;}
 async function request(path,method='GET',data){
  const r=await fetch(path,{method,credentials:'same-origin',headers:{'Content-Type':'application/json'},body:data?JSON.stringify(data):undefined,cache:'no-store'});
