@@ -37,13 +37,13 @@ export async function makePDF(d,number,env,origin){
  y-=10;line('Asiakas / Клиент: '+d.buyer,13);line(d.address);
  line('Laskun päivä / Дата счёта: '+d.issued);
  line('Palvelupäivä / Дата услуги: '+d.date+' · '+d.city);
- y-=12;line('Palvelu / Услуга (1): '+d.service+' — '+money(d.base));
+ y-=12;line('Palvelun kuvaus / Описание услуги:',13);line(d.serviceFi||d.service);if(d.serviceRu)line(d.serviceRu);line('Palvelu / Услуга (1 kpl / 1 шт.): '+money(d.base));
  if(d.participants){
    if(d.quote?.mode==='rail')line('Поезд, билеты туда и обратно');
    else if(d.quote?.km!=null)line('Автомобиль, путь туда и обратно: '+d.quote.km+' км');
    line('Общие расходы на поездку: '+money(d.pool)+' · Заказов: '+d.participants);
  }
- line('Matkakulut / Ваша доля поездки: '+money(d.travel));
+ line('Matkakulut / Транспортные расходы: '+money(d.travel));
  if(d.maximum!=null)line('Максимум при бронировании: '+money(d.maximum));
  const rate=Number(p.vatRate.replace(',','.')),net=Math.round(d.total/(1+rate/100));
  line('Veroton / Без налога: '+money(net)+' · ALV '+rate+'%: '+money(d.total-net));

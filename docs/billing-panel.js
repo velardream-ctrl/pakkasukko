@@ -1,4 +1,5 @@
 import {euros} from './fares.js';
+import {invoiceService} from './invoice-service.js';
 const fields={name:'Название предприятия',owner:'Имя исполнителя',businessId:'Y-tunnus',address:'Почтовый адрес предприятия',iban:'IBAN для оплаты',bic:'BIC / SWIFT',contact:'Контакты для счёта',vatRate:'ALV, ставка в % (цена включает налог)',vatId:'VAT ID при начислении ALV',vatNote:'Основание освобождения при отсутствии ALV',terms:'Срок оплаты в днях'};
 function input(box,label,value='',type='text'){
  const wrap=document.createElement('label'),el=document.createElement('input');
@@ -44,11 +45,16 @@ export function invoiceControls(box,b,request,reload){
  if(!b.invoice_number){
    const panel=document.createElement('details'),title=document.createElement('summary');title.textContent='Подготовить счёт';panel.append(title);box.append(panel);
    const buyer=input(panel,'Получатель',b.name),address=input(panel,'Платёжный адрес',b.address+', '+b.city);
+   const defaults=invoiceService(b.service,q.remote);
+   const serviceFi=input(panel,'Наименование услуги по-фински (Palvelun kuvaus)',defaults.fi);
+   const serviceRu=input(panel,'Наименование услуги по-русски',defaults.ru);
+   serviceFi.maxLength=220;serviceRu.maxLength=220;serviceFi.required=true;
    const base=q.base==null?input(panel,'Согласованная цена программы, €','','number'):null;
    const travel=q.travel==null?input(panel,'Согласованная стоимость дороги, €','','number'):null;
-   const data=()=>({buyer:buyer.value,address:address.value,base:base?.value?Number(base.value):null,travel:travel?.value?Number(travel.value):null});
+   const data=()=>({buyer:buyer.value,address:address.value,serviceFi:serviceFi.value,serviceRu:serviceRu.value,base:base?.value?Number(base.value):null,travel:travel?.value?Number(travel.value):null});
    const note=document.createElement('p');note.textContent='Предварительный просмотр доступен до даты услуги. Тестовый документ не сохраняется и не подлежит оплате.';panel.append(note);
    function openDraft(op){
+     if(!serviceFi.value.trim())throw Error('Введите наименование услуги по-фински.');
      if([base,travel].some(el=>el&&(!el.value||!Number.isFinite(Number(el.value))||Number(el.value)<0||Number(el.value)>100000)))throw Error('Укажите согласованные суммы в евро.');
      const form=document.createElement('form');form.method='POST';form.action=url(op);
      const field=document.createElement('input');field.type='hidden';field.name='document';field.value=JSON.stringify(data());form.append(field);document.body.append(form);form.submit();form.remove();
@@ -58,7 +64,7 @@ export function invoiceControls(box,b,request,reload){
    if(needsDeparture){const hint=document.createElement('p');hint.textContent='Стоимость дороги предварительная до фиксации выезда.';panel.append(hint);return;}
    button(panel,'Выписать счёт',async()=>{
      if(!confirm('Зафиксировать сумму и присвоить номер счёта?'))return;
-     const result=await request(url('issue'),'POST',{buyer:buyer.value,address:address.value,base:base?.value?Number(base.value):null,travel:travel?.value?Number(travel.value):null});await reload();document.getElementById('invoiceJournal')?.scrollIntoView({block:'start'});alert('Счёт № '+result.number+' сохранён. Откройте его в журнале счетов.');
+     const result=await request(url('issue'),'POST',data());await reload();document.getElementById('invoiceJournal')?.scrollIntoView({block:'start'});alert('Счёт № '+result.number+' сохранён. Откройте его в журнале счетов.');
    });
  }else{
    const link=document.createElement('a');link.href=url('view');link.style.display='block';link.textContent='Открыть счёт № '+b.invoice_number;box.append(link);

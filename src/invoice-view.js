@@ -14,7 +14,7 @@ export function invoiceView(invoice,id){
  <img src="${escape(logo)}" alt=""><h1>Lasku / Счёт № ${invoice.number}</h1><p>Дата счёта · ${escape(d.issued)}</p>
  ${party('Исполнитель',[p.name,p.owner,'Y-tunnus '+p.businessId,p.address,p.contact,p.vatId])}
  ${party('Получатель',[d.buyer,d.address])}<p>Дата услуги · ${escape(d.date)} · ${escape(d.city)}</p>
- <table>${row(d.service,money(d.base))}${d.participants?row('Расходы на поездку / число заказов',money(d.pool)+' / '+d.participants):''}${row('Ваша доля поездки',money(d.travel))}${d.maximum!=null?row('Максимум при бронировании',money(d.maximum)):''}${row('Без налога',money(net))}${row('ALV '+rate+'%',money(d.total-net))}${row('К оплате',money(d.total))}</table>
+ <h2>Palvelun kuvaus / Описание услуги</h2><p>${escape(d.serviceFi||d.service)}</p>${d.serviceRu?'<p>'+escape(d.serviceRu)+'</p>':''}<table>${row('Esiintymis- tai ohjelmapalvelu / Услуга (1 kpl / 1 шт.)',money(d.base))}${d.participants?row('Расходы на поездку / число заказов',money(d.pool)+' / '+d.participants):''}${row('Matkakulut / Транспортные расходы',money(d.travel))}${d.maximum!=null?row('Максимум при бронировании',money(d.maximum)):''}${row('Без налога',money(net))}${row('ALV '+rate+'%',money(d.total-net))}${row('К оплате',money(d.total))}</table>
  <p>${escape(p.vatNote)}</p><p>Оплатить до · ${escape(d.due)}</p><p>IBAN · ${escape(p.iban)}</p>${p.bic?'<p>BIC / SWIFT · '+escape(p.bic)+'</p>':''}${d.preview?'':'<p>Сообщение к платежу · Lasku '+invoice.number+'</p>'}</main></html>`;
  return new Response(html,{headers:{'Content-Type':'text/html; charset=utf-8','Cache-Control':'private, no-store','Referrer-Policy':'no-referrer','X-Robots-Tag':'noindex','X-Frame-Options':'DENY'}});
 }

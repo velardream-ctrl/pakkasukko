@@ -145,7 +145,7 @@ test('multiple times keep their own addresses, freeze a single trip and produce 
    assert.equal((await request('admin/billing/profile',draftSeller)).status,200);
    const draft=await request('admin/billing/preview?id='+id,{buyer:'Buyer',address:'Test address'});
    assert.equal(draft.status,200);const draftHtml=await draft.text();
-   assert.match(draftHtml,/TESTI — EI MAKSETTAVAKSI/);assert.match(draftHtml,/OKOYFIHH/);assert.match(draftHtml,/Стоимость поездки уточняется/);
+   assert.match(draftHtml,/TESTI — EI MAKSETTAVAKSI/);assert.match(draftHtml,/OKOYFIHH/);assert.match(draftHtml,/Joulupukin lyhyt tervehdys/);assert.match(draftHtml,/Артистическая услуга/);assert.match(draftHtml,/Стоимость поездки уточняется/);
    assert.equal((await request('admin/billing/issue?id='+id,{})).status,400);
    assert.equal(sqlite.prepare('SELECT COUNT(*) n FROM invoices').get().n,0);
    assert.equal(sqlite.prepare('SELECT COUNT(*) n FROM trip_shares').get().n,0);
@@ -158,10 +158,10 @@ test('multiple times keep their own addresses, freeze a single trip and produce 
    const seller=await (await request('admin/billing/profile')).json();
    Object.assign(seller,{address:'Test street',iban:'FI test',vatRate:'0',vatNote:'Example only'});
    assert.equal((await request('admin/billing/profile',seller)).status,200);
-   const issue=()=>request('admin/billing/issue?id='+id,{buyer:'Buyer',address:'Test address'});
+   const issue=()=>request('admin/billing/issue?id='+id,{buyer:'Buyer',address:'Test address',serviceFi:'Esiintymispalvelu – Joulupukin kotikäynti',serviceRu:'Выступление Деда Мороза на дому'});
    assert.equal((await issue()).status,200);await issue();
    const invoices=sqlite.prepare('SELECT * FROM invoices').all();assert.equal(invoices.length,1);
-   assert.equal(JSON.parse(invoices[0].document).total,5294);
+   assert.equal(JSON.parse(invoices[0].document).total,5294);assert.equal(JSON.parse(invoices[0].document).serviceFi,'Esiintymispalvelu – Joulupukin kotikäynti');
    const view=await request('admin/billing/view?id='+id);
    assert.equal(view.status,200);assert.match(view.headers.get('content-type'),/text\/html/);
    const html=await view.text();assert.ok(html.includes('52,94 €'));assert.ok(html.includes('Открыть PDF'));
