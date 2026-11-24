@@ -1,3 +1,4 @@
+import {defaultFare,validFare,prices,quote,describe} from '../docs/fares.js';
 import {mediaAPI} from './media.js';
 import {published,editorAPI} from './editor.js';
 import {DEFAULT_CONTENT,clean,normalizeContent,validStamp,addMinutes,validateBooking,csvCell} from './validation.js';
@@ -13,6 +14,10 @@ async function setting(env,key){
 }
 async function setSetting(env,key,value){
  await env.DB.prepare('INSERT INTO booking_settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').bind(key,value).run();
+}
+async function fareSettings(env){
+ const saved=await setting(env,'travel_fare');
+ return saved?JSON.parse(saved):defaultFare;
 }
 async function bookingState(env){
  const [enabled,mailTest,mailReceived,privacyConfirmed]=await Promise.all([
@@ -33,7 +38,7 @@ async function bookingState(env){
    turnstileConfigured:Boolean(env.TURNSTILE_SITE_KEY&&env.TURNSTILE_SECRET)};
 }
 const fiNow=()=>new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Helsinki',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date()).replace(' ','T');
-async function parse(req){const text=await req.text();if(text.length>16000)throw Error('Запрос слишком большой.');try{return JSON.parse(text);}catch{throw Error('Неверный формат JSON.');}}
+async function parse(req){const text=await req.text();if(text.length>40000)throw Error('Запрос слишком большой.');try{return JSON.parse(text);}catch{throw Error('Неверный формат JSON.');}}
 async function mac(secret,body){const enc=new TextEncoder();const key=await crypto.subtle.importKey('raw',enc.encode(secret),{name:'HMAC',hash:'SHA-256'},false,['sign']);return Array.from(new Uint8Array(await crypto.subtle.sign('HMAC',key,enc.encode(body)))).map(n=>n.toString(16).padStart(2,'0')).join('');}
 function same(a,b){if(typeof a!=='string'||typeof b!=='string'||a.length!==b.length)return false;let difference=0;for(let i=0;i<a.length;i++)difference|=a.charCodeAt(i)^b.charCodeAt(i);return difference===0;}
 function session(req){return (req.headers.get('Cookie')||'').split(';').map(x=>x.trim()).find(x=>x.startsWith('pakkasukko_session='))?.slice('pakkasukko_session='.length)||'';}
@@ -64,22 +69,29 @@ async function api(req,env,ctx,url){
  }
  if(path==='/api/public-config'&&method==='GET'){
    const state=await bookingState(env);
-   return reply({site:await published(env),content:await getContent(env),turnstileSiteKey:state.enabled?env.TURNSTILE_SITE_KEY:'',bookingsEnabled:state.enabled});
+   const site=await published(env),content=await getContent(env);
+   return reply({site,content,fares:await fareSettings(env),services:prices(site,content),turnstileSiteKey:state.enabled?env.TURNSTILE_SITE_KEY:'',bookingsEnabled:state.enabled});
  }
  if(path==='/api/slots'&&method==='GET'){if(!env.DB)return reply({slots:[],timezone:'Europe/Helsinki'});const s=await env.DB.prepare('SELECT id,start_at,end_at,status FROM slots WHERE start_at>=? ORDER BY start_at LIMIT 500').bind(fiNow().slice(0,10)+'T00:00').all();return reply({slots:s.results||[],timezone:'Europe/Helsinki'});}
  if(path==='/api/bookings'&&method==='POST'){
    if(!(await bookingState(env)).enabled)return fail('Приём заявок пока не включён.',503);
    const site=await published(env),cards=site.cards||[];
-   const b=validateBooking(await parse(req),cards.map(c=>c.id));
+   const input=await parse(req);
+   const b=validateBooking(input,cards.map(c=>c.id));
+   const services=prices(site,await getContent(env)),fares=await fareSettings(env);
+   const snapshot=quote(fares,services[b.service],b.city,input.group===true);
+   if(JSON.stringify(snapshot)!==input.quoteToken)return reply({error:'Тариф изменился. Проверьте новый расчёт и отправьте заявку ещё раз.',fares,services},409);
+   const summary=describe(snapshot);
    b.service=cards.find(c=>c.id===b.service)?.title||b.service;
    if(!await human(b.turnstileToken,req,env))return fail('Пройдите проверку от спама.',403);
    if(!await rateLimit(req,env,'booking',5,60))return fail('Слишком много запросов.',429);
    const slot=await env.DB.prepare('SELECT id,start_at,end_at,status FROM slots WHERE id=?').bind(b.slotId).first();
    if(!slot||slot.status!=='open'||slot.start_at<=fiNow())return fail('Время уже недоступно.',409);
    const id=crypto.randomUUID();
-   await env.DB.prepare("INSERT INTO bookings(id,slot_id,service,name,phone,email,city,address,message,status,created_at) VALUES(?,?,?,?,?,?,?,?,?,'pending',?)").bind(id,b.slotId,b.service,b.name,b.phone,b.email,b.city,b.address,b.message,now()).run();
-   ctx.waitUntil(emailOwner(env,'Новая заявка Pakkasukko',['Новая предварительная заявка. Нуждается в подтверждении.','Дата: '+slot.start_at+' — '+slot.end_at,'Формат: '+b.service,'Имя: '+b.name,'Телефон: '+b.phone,'Email: '+b.email,'Город: '+b.city,'Адрес: '+b.address,'Пожелания: '+b.message,'ID: '+id].join('\n')));
-   return reply({id,status:'pending',message:'Ваша заявка отправлена. Пожалуйста, дождитесь личного подтверждения бронирования.'},201);
+   await env.DB.batch([env.DB.prepare("INSERT INTO bookings(id,slot_id,service,name,phone,email,city,address,message,status,created_at) VALUES(?,?,?,?,?,?,?,?,?,'pending',?)").bind(id,b.slotId,b.service,b.name,b.phone,b.email,b.city,b.address,b.message,now()),
+     env.DB.prepare("INSERT INTO booking_quotes(booking_id,snapshot,summary) VALUES(?,?,?)").bind(id,JSON.stringify(snapshot),summary)]);
+   ctx.waitUntil(emailOwner(env,'Новая заявка Pakkasukko',['Новая предварительная заявка. Нуждается в подтверждении.','Дата: '+slot.start_at+' — '+slot.end_at,'Формат: '+b.service,summary,'Имя: '+b.name,'Телефон: '+b.phone,'Email: '+b.email,'Город: '+b.city,'Адрес: '+b.address,'Пожелания: '+b.message,'ID: '+id].join('\n')));
+   return reply({id,summary,status:'pending',message:'Ваша заявка отправлена. Пожалуйста, дождитесь личного подтверждения бронирования.'},201);
  }
  if(path==='/api/messages'&&method==='POST'){
    if(!(await bookingState(env)).enabled)return fail('Сообщения пока не принимаются.',503);
@@ -108,6 +120,13 @@ async function api(req,env,ctx,url){
  }
  if(!await adminOK(req,env))return fail('Необходим вход владельца.',401);
  if(path.startsWith('/api/admin/media/'))return mediaAPI(req,env,path,reply,true);
+ if(path==='/api/admin/travel-fare'&&method==='POST'){
+   const f=await parse(req);
+   if(!validFare(f))return fail('Проверьте цену топлива, расход и километраж.');
+   const km=f.km,routes=f.routes;
+   await setSetting(env,'travel_fare',JSON.stringify({fuel:f.fuel,consumption:f.consumption,km,routes}));
+   return reply({ok:true});
+ }
  if(path==='/api/admin/editor')return await editorAPI(req,env,path,reply);
  if(path==='/api/admin/booking-state'&&method==='GET')return reply(await bookingState(env));
  if(path==='/api/admin/email-test'&&method==='POST'){
@@ -135,8 +154,8 @@ async function api(req,env,ctx,url){
    return reply(await bookingState(env));
  }
  if(path==='/api/admin/dashboard'&&method==='GET'){
-   const [slots,bookings,messages]=await Promise.all([env.DB.prepare('SELECT * FROM slots ORDER BY start_at LIMIT 1000').all(),env.DB.prepare('SELECT b.*,s.start_at,s.end_at,d.price,d.notes,d.final_status FROM bookings b JOIN slots s ON s.id=b.slot_id LEFT JOIN booking_details d ON d.booking_id=b.id ORDER BY s.start_at,b.created_at LIMIT 1000').all(),env.DB.prepare('SELECT * FROM messages ORDER BY created_at DESC LIMIT 500').all()]);
-   return reply({slots:slots.results||[],bookings:bookings.results||[],messages:messages.results||[],content:await getContent(env)});
+   const [slots,bookings,messages]=await Promise.all([env.DB.prepare('SELECT * FROM slots ORDER BY start_at LIMIT 1000').all(),env.DB.prepare('SELECT b.*,q.summary AS quote_summary,s.start_at,s.end_at,d.price,d.notes,d.final_status FROM bookings b JOIN slots s ON s.id=b.slot_id LEFT JOIN booking_details d ON d.booking_id=b.id LEFT JOIN booking_quotes q ON q.booking_id=b.id ORDER BY s.start_at,b.created_at LIMIT 1000').all(),env.DB.prepare('SELECT * FROM messages ORDER BY created_at DESC LIMIT 500').all()]);
+   return reply({fares:await fareSettings(env),slots:slots.results||[],bookings:bookings.results||[],messages:messages.results||[],content:await getContent(env)});
  }
  if(path==='/api/admin/content'&&method==='POST'){const value=normalizeContent(await parse(req));await env.DB.prepare("INSERT INTO content(key,value) VALUES('site',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").bind(JSON.stringify(value)).run();return reply({ok:true,content:value});}
  if(path==='/api/admin/slots'&&method==='POST'){
@@ -176,7 +195,7 @@ async function api(req,env,ctx,url){
  }
  if(path==='/api/admin/messages/read'&&method==='POST'){const b=await parse(req);await env.DB.prepare("UPDATE messages SET status='read' WHERE id=?").bind(clean(b.id,80)).run();return reply({ok:true});}
  if(path==='/api/admin/schedule.csv'&&method==='GET'){const r=await env.DB.prepare('SELECT start_at,end_at,status,note FROM slots ORDER BY start_at').all();return csv(r.results,['start_at','end_at','status','note'],'pakkasukko-schedule.csv');}
- if(path==='/api/admin/export'&&method==='GET'){const keys=['start_at','end_at','service','name','phone','email','city','address','message','price','notes','status','created_at'];const r=await env.DB.prepare('SELECT s.start_at,s.end_at,b.service,b.name,b.phone,b.email,b.city,b.address,b.message,d.price,d.notes,COALESCE(d.final_status,b.status) status,b.created_at FROM bookings b JOIN slots s ON s.id=b.slot_id LEFT JOIN booking_details d ON d.booking_id=b.id ORDER BY s.start_at').all();return csv(r.results||[],keys,'pakkasukko-bookings.csv');}
+ if(path==='/api/admin/export'&&method==='GET'){const keys=['start_at','end_at','service','name','phone','email','city','address','message','price','quote_summary','notes','status','created_at'];const r=await env.DB.prepare('SELECT s.start_at,s.end_at,b.service,b.name,b.phone,b.email,b.city,b.address,b.message,d.price,q.summary AS quote_summary,d.notes,COALESCE(d.final_status,b.status) status,b.created_at FROM bookings b JOIN slots s ON s.id=b.slot_id LEFT JOIN booking_details d ON d.booking_id=b.id LEFT JOIN booking_quotes q ON q.booking_id=b.id ORDER BY s.start_at').all();return csv(r.results||[],keys,'pakkasukko-bookings.csv');}
  if(path==='/api/admin/export-messages'&&method==='GET'){const keys=['created_at','name','contact','message','status'];const r=await env.DB.prepare('SELECT created_at,name,contact,message,status FROM messages ORDER BY created_at DESC').all();return csv(r.results||[],keys,'pakkasukko-messages.csv');}
  return fail('Маршрут не найден.',404);
 }

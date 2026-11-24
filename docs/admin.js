@@ -15,9 +15,55 @@ function textBlock(parent,tag,text,cls){const child=el(tag,text,cls);parent.appe
 function button(parent,label,cb,cls){const b=el('button',label,cls);b.type='button';b.addEventListener('click',cb);parent.append(b);return b;}
 function format(stamp){return (stamp||'').replace('T',' ');}
 async function reload(){
- try{state=await request('/api/admin/dashboard');$('loginBox').classList.add('hidden');$('dashboard').classList.remove('hidden');$('logout').classList.remove('hidden');render();await reloadBookingState();}
+ try{state=await request('/api/admin/dashboard');$('loginBox').classList.add('hidden');$('dashboard').classList.remove('hidden');$('logout').classList.remove('hidden');render();renderFare();await reloadBookingState();}
  catch(e){$('dashboard').classList.add('hidden');$('loginBox').classList.remove('hidden');$('logout').classList.add('hidden');}
 }
+function fareNumber(parent,title,value,max,step='0.01'){
+ const label=el('label',title),input=el('input');
+ Object.assign(input,{type:'number',min:'0',max:String(max),step,value,required:true});
+ label.append(input);parent.append(label);return input;
+}
+function addFareCity(city='',km=0,r={}){
+ const row=el('fieldset'),grid=el('div',undefined,'admin-grid');
+ const nameLabel=el('label','Город'),name=el('input');
+ Object.assign(name,{value:city,required:true,maxLength:80});nameLabel.append(name);grid.append(nameLabel);
+ const modeLabel=el('label','Способ поездки'),mode=el('select');
+ mode.add(new Option('Автомобиль','car'));mode.add(new Option('Поезд','rail'));
+ mode.value=r.mode||'car';modeLabel.append(mode);grid.append(modeLabel);
+ const distance=fareNumber(grid,'Километры в одну сторону',km,2000,'0.1');
+ const ticket=fareNumber(grid,'Билеты туда и обратно, €',r.ticket||0,5000);
+ const nights=fareNumber(grid,'Ночей в гостинице',r.nights||0,30,'1');
+ const hotel=fareNumber(grid,'Цена за ночь, €',r.hotel||0,2000);
+ const meals=fareNumber(grid,'Питание за поездку, €',r.meals||0,2000);
+ const display=()=>{
+   distance.parentElement.style.display=mode.value==='car'?'':'none';
+   ticket.parentElement.style.display=mode.value==='rail'?'':'none';
+ };
+ mode.onchange=display;display();row.append(grid);
+ button(row,'Убрать город из тарифа',()=>row.remove());
+ row.readRoute=()=>({city:name.value.trim(),km:distance.valueAsNumber,route:{mode:mode.value,
+   ticket:ticket.valueAsNumber,nights:nights.valueAsNumber,hotel:hotel.valueAsNumber,meals:meals.valueAsNumber}});
+ $('fareCities').append(row);return name;
+}
+function renderFare(){
+ const f=state.fares,box=$('fareInputs');box.replaceChildren();$('fareCities').replaceChildren();
+ fareNumber(box,'Цена бензина, €/л',f.fuel,20,'0.001').id='fareFuel';
+ fareNumber(box,'Расход, л/100 км',f.consumption,100,'0.1').id='fareConsumption';
+ for(const [city,km] of Object.entries(f.km))if(city!=='Kitee')addFareCity(city,km,f.routes?.[city]);
+}
+$('addFareCity').onclick=()=>addFareCity().focus();
+$('fareForm').onsubmit=async event=>{
+ event.preventDefault();
+ const km=Object.create(null),routes=Object.create(null),names=new Set(['kitee']);km.Kitee=0;
+ for(const row of $('fareCities').children){
+   const entry=row.readRoute(),key=entry.city.toLowerCase();
+   if(!key||names.has(key)){status('fareStatus','Введите уникальное название для каждого города.',true);return;}
+   names.add(key);km[entry.city]=entry.km;routes[entry.city]=entry.route;
+ }
+ const fares={fuel:$('fareFuel').valueAsNumber,consumption:$('fareConsumption').valueAsNumber,km,routes};
+ try{await request('/api/admin/travel-fare','POST',fares);state.fares=fares;status('fareStatus','Тариф сохранён.');}
+ catch(e){status('fareStatus',e.message,true);}
+};
 async function reloadBookingState(){
  const panel=$('bookingChecklist');panel.replaceChildren();
  try{
@@ -76,6 +122,7 @@ function render(){
   textBlock(item,'p',v.name+' · '+v.service);
   textBlock(item,'p','Телефон: '+v.phone+' · Email: '+(v.email||'—'));
   textBlock(item,'p','Адрес: '+v.city+', '+v.address);
+  if(v.quote_summary)textBlock(item,'p','Зафиксировано при отправке · '+v.quote_summary);
   if(v.message)textBlock(item,'p',v.message);
   textBlock(item,'small','Заявка: '+v.id+' · '+v.created_at);
   if(!v.final_status&&v.status==='pending')for(const [label,next,cls] of [['Подтвердить','confirmed','confirm'],['Отклонить','declined','decline']]){
@@ -86,7 +133,7 @@ function render(){
     button(item,title,async()=>{try{await request('/api/admin/bookings/status','POST',{id:v.id,status:key});await reload();}catch(e){alert(e.message);}});
    }
    const values={};
-   for(const [key,title,value] of [['price','Стоимость',v.price],['minutes','Минуты интервала',(+new Date(v.end_at+'Z')-new Date(v.start_at+'Z'))/60000],['notes','Заметки',v.notes]]){
+   for(const [key,title,value] of [['price',v.quote_summary?'Дополнительная договорённость':'Стоимость',v.price],['minutes','Минуты интервала',(+new Date(v.end_at+'Z')-new Date(v.start_at+'Z'))/60000],['notes','Заметки',v.notes]]){
     const label=el('label',title),input=el('input');values[key]=input;input.value=value??'';label.append(input);item.append(label);
    }
    button(item,'Сохранить детали',async()=>{try{await request('/api/admin/bookings/details','POST',{id:v.id,...Object.fromEntries(Object.entries(values).map(([k,i])=>[k,i.value]))});await reload();}catch(e){alert(e.message);}});

@@ -218,6 +218,7 @@ export function renderPage(doc,model,fields,device,editing=false){
     }
   }
   doc.querySelectorAll('.extra-card').forEach(el=>el.remove());
+  const selectedService=doc.querySelector('#service')?.value;
   doc.querySelectorAll('.extra-option,.owner-contact').forEach(el=>el.remove());
   applyBrand(doc,model.logo,editing);
   for(const [key,value] of Object.entries(model.contacts||{})){
@@ -255,11 +256,12 @@ export function renderPage(doc,model,fields,device,editing=false){
     if(card.id){
       const option=doc.createElement('option');option.className='extra-option';option.value=card.id;option.textContent=card.title+' · '+card.price;doc.querySelector('#service').append(option);
       const link=doc.createElement('a');link.href='#booking';link.textContent=pageText(model,'programButton')+' ↗';
-      link.onclick=()=>{doc.querySelector('#service').value=card.id;};foot.append(link);
+      link.onclick=()=>{doc.querySelector('#service').value=card.id;doc.querySelector('#service').dispatchEvent(new Event('change'));};foot.append(link);
     }
     box.append(foot);
     programGrid.append(box);
   }
+  if(selectedService && [...doc.querySelector('#service').options].some(o=>o.value===selectedService))doc.querySelector('#service').value=selectedService;
   if(model.seo.title)doc.title=model.seo.title;
   if(model.seo.description)doc.querySelector('meta[name=description]').content=model.seo.description;
   cropPhoto(doc,{...baseCrop(),...(model.crops[device]||{}),image:heroImageId(model,device)},editing);

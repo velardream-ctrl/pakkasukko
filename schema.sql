@@ -58,3 +58,9 @@ CREATE TABLE IF NOT EXISTS booking_settings (
  key TEXT PRIMARY KEY,
  value TEXT NOT NULL
 );
+
+-- Immutable submission-time tariff, separate from editable operational notes.
+CREATE TABLE IF NOT EXISTS booking_quotes (
+ booking_id TEXT PRIMARY KEY REFERENCES bookings(id),
+ snapshot TEXT NOT NULL, summary TEXT NOT NULL
+);

@@ -1,9 +1,10 @@
+import {mountFares} from './fare-form.js';
 import {fitTagline} from './tagline.js';
 import {pageText,initial,bindPage,renderPage,deviceFor} from './site.js';
 const $=(s)=>document.querySelector(s);
 fitTagline(document);
 $('#year').textContent=new Date().getFullYear();
-document.querySelectorAll('[data-service]').forEach(a=>a.addEventListener('click',()=>{$('#service').value=a.dataset.service;}));
+document.querySelectorAll('[data-service]').forEach(a=>a.addEventListener('click',()=>{$('#service').value=a.dataset.service;$('#service').dispatchEvent(new Event('change'));}));
 const pageIsPreview=location.hostname.endsWith('github.io')||location.hostname.endsWith('githack.com')||location.hostname==='localhost'&&location.port===''; 
 async function activate(){
   if(pageIsPreview){
@@ -36,6 +37,12 @@ async function activate(){
     // Sending personal information is a separate owner-controlled feature.
     const selectable=Boolean(config.bookingsEnabled&&config.turnstileSiteKey);
     const select=$('#dateSelect'),area=$('#slots'),form=$('#bookingForm'),submit=$('#bookingSubmit');
+    const fare=mountFares(form,config);
+    // Keep the calculator available even while the booking calendar is closed.
+    $('#bookingFields').disabled=false;
+    for(const control of form.querySelectorAll('input,textarea,button')){
+      if(control.name && !['city','service','slotId'].includes(control.name))control.disabled=!selectable;
+    }
     let slots=[];
     try{
       const slotsResp=await fetch('/api/slots',{cache:'no-store'});
@@ -56,7 +63,7 @@ async function activate(){
     }
     select.disabled=false;
     select.replaceChildren(...dates.map(d=>new Option(dateLabel(d),d)));
-    $('#bookingFields').disabled=!selectable;
+
     function fill(){
       area.replaceChildren();$('#slotId').value='';submit.disabled=true;
       submit.textContent=selectable?pageText(model,'chooseTime'):'Приём заявок пока закрыт';
@@ -84,8 +91,8 @@ async function activate(){
     const script=document.createElement('script');script.src='https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';script.async=true;script.onload=()=>{window.turnstile?.render('#captcha',{sitekey:config.turnstileSiteKey,callback:(token)=>{form.dataset.captcha=token;},'expired-callback':()=>{form.dataset.captcha='';}});};document.head.append(script);
     form.addEventListener('submit',async e=>{e.preventDefault();const out=$('#bookingMessage');out.textContent='';if(!form.reportValidity())return;
       if(!form.dataset.captcha){out.textContent=pageText(model,'captcha');return;}
-      const fd=new FormData(form);const payload=Object.fromEntries(fd.entries());delete payload.consent;payload.turnstileToken=form.dataset.captcha;submit.disabled=true;submit.textContent=pageText(model,'sending');
-      try{const r=await fetch('/api/bookings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});const res=await r.json();if(!r.ok)throw Error(res.error||pageText(model,'error'));out.textContent=pageText(model,'success');form.reset();$('#slotId').value='';$('#dateSelect').dispatchEvent(new Event('change'));window.turnstile?.reset();form.dataset.captcha='';}catch(err){out.textContent=err.message;submit.disabled=false;submit.textContent=pageText(model,'retry');}
+      const fd=new FormData(form);const payload={...Object.fromEntries(fd.entries()),...fare.payload()};delete payload.consent;payload.turnstileToken=form.dataset.captcha;submit.disabled=true;submit.textContent=pageText(model,'sending');
+      try{const r=await fetch('/api/bookings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});const res=await r.json();if(!r.ok){if(res.fares){Object.assign(config,{fares:res.fares,services:res.services});fare.update();}throw Error(res.error||pageText(model,'error'));}out.textContent=pageText(model,'success')+' '+res.summary;form.reset();$('#slotId').value='';$('#dateSelect').dispatchEvent(new Event('change'));window.turnstile?.reset();form.dataset.captcha='';}catch(err){out.textContent=err.message;submit.disabled=false;submit.textContent=pageText(model,'retry');}
     });
   }catch(error){console.warn('Pakkasukko API not ready',error.message);}
 }
