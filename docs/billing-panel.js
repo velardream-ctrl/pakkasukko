@@ -34,17 +34,28 @@ export function invoiceControls(box,b,request,reload){
  if(b.status!=='confirmed'||(b.final_status==='cancelled'&&!b.invoice_number))return;
  const url=op=>'/api/admin/billing/'+op+'?id='+encodeURIComponent(b.id);
  if(b.share!=null){const p=document.createElement('p');p.textContent='Заказов на поездку: '+b.participants+' · Доля: '+euros(b.share);box.append(p);}
- if(!b.invoice_number&&q.travel!=null&&!q.remote&&b.city!=='Kitee'&&b.share==null){
+ const needsDeparture=!b.invoice_number&&q.travel!=null&&!q.remote&&b.city!=='Kitee'&&b.share==null;
+ if(needsDeparture){
    button(box,'Зафиксировать выезд',async()=>{
      if(!confirm('Зафиксировать подтверждённые заказы в этот город на эту поездку?'))return;
      await request(url('depart'),'POST',{});await reload();
-   });return;
+   });
  }
  if(!b.invoice_number){
    const panel=document.createElement('details'),title=document.createElement('summary');title.textContent='Подготовить счёт';panel.append(title);box.append(panel);
    const buyer=input(panel,'Получатель',b.name),address=input(panel,'Платёжный адрес',b.address+', '+b.city);
    const base=q.base==null?input(panel,'Согласованная цена программы, €','','number'):null;
    const travel=q.travel==null?input(panel,'Согласованная стоимость дороги, €','','number'):null;
+   const data=()=>({buyer:buyer.value,address:address.value,base:base?.value?Number(base.value):null,travel:travel?.value?Number(travel.value):null});
+   const note=document.createElement('p');note.textContent='Предварительный просмотр доступен до даты услуги. Тестовый документ не сохраняется и не подлежит оплате.';panel.append(note);
+   function openDraft(op){
+     if([base,travel].some(el=>el&&(!el.value||!Number.isFinite(Number(el.value))||Number(el.value)<0||Number(el.value)>100000)))throw Error('Укажите согласованные суммы в евро.');
+     const form=document.createElement('form');form.method='POST';form.action=url(op);
+     const field=document.createElement('input');field.type='hidden';field.name='document';field.value=JSON.stringify(data());form.append(field);document.body.append(form);form.submit();form.remove();
+   }
+   button(panel,'Предварительный просмотр счёта',()=>openDraft('preview'));
+   button(panel,'Тестовый PDF',()=>openDraft('preview-pdf'));
+   if(needsDeparture){const hint=document.createElement('p');hint.textContent='Стоимость дороги предварительная до фиксации выезда.';panel.append(hint);return;}
    button(panel,'Выписать счёт',async()=>{
      if(!confirm('Зафиксировать сумму и присвоить номер счёта?'))return;
      const result=await request(url('issue'),'POST',{buyer:buyer.value,address:address.value,base:base?.value?Number(base.value):null,travel:travel?.value?Number(travel.value):null});await reload();document.getElementById('invoiceJournal')?.scrollIntoView({block:'start'});alert('Счёт № '+result.number+' сохранён. Откройте его в журнале счетов.');

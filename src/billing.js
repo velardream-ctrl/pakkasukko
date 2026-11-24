@@ -56,19 +56,31 @@ export async function billing(req,env,path,reply){
    return r.meta.changes?reply({ok:true}):fail('Для этого заказа нет подтверждённой общей поездки.',409);
  }
  let invoice=await db.prepare('SELECT * FROM invoices WHERE booking_id=?').bind(id).first();
- if(path==='issue'&&req.method==='POST'){
-   if(invoice)return reply({number:invoice.number});
-   if(b.status!=='confirmed'||b.final_status==='cancelled'||day()<b.start_at.slice(0,10))return fail('Счёт доступен для подтверждённого действующего заказа с даты услуги.');
-   if(q.travel!=null&&!q.remote&&b.city!=='Kitee'&&b.share==null)return fail('Сначала нажмите «Зафиксировать выезд».');
+ const preview=path==='preview'||path==='preview-pdf';
+ if((path==='issue'||preview)&&req.method==='POST'){
+   if(!preview&&invoice)return reply({number:invoice.number});
+   if(b.status!=='confirmed'||b.final_status==='cancelled'||(!preview&&day()<b.start_at.slice(0,10)))return fail(preview?'Предпросмотр доступен для подтверждённого действующего заказа.':'Счёт доступен для подтверждённого действующего заказа с даты услуги.');
+   const pendingTrip=q.travel!=null&&!q.remote&&b.city!=='Kitee'&&b.share==null;
+   if(!preview&&pendingTrip)return fail('Сначала нажмите «Зафиксировать выезд».');
    const p=await readProfile(db);
    if(!p.address||!p.iban||p.vatRate==='')return fail('Заполните реквизиты для счёта.');
-   const input=await req.json(),base=q.base??cents(input.base),travel=b.share??q.travel??cents(input.travel);
+   let input;
+   try{input=preview&&req.headers.get('Content-Type')?.includes('application/x-www-form-urlencoded')?JSON.parse((await req.formData()).get('document')):await req.json();}catch{return fail('Неверные данные счёта.');}
+   if(!input||typeof input!=='object')return fail('Неверные данные счёта.');
+   const base=q.base??cents(input.base),travel=b.share??q.travel??cents(input.travel);
    if(base==null||travel==null)return fail('Укажите согласованные суммы в евро.');
    const buyer=String(input.buyer||b.name).trim().slice(0,200),address=String(input.address||b.address+', '+b.city).trim().slice(0,350);
-   const issued=day(),due=new Date(issued+'T12:00:00Z');due.setUTCDate(due.getUTCDate()+Number(p.terms));
+   const issued=preview&&day()<b.start_at.slice(0,10)?b.start_at.slice(0,10):day(),due=new Date(issued+'T12:00:00Z');due.setUTCDate(due.getUTCDate()+Number(p.terms));
    const doc={seller:p,buyer,address,service:({gift:'Поздравление с подарком',home:'Домашняя программа',event:'Мероприятие'})[b.service]||b.service,
      date:b.start_at.slice(0,10),city:b.city,issued,due:due.toISOString().slice(0,10),base,travel,total:base+travel,
      maximum:q.total??null,participants:b.participants,pool:b.pool,quote:q};
+   if(preview){
+     doc.preview=true;doc.pendingTrip=pendingTrip;
+     if(path==='preview')return invoiceView({document:JSON.stringify(doc),number:'TEST'},id);
+     const {makePDF}=await import('./invoice-pdf.js');
+     const bytes=await makePDF(doc,'TEST',env,url.origin);
+     return new Response(bytes,{headers:{'Content-Type':'application/pdf','Content-Disposition':'inline; filename="Pakkasukko-TEST.pdf"','Cache-Control':'private, no-store','Referrer-Policy':'no-referrer','X-Content-Type-Options':'nosniff'}});
+   }
    await db.prepare("INSERT INTO invoices(booking_id,document) SELECT ?,? WHERE EXISTS(SELECT 1 FROM bookings b LEFT JOIN booking_details d ON d.booking_id=b.id WHERE b.id=? AND b.status='confirmed' AND COALESCE(d.final_status,'')!='cancelled') ON CONFLICT(booking_id) DO NOTHING").bind(id,JSON.stringify(doc),id).run();
    invoice=await db.prepare('SELECT number FROM invoices WHERE booking_id=?').bind(id).first();
    return invoice?reply({number:invoice.number}):fail('Заказ отменён.',409);

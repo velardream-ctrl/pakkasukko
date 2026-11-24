@@ -140,6 +140,15 @@ test('multiple times keep their own addresses, freeze a single trip and produce 
    const other=await (await request('bookings',{...payload,visits:[{slotId:third.id,address:'Third 3'}],quoteToken:token(false)})).json();
    const id=receipts[0].id;
    for(const v of [...receipts,...other.receipts])await request('admin/bookings/status',{id:v.id,status:'confirmed'});
+   const draftSeller=await (await request('admin/billing/profile')).json();
+   Object.assign(draftSeller,{address:'Test street',iban:'FI test',bic:'OKOYFIHH',vatRate:'0',vatNote:'Example only'});
+   assert.equal((await request('admin/billing/profile',draftSeller)).status,200);
+   const draft=await request('admin/billing/preview?id='+id,{buyer:'Buyer',address:'Test address'});
+   assert.equal(draft.status,200);const draftHtml=await draft.text();
+   assert.match(draftHtml,/TESTI — EI MAKSETTAVAKSI/);assert.match(draftHtml,/OKOYFIHH/);assert.match(draftHtml,/Стоимость поездки уточняется/);
+   assert.equal((await request('admin/billing/issue?id='+id,{})).status,400);
+   assert.equal(sqlite.prepare('SELECT COUNT(*) n FROM invoices').get().n,0);
+   assert.equal(sqlite.prepare('SELECT COUNT(*) n FROM trip_shares').get().n,0);
    sqlite.exec("UPDATE slots SET start_at=replace(start_at,'2099','2020'),end_at=replace(end_at,'2099','2020')");
    assert.equal((await request('admin/billing/depart?id='+id,{})).status,200);
    const splits=sqlite.prepare('SELECT * FROM trip_shares ORDER BY share').all();

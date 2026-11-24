@@ -30,6 +30,7 @@ export async function makePDF(d,number,env,origin){
  }
  const money=n=>(n/100).toFixed(2).replace('.',',')+' €';
  const p=d.seller;
+ if(d.preview){line('TESTI — EI MAKSETTAVAKSI',18);line('ТЕСТ — НЕ ОПЛАЧИВАТЬ');line('Даты и суммы предварительные.');if(d.pendingTrip)line('Стоимость дороги уточняется после фиксации выезда.');}
  line('LASKU / СЧЁТ № '+number,21);line(p.name+' · '+p.owner,14,415);
  line('Y-tunnus '+p.businessId);line(p.address);if(p.contact)line(p.contact);
  if(p.vatId)line('VAT ID: '+p.vatId);
@@ -48,6 +49,7 @@ export async function makePDF(d,number,env,origin){
  line('Veroton / Без налога: '+money(net)+' · ALV '+rate+'%: '+money(d.total-net));
  if(p.vatNote)line(p.vatNote);
  y-=8;line('Maksettava / К оплате: '+money(d.total),17);
- line('Eräpäivä / Оплатить до: '+d.due);line('IBAN: '+p.iban);if(p.bic)line('BIC / SWIFT: '+p.bic);line('Viesti / Сообщение к платежу: Lasku '+number);
+ line('Eräpäivä / Оплатить до: '+d.due);line('IBAN: '+p.iban);if(p.bic)line('BIC / SWIFT: '+p.bic);if(!d.preview)line('Viesti / Сообщение к платежу: Lasku '+number);
+ if(d.preview)for(const p of pdf.getPages())p.drawText('TESTI — EI MAKSETTAVAKSI / ТЕСТ — НЕ ОПЛАЧИВАТЬ',{x:46,y:25,size:10,font,color:rgb(.65,.1,.1)});
  return pdf.save();
 }
