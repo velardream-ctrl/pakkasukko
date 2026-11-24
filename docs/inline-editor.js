@@ -128,8 +128,7 @@ export async function startInlineEditor({model,fields,currentDevice,onAdmin}){
         if(!el.isConnected||el.closest('[hidden]')||seen.has(el)||isPicture(el))continue;
         if(el.closest('.snow')||el.closest('script'))continue;
         if(el.matches('a,span')&&el.closest('h1,h2,h3,p')&&el.closest('h1,h2,h3,p')!==el)continue;
-        if(group==='header'&&el.closest('.brand'))taglineSlider(panelBody,model,document,changed);
-    const related=editableFields(fields,el);
+        const related=editableFields(fields,el);
         const extra=el.closest('.extra-card');
         const custom=el.closest('section[data-created]');
         const heading=el.matches('h1,h2')&&Object.hasOwn(model.headingOverrides||{},id);
@@ -197,6 +196,7 @@ export async function startInlineEditor({model,fields,currentDevice,onAdmin}){
       button(panelBody,'Вернуть исходное оформление заголовка',()=>{delete model.headingOverrides[group];changed();draw();closePanel();});
       return;
     }
+    if(group==='header'&&el.closest('.brand'))taglineSlider(panelBody,model,document,changed);
     const related=editableFields(fields,el);
     if(!related.length){
       panelBody.append(make('p','pk-hint','Для этого элемента пока нет текстового поля. Можно открыть полный редактор.'));
