@@ -16,8 +16,14 @@ function textBlock(parent,tag,text,cls){const child=el(tag,text,cls);parent.appe
 function button(parent,label,cb,cls){const b=el('button',label,cls);b.type='button';b.addEventListener('click',cb);parent.append(b);return b;}
 function format(stamp){return (stamp||'').replace('T',' ');}
 async function reload(){
- try{state=await request('/api/admin/dashboard');$('loginBox').classList.add('hidden');$('dashboard').classList.remove('hidden');$('logout').classList.remove('hidden');render();renderFare();await reloadBookingState();}
+ try{state=await request('/api/admin/dashboard');$('loginBox').classList.add('hidden');$('dashboard').classList.remove('hidden');$('logout').classList.remove('hidden');render();renderFare();await reloadInvoices();await reloadBookingState();}
  catch(e){$('dashboard').classList.add('hidden');$('loginBox').classList.remove('hidden');$('logout').classList.add('hidden');}
+}
+async function reloadInvoices(){
+ const box=$('invoiceList');box.replaceChildren();
+ try{const {invoices}=await request('/api/admin/billing/list');if(!invoices.length)textBlock(box,'p','Счетов пока нет.');
+ for(const i of invoices){const item=el('article',undefined,'record');textBlock(item,'h3','Счёт № '+i.number+' · '+i.buyer);textBlock(item,'p',i.issued+' · '+(i.total/100).toFixed(2)+' € · '+(i.sent_at?'Письмо принято почтовым сервисом':'Не отправлен'));const actions=el('div',undefined,'admin-actions');for(const [op,label] of [['view','Открыть счёт'],['pdf','Открыть PDF']]){const a=el('a',label);a.href='/api/admin/billing/'+op+'?id='+encodeURIComponent(i.id);actions.append(a);}item.append(actions);box.append(item);}
+ }catch(e){textBlock(box,'p','Не удалось загрузить счета: '+e.message,'error');}
 }
 function fareNumber(parent,title,value,max,step='0.01'){
  const label=el('label',title),input=el('input');

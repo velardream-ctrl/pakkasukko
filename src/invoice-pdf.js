@@ -48,6 +48,6 @@ export async function makePDF(d,number,env,origin){
  line('Veroton / Без налога: '+money(net)+' · ALV '+rate+'%: '+money(d.total-net));
  if(p.vatNote)line(p.vatNote);
  y-=8;line('Maksettava / К оплате: '+money(d.total),17);
- line('Eräpäivä / Оплатить до: '+d.due);line('IBAN: '+p.iban);line('Viesti / Сообщение к платежу: Lasku '+number);
+ line('Eräpäivä / Оплатить до: '+d.due);line('IBAN: '+p.iban);if(p.bic)line('BIC / SWIFT: '+p.bic);line('Viesti / Сообщение к платежу: Lasku '+number);
  return pdf.save();
 }

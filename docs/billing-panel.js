@@ -1,5 +1,5 @@
 import {euros} from './fares.js';
-const fields={name:'Название предприятия',owner:'Имя исполнителя',businessId:'Y-tunnus',address:'Почтовый адрес предприятия',iban:'IBAN для оплаты',contact:'Контакты для счёта',vatRate:'ALV, ставка в % (цена включает налог)',vatId:'VAT ID при начислении ALV',vatNote:'Основание освобождения при отсутствии ALV',terms:'Срок оплаты в днях'};
+const fields={name:'Название предприятия',owner:'Имя исполнителя',businessId:'Y-tunnus',address:'Почтовый адрес предприятия',iban:'IBAN для оплаты',bic:'BIC / SWIFT',contact:'Контакты для счёта',vatRate:'ALV, ставка в % (цена включает налог)',vatId:'VAT ID при начислении ALV',vatNote:'Основание освобождения при отсутствии ALV',terms:'Срок оплаты в днях'};
 function input(box,label,value='',type='text'){
  const wrap=document.createElement('label'),el=document.createElement('input');
  el.type=type;el.value=value;wrap.append(label,el);box.append(wrap);return el;
@@ -47,7 +47,7 @@ export function invoiceControls(box,b,request,reload){
    const travel=q.travel==null?input(panel,'Согласованная стоимость дороги, €','','number'):null;
    button(panel,'Выписать счёт',async()=>{
      if(!confirm('Зафиксировать сумму и присвоить номер счёта?'))return;
-     await request(url('issue'),'POST',{buyer:buyer.value,address:address.value,base:base?.value?Number(base.value):null,travel:travel?.value?Number(travel.value):null});location.assign(url('view'));
+     const result=await request(url('issue'),'POST',{buyer:buyer.value,address:address.value,base:base?.value?Number(base.value):null,travel:travel?.value?Number(travel.value):null});await reload();document.getElementById('invoiceJournal')?.scrollIntoView({block:'start'});alert('Счёт № '+result.number+' сохранён. Откройте его в журнале счетов.');
    });
  }else{
    const link=document.createElement('a');link.href=url('view');link.style.display='block';link.textContent='Открыть счёт № '+b.invoice_number;box.append(link);

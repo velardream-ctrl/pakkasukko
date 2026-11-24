@@ -16,7 +16,7 @@ const bookingSQL=`SELECT b.*,s.start_at,q.snapshot,d.final_status,t.participants
  FROM bookings b JOIN slots s ON s.id=b.slot_id LEFT JOIN booking_quotes q ON q.booking_id=b.id
  LEFT JOIN booking_details d ON d.booking_id=b.id LEFT JOIN trip_shares t ON t.booking_id=b.id WHERE b.id=?`;
 const day=()=>new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Helsinki'}).format(new Date());
-export const profileDefaults={name:'Karjalas',owner:'Илья Дмитриев',businessId:'3445587-1',address:'',iban:'',contact:'',vatRate:'',vatId:'',vatNote:'',terms:'14',logo:''};
+export const profileDefaults={name:'Karjalas',owner:'Илья Дмитриев',businessId:'3445587-1',address:'',iban:'',bic:'',contact:'',vatRate:'',vatId:'',vatNote:'',terms:'14',logo:''};
 const readProfile=async db=>({...profileDefaults,...JSON.parse((await db.prepare("SELECT value FROM booking_settings WHERE key='billing_profile'").first())?.value||'{}')});
 function cents(value){return typeof value==='number'&&Number.isFinite(value)&&value>=0&&value<=100000?Math.round(value*100):null;}
 export async function billing(req,env,path,reply){
@@ -24,15 +24,22 @@ export async function billing(req,env,path,reply){
  if(path==='profile'){
    if(req.method==='GET')return reply(await readProfile(db));
    const body=await req.json(),p={};
+   if(body.bic===undefined)body.bic=(await readProfile(db)).bic||'';
    for(const k of Object.keys(profileDefaults)){
      if(typeof body[k]!=='string'||body[k].length>(k==='logo'?80000:350))return fail('Проверьте реквизиты.');
      p[k]=body[k].trim();
    }
+   p.bic=p.bic.replace(/\s/g,'').toUpperCase();
+   if(p.bic&&!/^[A-Z]{6}[A-Z0-9]{2}([A-Z0-9]{3})?$/.test(p.bic))return fail('Проверьте BIC / SWIFT.');
    if(p.logo&&!/^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(p.logo))return fail('Нужен логотип PNG.');
    if(!/^\d{7}-\d$/.test(p.businessId)||!p.name||!/^\d{1,2}$/.test(p.terms)||!/^\d{1,2}([.,]\d{1,2})?$/.test(p.vatRate))return fail('Введите Y-tunnus, срок и ставку ALV (включая 0).');
    if(!p.address||!p.iban||(!Number(p.vatRate.replace(',','.'))?!p.vatNote:!p.vatId))return fail('Нужны адрес, IBAN и VAT ID либо основание отсутствия ALV.');
    await db.prepare("INSERT INTO booking_settings(key,value) VALUES('billing_profile',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").bind(JSON.stringify(p)).run();
    return reply({ok:true});
+ }
+ if(path==='list'&&req.method==='GET'){
+   const rows=await db.prepare('SELECT number,booking_id,document,sent_at FROM invoices ORDER BY number DESC').all();
+   return reply({invoices:rows.results.map(i=>{const d=JSON.parse(i.document);return {number:i.number,id:i.booking_id,buyer:d.buyer,issued:d.issued,due:d.due,total:d.total,sent_at:i.sent_at};})});
  }
  const id=url.searchParams.get('id')||'';
  const b=await db.prepare(bookingSQL).bind(id).first();
