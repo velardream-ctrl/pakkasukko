@@ -167,10 +167,12 @@ export function bindPage(doc){
   for(const [key,original] of Object.entries(messages))fields.push({group:key==='programButton'?'programs':'booking',key:'message-'+key,original});
   return fields;
 }
+import {fitTagline} from './tagline.js';
 import {applySnow} from './snow.js';
 export function renderPage(doc,model,fields,device,editing=false){
   applySnow(doc,model.snow,device);
   for(const f of fields)setField(f,model.texts[f.key]??f.original);
+  fitTagline(doc,model.taglineWidth);
   for(const heading of doc.querySelectorAll('[data-heading-display]'))heading.remove();
   for(const node of doc.querySelectorAll('[data-heading-original]')){
     node.hidden=false;node.removeAttribute('data-heading-original');

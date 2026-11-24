@@ -289,3 +289,5 @@ main > section:not(.intro) > .section-media-frame,
     line-height:1.45;
   }
 }
+
+.header .brand-name,.header .brand small{display:block;width:max-content}.header .brand small{font-size:11px;line-height:1.3;letter-spacing:.015em}

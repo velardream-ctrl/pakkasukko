@@ -27,6 +27,10 @@ with sync_playwright() as playwright:
     for width, height in [(390, 844), (844, 390), (768, 1024), (1024, 768), (1440, 900)]:
         page.set_viewport_size({"width": width, "height": height})
         expect(canvas).to_be_visible()
+        page.wait_for_function("""() => {
+            const width = selector => document.querySelector(selector).getBoundingClientRect().width;
+            return Math.abs(width('.header .brand small') - width('.header .brand-name')) < 2;
+        }""")
         frame = canvas.evaluate("c => c.toDataURL()")
         page.wait_for_function("previous => document.querySelector('canvas').toDataURL() !== previous", arg=frame)
         expect(page.locator(".pk-toolbar")).to_have_count(0)
@@ -78,5 +82,15 @@ with sync_playwright() as playwright:
     choice.select_option("")
     expect(header.locator("img")).to_have_attribute("src", "./assets/pakkasukko-medallion.png")
     expect(page.locator('link[rel="icon"]')).to_have_attribute("href", "./assets/pakkasukko-medallion.png")
+    page.locator("#section").select_option("header")
+    slider = page.get_by_role("slider", name="Размер подписи", exact=False)
+    expect(slider).to_have_value("100")
+    slider.press("Home")
+    expect(slider).to_have_value("70")
+    page.wait_for_function("""() => {
+        const header = document.querySelector('iframe').contentDocument.querySelector('.header .brand');
+        const ratio = header.querySelector('small').offsetWidth / header.querySelector('.brand-name').offsetWidth;
+        return Math.abs(ratio - 0.7) < 0.025;
+    }""")
     assert not errors, errors
     browser.close()

@@ -1,3 +1,4 @@
+import {fitTagline,taglineSlider} from './tagline.js';
 import {applySnow} from './snow.js';
 import {snowPanel} from './snow-panel.js';
 import {applyBrand,setField,devices,baseCrop,baseSectionCrop,sectionCrop,initial,bindPage,renderPage,cropPhoto,applySectionCrop,applyHeroShade,heroShadePercent,applyRoutesShade,routesShadePercent,heroImageId,setHeroDeviceImage,setHeroGlobalImage,mediaURL} from './site.js';
@@ -152,6 +153,7 @@ function section(){
       model.sections=model.sections.filter(s=>s.id!==group);model.order=model.order.filter(id=>id!==group);model.hidden=model.hidden.filter(id=>id!==group);delete model.pictures[group];outline();section();draw();
     });
   }
+  if(group==='header')taglineSlider($('fields'),model,doc);
   const heading=doc.getElementById(group)?.querySelector('h1,h2');
   if(heading&&!custom&&!query){
     const title=input($('fields'),'Заголовок целиком',model.headingOverrides[group]??(heading.innerText||heading.textContent),v=>{model.headingOverrides[group]=v;draw();},'textarea');title.id='wholeHeading';
@@ -161,7 +163,7 @@ function section(){
     const value=model.texts[f.key]??f.original;
     if(query ? !(value+' '+f.original).toLocaleLowerCase('ru').includes(query) : f.group!==group)continue;
     const label=(query?names[f.group]+' · ':'')+(f.attribute==='placeholder'?'Подсказка поля · ':'')+f.original.trim().slice(0,80);
-    const editor=input($('fields'),label,value,v=>{model.texts[f.key]=v;setField(f,v);if(!f.node)draw();
+    const editor=input($('fields'),label,value,v=>{model.texts[f.key]=v;setField(f,v);if(f.group==='header')fitTagline(doc,model.taglineWidth);if(!f.node)draw();
       if(f.node?.parentElement?.closest('[data-heading-original]')){delete model.headingOverrides[f.group];draw();}
     },'textarea');editor.id='edit-'+f.key;
   }

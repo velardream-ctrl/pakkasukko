@@ -1,5 +1,7 @@
+import {fitTagline} from './tagline.js';
 import {pageText,initial,bindPage,renderPage,deviceFor} from './site.js';
 const $=(s)=>document.querySelector(s);
+fitTagline(document);
 $('#year').textContent=new Date().getFullYear();
 document.querySelectorAll('[data-service]').forEach(a=>a.addEventListener('click',()=>{$('#service').value=a.dataset.service;}));
 const pageIsPreview=location.hostname.endsWith('github.io')||location.hostname.endsWith('githack.com')||location.hostname==='localhost'&&location.port===''; 

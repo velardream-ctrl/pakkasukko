@@ -1,3 +1,4 @@
+import {fitTagline,taglineSlider} from './tagline.js';
 import {applySnow} from './snow.js';
 import {snowPanel} from './snow-panel.js';
 import {initial,mediaURL,baseCrop,baseSectionCrop,sectionCrop,cropPhoto,applySectionCrop,renderPage,setField,applyHeroShade,heroShadePercent,applyRoutesShade,routesShadePercent,heroImageId,setHeroDeviceImage} from './site.js';
@@ -127,7 +128,8 @@ export async function startInlineEditor({model,fields,currentDevice,onAdmin}){
         if(!el.isConnected||el.closest('[hidden]')||seen.has(el)||isPicture(el))continue;
         if(el.closest('.snow')||el.closest('script'))continue;
         if(el.matches('a,span')&&el.closest('h1,h2,h3,p')&&el.closest('h1,h2,h3,p')!==el)continue;
-        const related=editableFields(fields,el);
+        if(group==='header'&&el.closest('.brand'))taglineSlider(panelBody,model,document,changed);
+    const related=editableFields(fields,el);
         const extra=el.closest('.extra-card');
         const custom=el.closest('section[data-created]');
         const heading=el.matches('h1,h2')&&Object.hasOwn(model.headingOverrides||{},id);
@@ -207,6 +209,7 @@ export async function startInlineEditor({model,fields,currentDevice,onAdmin}){
       labeled(panelBody,label,'textarea',current,value=>{
         model.texts[f.key]=value;
         if(f.node?.isConnected)setField(f,value);
+        if(group==='header')fitTagline(document,model.taglineWidth);
         changed();
       });
     });
