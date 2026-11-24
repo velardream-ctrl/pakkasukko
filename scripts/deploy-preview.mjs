@@ -77,6 +77,7 @@ try{
  const booking=await launch.json().catch(()=>null);
  if(!launch.ok||typeof booking?.enabled!=='boolean'||!Array.isArray(booking.missing))throw Error('Owner booking readiness API not ready');
  console.log('Owner calendar launch controls ready.');
+ console.log('Readiness (no secret values): Turnstile='+booking.turnstileConfigured+', Resend='+booking.emailConfigured+', testEmailSent='+booking.mailTestSent+', liveBookings='+booking.enabled);
  await fetch(url+'/api/admin/logout',{method:'POST',headers:{Cookie:cookie,Origin:url}});
  console.log('Verified site '+url+' and admin '+url+'/admin');
 }finally{for(const path of [config,secrets])try{unlinkSync(path)}catch{}}
