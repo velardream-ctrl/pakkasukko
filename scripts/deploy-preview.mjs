@@ -58,7 +58,7 @@ try{
  console.log('Pakkasukko R2 media binding ready: '+health.mediaReady);
  const login=await fetch(url+'/api/admin/login',{method:'POST',redirect:'error',headers:{Origin:url,'Content-Type':'application/json'},body:JSON.stringify({password})});
  if(!login.ok)throw Error('Owner login check failed (HTTP '+login.status+')');
- const cookie=login.headers.get('set-cookie')?.split(';')[0];
+ let cookie=login.headers.get('set-cookie')?.split(';')[0];
  if(!cookie)throw Error('Session cookie missing');
  let editorOk=false,lastStatus='not started';
  // D1 writes may not become visible to subsequent reads immediately in another request.
@@ -73,9 +73,23 @@ try{
    if(attempt<5)await new Promise(resolve=>setTimeout(resolve,800*(attempt+1)));
  }
  if(!editorOk)throw Error('Editor check failed after retries: '+lastStatus);
- const launch=await fetch(url+'/api/admin/booking-state',{headers:{Cookie:cookie},cache:'no-store'});
- const booking=await launch.json().catch(()=>null);
- if(!launch.ok||typeof booking?.enabled!=='boolean'||!Array.isArray(booking.missing))throw Error('Owner booking readiness API not ready');
+ // During deployment different Cloudflare edges can briefly serve older sessions.
+ // Re-authenticate if the rotating SESSION_SECRET causes an intermittent 401.
+ let booking=null,lastBookingStatus='not started';
+ for(let attempt=0;attempt<10;attempt++){
+   const response=await fetch(url+'/api/admin/booking-state',{headers:{Cookie:cookie},cache:'no-store'});
+   lastBookingStatus='HTTP '+response.status;
+   const body=await response.json().catch(()=>null);
+   if(response.ok&&typeof body?.enabled==='boolean'&&Array.isArray(body.missing)){
+     booking=body;break;
+   }
+   if(response.status===401){
+     const again=await fetch(url+'/api/admin/login',{method:'POST',redirect:'error',headers:{Origin:url,'Content-Type':'application/json'},body:JSON.stringify({password})});
+     if(again.ok)cookie=again.headers.get('set-cookie')?.split(';')[0]||cookie;
+   }
+   if(attempt<9)await new Promise(resolve=>setTimeout(resolve,700*(attempt+1)));
+ }
+ if(!booking)throw Error('Owner booking readiness API not ready: '+lastBookingStatus);
  console.log('Owner calendar launch controls ready.');
  console.log('Readiness (no secret values): Turnstile='+booking.turnstileConfigured+', Resend='+booking.emailConfigured+', testEmailSent='+booking.mailTestSent+', liveBookings='+booking.enabled);
  await fetch(url+'/api/admin/logout',{method:'POST',headers:{Cookie:cookie,Origin:url}});
