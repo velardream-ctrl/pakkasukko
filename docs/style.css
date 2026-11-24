@@ -295,3 +295,6 @@ main > section:not(.intro) > .section-media-frame,
 
 .provider-booking,#provider-details{font:500 14px/1.55 Manrope,sans-serif}.provider-booking{margin:16px 0;color:inherit}#provider-details{margin:0;padding:0 0 24px}
 .booking-form label[hidden]{display:none}
+
+/* RUN-030: readable privacy commitment without changing existing editor keys. */
+.privacy #privacy-copy,.privacy .container>p:not(.section-kicker){white-space:pre-line;color:#b6c4ca;max-width:850px;font-size:clamp(14px,1.4vw,17px);line-height:1.7}.privacy-policy-link{display:inline-block;margin-top:22px;color:#e7c889;text-decoration:underline;text-underline-offset:4px}.privacy h2{overflow-wrap:anywhere}

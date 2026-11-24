@@ -1,7 +1,8 @@
+import {currentCopy} from './privacy-copy.js';
 export async function published(env){
   if(!env.DB)return {};
   const row=await env.DB.prepare('SELECT body FROM site_revisions WHERE published=1 ORDER BY id DESC LIMIT 1').first();
-  return row?JSON.parse(row.body):{};
+  return row?currentCopy(JSON.parse(row.body)):{};
 }
 export async function editorAPI(req,env,path,reply){
   const db=env.DB;
@@ -9,7 +10,7 @@ export async function editorAPI(req,env,path,reply){
     const latest=await db.prepare('SELECT id,body FROM site_revisions ORDER BY id DESC LIMIT 1').first();
     const history=await db.prepare('SELECT id,created_at,published FROM site_revisions ORDER BY id DESC LIMIT 50').all();
     const media=await db.prepare('SELECT * FROM media ORDER BY position,id').all();
-    return reply({id:latest?.id||0,model:latest?JSON.parse(latest.body):{},history:history.results,media:media.results});
+    return reply({id:latest?.id||0,model:latest?currentCopy(JSON.parse(latest.body)):{},history:history.results,media:media.results});
   }
   if(path==='/api/admin/editor' && req.method==='POST'){
     const raw=await req.text();

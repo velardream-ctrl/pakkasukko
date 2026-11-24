@@ -4,6 +4,7 @@ import {DatabaseSync} from 'node:sqlite';
 import {readFileSync} from 'node:fs';
 import worker from '../src/worker.js';
 import {initial,deviceFor} from '../docs/site.js';
+import {currentCopy} from '../src/privacy-copy.js';
 const schema=readFileSync(new URL('../schema.sql',import.meta.url),'utf8');
 function fixture(){
   const sqlite=new DatabaseSync(':memory:');sqlite.exec(schema);
@@ -53,4 +54,10 @@ test('login throttling and responsive profiles',async()=>{
   for(let i=0;i<8;i++)assert.equal((await request('admin/login',{password:'wrong'})).status,401);
   assert.equal((await request('admin/login',{password:'wrong'})).status,429);
   for(const [w,h,d] of [[320,640,'phone'],[844,390,'phone'],[820,1180,'tablet'],[1180,820,'tablet'],[1440,900,'desktop']])assert.equal(deviceFor(w,h),d);
+});
+
+test('obsolete privacy defaults are replaced without rewriting custom content',()=>{
+ const model=initial();model.texts={'privacy-0':'ВАШИ ДАННЫЕ — ПОД ЗАЩИТОЙ','privacy-2':"До публикации политики конфиденциальности и реквизитов организатора приём заявок отключён. После запуска данные о бронировании будут использоваться только для согласования мероприятия, храниться в отдельной базе Pakkasukko и не публиковаться в календаре.",'footer-9':' Pakkasukko · Тестовый макет','privacy-3':'Собственный текст владельца'};
+ const next=currentCopy(model);assert.match(next.texts['privacy-2'],/обязуется соблюдать конфиденциальность/);assert.equal(next.texts['footer-9'],' Pakkasukko');assert.equal(next.texts['privacy-3'],model.texts['privacy-3']);assert.equal(model.texts['privacy-0'],'ВАШИ ДАННЫЕ — ПОД ЗАЩИТОЙ');
+ const html=readFileSync(new URL('../docs/index.html',import.meta.url),'utf8');assert.match(html,/href="\.\/privacy\.html"/);assert.doesNotMatch(html,/Pakkasukko · Тестовый макет/);
 });
