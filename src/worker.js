@@ -151,7 +151,7 @@ async function api(req,env,ctx,url){
      const order=orders.find(o=>o.slotId===slot.id),id=crypto.randomUUID();
      const visit=visitQuote(snapshot,slots.length,index);
      const payment=prepaymentForVisit(fares,visit);
-     const saved={...visit,...(payment?{prepayment:payment}:{}),groupId};
+     const saved={...visit,...(payment?{prepayment:{...payment,termsVersion:'2026-11-26',acceptedAt:now()}}:{}),groupId};
      const holiday=saved.holidayName?' · '+saved.holidayName+' +'+saved.holidayPercent+'% ('+(saved.holidayExtra===null?'стоимость по согласованию':euros(saved.holidayExtra))+')':'';
      const artists=saved.durationMinutes?' · '+(saved.performerCast==='duo'?'Дед Мороз и Снегурочка':'Дед Мороз')+' · '+saved.durationMinutes+' минут':'';
      const detailCore=slots.length===1?describe(saved):'Визит '+(index+1)+'/'+slots.length+artists+holiday+' · Программа '+(saved.base==null?'по согласованию':euros(saved.base))+' · Доля дороги '+(saved.travel==null?'по согласованию':euros(saved.travel))+' · Итого '+(saved.total==null?'по согласованию':euros(saved.total));
