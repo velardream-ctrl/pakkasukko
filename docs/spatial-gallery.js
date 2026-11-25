@@ -7,7 +7,8 @@ export const BUILTIN_SPATIAL=Object.freeze({
 });
 const BUILTIN_ASSETS={
   'builtin-santa':'./assets/demo-3d-santa.png',
-  'builtin-panorama':'./assets/demo-3d-panorama.png'
+  'builtin-panorama':'./assets/demo-3d-panorama.png',
+  'builtin-original':'./assets/pakkasukko-ded-moroz.webp'
 };
 export const SPATIAL_DEVICES=['phone','tablet','desktop'];
 export function spatialSettings(model){
@@ -49,16 +50,22 @@ export function mountSpatialPhoto({model,currentDevice}){
   stage.hidden=true;
   const base=document.createElement('div'),moving=document.createElement('div');
   const shadow=document.createElement('div'),figure=document.createElement('div');
+  const panorama=document.createElement('div');panorama.className='pk-space-panorama';
+  const baseSource=document.createElement('div'),movingSource=document.createElement('div');
+  baseSource.className='pk-space-restored';movingSource.className='pk-space-restored';
   base.className='pk-space-bg pk-space-base';moving.className='pk-space-bg pk-space-moving';
+  base.append(baseSource);moving.append(movingSource);
   shadow.className='pk-space-shadow';figure.className='pk-space-figure';
   // The entire depth composition uses the exact same crop frame as the ordinary hero <img>.
   // Keep the interactive surface fixed while transforming its inner layers together.
   const frame=document.createElement('div');frame.className='pk-space-frame';
-  frame.append(base,moving,shadow,figure);stage.append(frame);
+  frame.append(panorama,base,moving,shadow,figure);stage.append(frame);
   photo.append(stage);
   let active=false,currentId='',request=0,autoBlockedUntil=0,orientation=false,neutral=null,frameId=0;
   let x=0,y=0,targetX=0,targetY=0,last=0,pointer=null,dragged=false,enabledDevice='',currentMotion='auto';
   const strength=settings.strength/100;
+  // Safari and modern browsers can subtract the Santa silhouette from his original photograph.
+  const canRestore=!!(window.CSS?.supports?.('mask-composite','exclude')||window.CSS?.supports?.('-webkit-mask-composite','xor'));
   const clamp=(n,a,b)=>Math.min(b,Math.max(a,n));
   function preload(src){
     return new Promise(resolve=>{
@@ -99,14 +106,22 @@ export function mountSpatialPhoto({model,currentDevice}){
     if(active&&currentId===scene.id){startUnrestrictedTilt();return;}
     const fg=spatialAsset(scene.foregroundId),bg=spatialAsset(scene.backgroundId);
     const ground=spatialAsset(scene.groundId)||bg;
+    const original=scene.id===BUILTIN_SPATIAL.id&&canRestore?spatialAsset('builtin-original'):'';
     if(!fg||!bg){ordinary();return;}
     const ticket=++request;
-    Promise.all([preload(fg),preload(bg),ground===bg?Promise.resolve(true):preload(ground)]).then(ok=>{
+    Promise.all([preload(fg),preload(bg),ground===bg?Promise.resolve(true):preload(ground),original?preload(original):Promise.resolve(true)]).then(ok=>{
       if(ticket!==request||!ok.every(Boolean)||!settings.enabled||settings.modes[currentDevice()]!=='spatial'){
         if(ticket===request)ordinary();return;
       }
-      moving.style.backgroundImage='url("'+bg+'")';
-      base.style.backgroundImage='url("'+ground+'")';
+      // For the original Santa photo, retain the REAL church and snow at the same
+      // pixel positions as the ordinary photograph. The extended panorama only
+      // fills space revealed behind the transparent cutout during parallax.
+      stage.classList.toggle('pk-space-original-background',Boolean(original));
+      moving.style.backgroundImage=original?'none':'url("'+bg+'")';
+      base.style.backgroundImage=original?'none':'url("'+ground+'")';
+      movingSource.style.backgroundImage=original?'url("'+original+'")':'none';
+      baseSource.style.backgroundImage=original?'url("'+original+'")':'none';
+      panorama.style.backgroundImage=original?'url("'+bg+'")':'none';
       figure.style.backgroundImage='url("'+fg+'")';
       stage.setAttribute('aria-label',scene.title||'Пространственная зимняя фотография');
       stage.hidden=false;photo.classList.add('pk-space-active');
@@ -128,13 +143,14 @@ export function mountSpatialPhoto({model,currentDevice}){
       const W=stage.clientWidth,H=stage.clientHeight;
       const px=Math.min(W*.14,105)*strength,py=Math.min(H*.055,31)*strength;
       const set=(k,v)=>stage.style.setProperty(k,v);
-      set('--pk-space-x',(-x*px).toFixed(2)+'px');
-      set('--pk-space-y',(-y*py*.65).toFixed(2)+'px');
-      set('--pk-space-fg',(x*3.2*strength).toFixed(2)+'deg');
-      set('--pk-space-fg-yaw',(x*4.5*strength).toFixed(2)+'deg');
-      set('--pk-space-fg-pitch',(-y*2.7*strength).toFixed(2)+'deg');
-      set('--pk-space-bg-yaw',(-x*5.2*strength).toFixed(2)+'deg');
-      set('--pk-space-bg-pitch',(y*3.4*strength).toFixed(2)+'deg');
+      // Keep the church close to its photographic position as the viewer turns.
+      const backgroundShift=stage.classList.contains('pk-space-original-background')?0.42:1;
+      set('--pk-space-x',(-x*px*backgroundShift).toFixed(2)+'px');
+      set('--pk-space-y',(-y*py*.65*backgroundShift).toFixed(2)+'px');
+      // Santa stays completely still, firmly planted in the snow. Only the scenery moves.
+      const rotation=stage.classList.contains('pk-space-original-background')?0.55:0.75;
+      set('--pk-space-bg-yaw',(-x*5.2*strength*rotation).toFixed(2)+'deg');
+      set('--pk-space-bg-pitch',(y*3.4*strength*rotation).toFixed(2)+'deg');
     }
     frameId=active?requestAnimationFrame(tick):0;
   }

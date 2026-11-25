@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 import {spatialSettings,spatialAsset,chosenSpatialScene,matchSpatialFraming,BUILTIN_SPATIAL} from '../docs/spatial-gallery.js';
 import {validSpatialSettings} from '../src/editor.js';
 
@@ -17,6 +18,7 @@ test('ordinary photo is retained on every device by default, with built-in spati
  assert.equal(s.motions.desktop,'auto');
  assert.equal(chosenSpatialScene(s,'phone'),BUILTIN_SPATIAL);
  assert.match(spatialAsset('builtin-santa'),/demo-3d-santa\.png/);
+ assert.match(spatialAsset('builtin-original'),/pakkasukko-ded-moroz\.webp/);
 });
 test('owner can select distinct spatial modes and scenes per device',()=>{
  const s=spatialSettings({spatial:{enabled:true,modes:{phone:'spatial',tablet:'photo',desktop:'spatial'},
@@ -50,4 +52,12 @@ test('spatial layers follow the exact position and zoom of the existing per-devi
  assert.equal(frame.style.transform,original.style.transform);
  assert.equal(frame.style.transformOrigin,'195px 0px');
  assert.equal(figure.style.backgroundPosition,'50% 0%');
+});
+
+test('the original church is restored behind a rigid Santa silhouette',()=>{
+ const css=readFileSync(new URL('../docs/spatial-gallery.css',import.meta.url),'utf8');
+ const js=readFileSync(new URL('../docs/spatial-gallery.js',import.meta.url),'utf8');
+ assert.match(css,/\.pk-space-original-background \.pk-space-restored/);
+ assert.match(css,/\.pk-space-figure\s*\{[^}]*transform:none;/);
+ assert.doesNotMatch(js,/set\('--pk-space-fg/);
 });

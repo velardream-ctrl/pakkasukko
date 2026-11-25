@@ -3,6 +3,34 @@
 .hero-photo.pk-space-active>img:not(.pk-space-layer){opacity:0;visibility:hidden}
 .pk-space-scene{position:absolute;inset:0;z-index:1;overflow:hidden;touch-action:pan-y;cursor:grab;user-select:none;-webkit-user-select:none}
 .pk-space-frame{position:absolute;inset:0;transform-origin:center top;will-change:transform}
+/* The reconstruction keeps the church at its original photographic coordinates. */
+.pk-space-panorama{display:none;position:absolute;inset:0;z-index:0;background-size:cover;background-position:42% 50%;transform:scale(1.34);pointer-events:none}
+.pk-space-restored{display:none;position:absolute;inset:0;background-size:cover;background-position:center top;pointer-events:none}
+.pk-space-original-background .pk-space-panorama{display:block}
+.pk-space-original-background .pk-space-restored{
+ display:block;
+ -webkit-mask-image:linear-gradient(#000,#000),url('./assets/demo-3d-santa.png');
+ -webkit-mask-size:100% 100%,cover;
+ -webkit-mask-position:center center,center top;
+ -webkit-mask-repeat:no-repeat;
+ -webkit-mask-composite:xor;
+ mask-image:linear-gradient(#000,#000),url('./assets/demo-3d-santa.png');
+ mask-size:100% 100%,cover;
+ mask-position:center center,center top;
+ mask-repeat:no-repeat;
+ mask-composite:exclude;
+}
+.pk-space-original-background .pk-space-base{
+ transform:none;
+ -webkit-mask-image:linear-gradient(to bottom,transparent 0%,transparent 90.9%,#000 91%,#000 100%);
+ mask-image:linear-gradient(to bottom,transparent 0%,transparent 90.9%,#000 91%,#000 100%);
+}
+.pk-space-original-background .pk-space-moving{
+ transform:translate3d(var(--pk-space-x,0px),var(--pk-space-y,0px),0)
+  perspective(1400px) rotateY(var(--pk-space-bg-yaw,0deg)) rotateX(var(--pk-space-bg-pitch,0deg));
+ -webkit-mask-image:linear-gradient(to bottom,#000 0%,#000 91%,#000e 93%,#0007 96%,transparent 98%);
+ mask-image:linear-gradient(to bottom,#000 0%,#000 91%,#000e 93%,#0007 96%,transparent 98%);
+}
 .pk-space-scene[hidden]{display:none!important}
 .pk-space-bg,.pk-space-figure{position:absolute;inset:0;background-repeat:no-repeat;pointer-events:none;will-change:transform}
 .pk-space-bg{background-size:cover;background-position:42% 50%;transform-origin:50% 95%}
@@ -18,9 +46,8 @@
 .pk-space-shadow{position:absolute;z-index:3;left:50%;bottom:2.4%;width:min(36%,260px);height:4%;border-radius:50%;background:#0206148e;filter:blur(15px);transform:translateX(-50%);pointer-events:none}
 .pk-space-figure{
  z-index:4;background-size:cover;background-position:center top;
- transform-origin:50% 95%;
- transform:perspective(1100px) rotateY(var(--pk-space-fg-yaw,0deg))
-   rotateX(var(--pk-space-fg-pitch,0deg)) rotateZ(var(--pk-space-fg,0deg));
+ /* The character never tilts, sways or rotates; the world moves behind him. */
+ transform:none;
  filter:drop-shadow(0 8px 14px #050a1780);
 }
 @media(max-width:1100px){.pk-space-bg{background-position:43% 48%}}
