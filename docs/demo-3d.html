@@ -4,249 +4,222 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
-<title>Пространственная фотография · Pakkasukko</title>
+<meta name="theme-color" content="#0b1d2a">
+<title>Дед Мороз · тест пространственного фото · Pakkasukko</title>
 <style>
-:root{color-scheme:dark;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+:root{color-scheme:dark;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
 *{box-sizing:border-box}
-body{margin:0;color:#f8f5eb;background:#071823}
-main{max-width:1120px;margin:0 auto;padding:16px}
-header{text-align:center;margin:0 auto 14px}
-.kicker{color:#e2bd77;letter-spacing:.24em;font-size:12px;font-weight:700}
-h1{font:400 clamp(25px,4vw,40px)/1.15 Georgia,serif;margin:10px 0}
-.subtitle{color:#b1c9cf;font-size:16px;line-height:1.45;margin:0 auto;max-width:580px}
-.demo{background:#102b38;border-radius:19px;overflow:hidden;box-shadow:0 16px 65px #0008}
-.stage{position:relative;overflow:hidden;height:min(65svh,670px);min-height:370px;background:radial-gradient(ellipse at center,#2d4556 0%,#0d1a2b 72%);touch-action:none;cursor:grab}
-.stage:active{cursor:grabbing}
-.backdrop{position:absolute;inset:-7%;background:url("./assets/pakkasukko-ded-moroz.webp") center/cover;filter:blur(22px) brightness(.52) saturate(.78);transform:scale(1.06);pointer-events:none}
-.frame{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:0;height:0;box-shadow:0 12px 38px #0007;overflow:hidden}
-.frame img,.frame canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:fill}
-.frame img{display:block}
-.frame canvas{display:none}
-.frame canvas.active{display:block}
-.snow{position:absolute;inset:0;pointer-events:none;overflow:hidden}
-.flake{display:block;position:absolute;border-radius:50%;background:white;box-shadow:0 0 5px #fff7;animation:flakefall linear infinite}
-@keyframes flakefall{from{transform:translateY(-55px)}to{transform:translateY(750px)}}
-.controlbar{display:flex;gap:9px;flex-wrap:wrap;align-items:center;justify-content:center;padding:15px;background:#132e3c}
-button{border:1px solid #5c7b89;border-radius:11px;background:#2c4958;color:#fff;font:inherit;font-size:14px;padding:10px 14px;min-height:43px;cursor:pointer}
-button:focus-visible,input:focus-visible{outline:3px solid #ecc684;outline-offset:2px}
-button[aria-pressed=true]{border-color:#e2b875;background:#ad8550;color:#172935;font-weight:700}
-button[disabled]{opacity:.48;cursor:not-allowed}
-.rangebox{display:flex;align-items:center;gap:10px;color:#d7e1e2;font-size:14px;padding:0 6px}
-.rangebox input{accent-color:#e2bd77;width:124px}
-.status{background:#0e2733;text-align:center;color:#c8d6d9;padding:10px;font-size:13px;min-height:40px}
-.instructions{color:#b8cbd0;text-align:center;line-height:1.55;font-size:14px;margin:15px auto;max-width:690px}
-.note{border:1px solid #35525e;border-radius:12px;background:#0e2632;padding:12px 15px;color:#b6cdd5;font-size:14px;line-height:1.5;margin:12px auto;max-width:800px}
-@media(max-width:520px){main{padding:8px}header{padding:13px 6px 3px}.stage{height:min(54svh,525px);min-height:355px}.subtitle{font-size:14px}.controlbar{gap:7px;padding:11px}button{font-size:13px;padding:10px 11px}.rangebox{width:100%;justify-content:center}}
-@media(prefers-reduced-motion:reduce){.flake{animation:none}}
+body{margin:0;background:radial-gradient(ellipse 75% 45% at 50% 10%,#1a3544,#081824 85%);color:#f8f5ec}
+main{max-width:1160px;margin:auto;padding:20px 14px 40px}
+header{text-align:center;margin:0 auto 20px}
+.kicker{font-size:11px;letter-spacing:.26em;color:#e7c385;font-weight:700;margin:3px 0 10px}
+h1{font:400 clamp(27px,5vw,44px)/1.14 Georgia,serif;letter-spacing:-.018em;margin:0 0 10px}
+.subtitle{font-size:clamp(13px,2vw,16px);color:#b7cbd2;max-width:620px;line-height:1.5;margin:0 auto}
+.demo{max-width:780px;margin:auto;background:#102a36;border:1px solid #2e5060;border-radius:22px;overflow:hidden;box-shadow:0 20px 80px #0009}
+.scene{position:relative;display:grid;place-items:center;overflow:hidden;min-height:425px;height:min(66svh,730px);background:radial-gradient(ellipse at 50% 56%,#294158,#101c2d 74%);touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none}
+.scene.dragging{cursor:grabbing}
+.ambient{position:absolute;inset:-8%;background:url("./assets/demo-3d-background.png") center/cover;filter:blur(32px) brightness(.54) saturate(.8);pointer-events:none;opacity:.8}
+.composition{position:relative;aspect-ratio:2/3;height:100%;max-width:100%;overflow:hidden;background:#08101c;box-shadow:0 12px 55px #000a;will-change:transform}
+.composition img{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;display:block;pointer-events:none;-webkit-user-drag:none}
+.background{z-index:1;transform:translate3d(var(--bg-x,0px),var(--bg-y,0px),0) scale(1.17);transform-origin:center;will-change:transform}
+.contact-shadow{z-index:2;position:absolute;left:27%;right:23%;height:5%;bottom:2.3%;border-radius:50%;background:#080c1c73;filter:blur(14px);transform:translate3d(var(--shadow-x,0px),4px,0);pointer-events:none}
+.figure{z-index:3;transform:translate3d(var(--figure-x,0px),var(--figure-y,0px),0);filter:drop-shadow(var(--shadow-x,0px) 9px 13px #02091770);will-change:transform}
+.original{z-index:5;opacity:0;transition:opacity .24s}
+.composition.flat .original,.composition.broken .original{opacity:1}
+.composition.flat .figure,.composition.broken .figure,.composition.flat .contact-shadow,.composition.broken .contact-shadow{opacity:0}
+.snow{position:absolute;inset:0;z-index:4;pointer-events:none;overflow:hidden}
+.snow span{position:absolute;top:-8%;left:var(--left);width:var(--size);height:var(--size);background:#fff9;border-radius:50%;opacity:var(--opacity);filter:blur(var(--blur));animation:fall var(--duration) linear var(--delay) infinite}
+@keyframes fall{0%{transform:translate3d(0,-20px,0)}45%{transform:translate3d(var(--drift),52vh,0)}100%{transform:translate3d(calc(var(--drift) * -0.4),112vh,0)}}
+.scene-overlay{position:absolute;left:50%;bottom:17px;transform:translateX(-50%);z-index:7;white-space:nowrap;border:1px solid #d3e0e24f;background:#071827c9;color:#edf6f6;border-radius:999px;padding:8px 14px;font-size:13px;pointer-events:none;backdrop-filter:blur(7px)}
+.controls{display:flex;justify-content:center;align-items:center;flex-wrap:wrap;gap:9px;padding:16px 15px 12px;background:#122f3d}
+button{font:inherit;font-size:14px;border-radius:12px;border:1px solid #637f8d;color:#f8fbff;background:#2b4b5b;min-height:43px;padding:10px 13px;cursor:pointer;touch-action:manipulation}
+button[aria-pressed="true"]{background:#caa066;border-color:#e9c892;color:#132735;font-weight:700}
+button:focus-visible,input:focus-visible{outline:3px solid #ffdba5;outline-offset:3px}
+.slider-row{display:flex;align-items:center;justify-content:center;gap:11px;width:100%;padding:5px 0 0;color:#c5d5d8;font-size:14px}
+.slider-row input{width:min(44vw,200px);accent-color:#dcb678;cursor:pointer}
+.slider-row output{min-width:44px;text-align:right}
+.status{min-height:39px;text-align:center;padding:10px 12px;color:#c6d6d9;background:#0e2835;font-size:13px;line-height:1.5}
+.instructions{font-size:14px;color:#b2c7cd;max-width:640px;text-align:center;line-height:1.6;margin:18px auto 0}
+.details{max-width:780px;margin:15px auto 0;padding:12px 15px;border:1px solid #274555;border-radius:13px;color:#9ebbc5;font-size:13px;line-height:1.6}
+.details strong{color:#e0c38c;font-weight:500}
+@media(max-width:600px){
+ main{padding:13px 8px 28px}header{margin-bottom:13px}.kicker{font-size:10px}
+ .scene{height:min(62svh,580px);min-height:390px}.controls{gap:7px;padding:12px 8px}
+ button{font-size:13px;padding:10px 11px}.demo{border-radius:17px}.scene-overlay{bottom:12px;font-size:12px;padding:7px 11px}
+ .details{font-size:12px}
+}
+@media(prefers-reduced-motion:reduce){.snow span{animation:none;display:none}.original{transition:none}}
 </style>
 </head>
 <body>
 <main>
 <header>
-<div class="kicker">PAKKASUKKO · ПРОСТРАНСТВЕННОЕ ФОТО</div>
-<h1>Зимняя сказка оживает</h1>
-<p class="subtitle">Эффект глубины по настоящей фотографии: фон остаётся позади Деда Мороза, а пространство слегка меняется при движении телефона.</p>
+<div class="kicker">PAKKASUKKO · ТЕСТ 3D</div>
+<h1>Внутри зимней сказки</h1>
+<p class="subtitle">Настоящий Дед Мороз — впереди. Церковь, снег и ёлки — на отдельном фоне, который движется за ним.</p>
 </header>
-<div class="demo">
-<div class="stage" id="stage">
-<div class="backdrop"></div>
-<div class="frame" id="frame">
-<img src="./assets/pakkasukko-ded-moroz.webp" id="photo" alt="Дед Мороз в красно-золотом костюме со светящимся посохом у зимней церкви">
-<canvas id="glcanvas" aria-label="Фотография с эффектом глубины"></canvas>
-</div>
+<section class="demo" aria-label="Интерактивная фотография Деда Мороза">
+<div class="scene" id="scene" aria-label="Проведите пальцем или мышью, чтобы увидеть глубину">
+<div class="ambient" aria-hidden="true"></div>
+<div class="composition" id="composition">
+<img class="background" id="background" src="./assets/demo-3d-background.png" alt="">
+<div class="contact-shadow" aria-hidden="true"></div>
+<img class="figure" id="figure" src="./assets/demo-3d-santa.png" alt="Дед Мороз в красно-золотом костюме с волшебным светящимся посохом">
 <div class="snow" id="snow" aria-hidden="true"></div>
+<img class="original" id="original" src="./assets/pakkasukko-ded-moroz.webp" alt="Оригинальная фотография Деда Мороза у заснеженной церкви">
 </div>
-<div class="controlbar">
-<button id="depthBtn" aria-pressed="true">✦ 3D-глубина</button>
-<button id="flatBtn" aria-pressed="false">Обычное фото</button>
-<button id="motionBtn">Движение iPhone</button>
-<button id="autoBtn" aria-pressed="false">Автопоказ</button>
-<button id="resetBtn">Сброс</button>
-<label class="rangebox">Глубина <input id="strength" type="range" min="0" max="100" step="1" value="55"><output id="strengthText">55%</output></label>
+<div class="scene-overlay" id="hint">Проведите пальцем по фото</div>
 </div>
-<div class="status" id="status" role="status" aria-live="polite">Загрузка фотографии…</div>
+<div class="controls">
+<button type="button" id="depthBtn" aria-pressed="true">✦ Объёмное фото</button>
+<button type="button" id="flatBtn" aria-pressed="false">Оригинал</button>
+<button type="button" id="motionBtn" aria-pressed="false">Движение iPhone</button>
+<button type="button" id="autoBtn" aria-pressed="false">Автопоказ</button>
+<button type="button" id="resetBtn">Сброс</button>
+<label class="slider-row" for="strength">Глубина <input id="strength" type="range" min="0" max="100" step="1" value="75"><output id="strengthText">75%</output></label>
 </div>
-<p class="instructions">На iPhone нажмите «Движение iPhone» и разрешите доступ к датчику, затем слегка наклоняйте телефон. Также можно перемещать фотографию пальцем или мышью.</p>
-<p class="note">Это экспериментальный аналог эффекта Spatial Scenes. В нём используется приближённая карта глубины, а не технология Apple. Фотография остаётся цельной: никаких вырезанных частей или повторяющихся фигур. Поворот на 360° не предусмотрен.</p>
+<div class="status" id="status" role="status" aria-live="polite">Загружаем Деда Мороза и зимний фон…</div>
+</section>
+<p class="instructions">Проведите по фотографии пальцем или мышью. Для эффекта от наклона телефона нажмите «Движение iPhone» и разрешите доступ к датчику. Кнопка «Автопоказ» показывает движение без датчика.</p>
+<div class="details"><strong>Как устроено:</strong> персонаж с посохом вырезан из фотографии; пространство за ним восстановлено, чтобы при движении фон оставался цельным. Это тестовый эффект двухслойной глубины, а не полноценная 3D-модель или точная технология Apple. Основной сайт не изменён.</div>
 </main>
 <script>
 (function(){
 "use strict";
-var stage=document.getElementById("stage"),frame=document.getElementById("frame"),photo=document.getElementById("photo"),canvas=document.getElementById("glcanvas");
-var status=document.getElementById("status"),strength=document.getElementById("strength"),strengthText=document.getElementById("strengthText");
-var mode="depth",yaw=0,pitch=0,zoom=1,auto=false,sensor=false,baseline=null,gl=null,prg=null,indices=0,uniforms={},lastTime=0,ready=false,failed=false;
-var pointers=new Map();
-function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
-function setStatus(s){status.textContent=s;}
-function isSafariMotionAvailable(){return typeof window.DeviceOrientationEvent!=="undefined";}
-function shader(gl,type,source){
-var s=gl.createShader(type);gl.shaderSource(s,source);gl.compileShader(s);
-if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw Error("Shader: "+gl.getShaderInfoLog(s));
-return s;
+var scene=document.getElementById("scene");
+var comp=document.getElementById("composition");
+var bg=document.getElementById("background");
+var figure=document.getElementById("figure");
+var status=document.getElementById("status");
+var hint=document.getElementById("hint");
+var strength=document.getElementById("strength");
+var strengthText=document.getElementById("strengthText");
+var depthBtn=document.getElementById("depthBtn");
+var flatBtn=document.getElementById("flatBtn");
+var autoBtn=document.getElementById("autoBtn");
+var motionBtn=document.getElementById("motionBtn");
+var flat=false,auto=false,sensor=false,ready=false,broken=false;
+var tx=0,ty=0,x=0,y=0,base=null,dragStart=null,lastTime=0;
+var pointers=new Map(),pinchBase=0,pinchZoom=1,zoom=1,targetZoom=1;
+function clamp(v,min,max){return Math.min(max,Math.max(min,v));}
+function message(s){status.textContent=s;}
+function setPressed(button,value){button.setAttribute("aria-pressed",String(value));}
+function stopAuto(){auto=false;setPressed(autoBtn,false);}
+function stopSensor(){sensor=false;base=null;setPressed(motionBtn,false);window.removeEventListener("deviceorientation",onOrientation);}
+function updateMode(){
+ comp.classList.toggle("flat",flat);
+ setPressed(depthBtn,!flat);setPressed(flatBtn,flat);
+ hint.textContent=flat?"Это оригинальное фото":"Проведите пальцем по фото";
+ if(!broken)message(flat?"Оригинальная фотография без эффекта глубины.":"Два слоя готовы. Двигайте фото — фон останется за Дедом Морозом.");
 }
-function oval(u,v,cx,cy,rx,ry,feather){
-var d=Math.sqrt(Math.pow((u-cx)/rx,2)+Math.pow((v-cy)/ry,2));
-var t=clamp((d-(1-feather))/(feather*2),0,1);return 1-t*t*(3-2*t);
-}
-function depthAt(u,v){
-var head=oval(u,v,.50,.165,.19,.16,.36);
-var body=oval(u,v,.50,.61,.305,.42,.33);
-var beard=oval(u,v,.52,.34,.22,.24,.35);
-var leftHand=oval(u,v,.265,.30,.14,.095,.45);
-var leftSleeve=oval(u,v,.29,.36,.13,.17,.38);
-var rightHand=oval(u,v,.79,.315,.12,.13,.42);
-var rightSleeve=oval(u,v,.72,.34,.16,.17,.4);
-var staff=oval(u,v,.80,.52,.039,.48,.46);
-var main=Math.max(head,body,beard,leftHand,leftSleeve,rightHand,rightSleeve,staff*.97);
-var church=oval(u,v,.19,.23,.19,.34,.4)*.22;
-var trees=oval(u,v,.91,.52,.18,.25,.45)*.21;
-var snow=clamp((v-.68)*1.5,0,.26);
-return .09+Math.max(church,trees,snow)+.72*main;
-}
-function setup(){
-if(!photo.naturalWidth||!photo.naturalHeight)return;
-var ratio=photo.naturalWidth/photo.naturalHeight;
-var rect=stage.getBoundingClientRect(),w=Math.min(rect.width,rect.height*ratio),h=w/ratio;
-frame.style.width=w+"px";frame.style.height=h+"px";
-var dp=Math.min(window.devicePixelRatio||1,1.5);
-canvas.width=Math.max(1,Math.round(w*dp));canvas.height=Math.max(1,Math.round(h*dp));
-if(!ready&&!failed)initGL();
-render();
-}
-function initGL(){
-try{
-gl=canvas.getContext("webgl",{alpha:true,antialias:true,preserveDrawingBuffer:false});
-if(!gl)throw Error("WebGL недоступен");
-var vs=shader(gl,gl.VERTEX_SHADER,
-"attribute vec2 aUV; attribute float aDepth; uniform float uRatio; uniform float uYaw; uniform float uPitch; uniform float uStrength; uniform float uZoom; varying vec2 vUV; void main(){ vec2 p=vec2((aUV.x-.5)*2.0*uRatio,(.5-aUV.y)*2.0); float z=max(aDepth-.09,0.0)*uStrength; p.x+=z*sin(uYaw)*.44; p.y-=z*sin(uPitch)*.44; float k=1.0+z*.013; gl_Position=vec4(p.x/uRatio*uZoom*k,p.y*uZoom*k,0.0,1.0); vUV=vec2(aUV.x,1.0-aUV.y); }");
-var fs=shader(gl,gl.FRAGMENT_SHADER,
-"precision mediump float; uniform sampler2D uTexture; varying vec2 vUV; void main(){ gl_FragColor=texture2D(uTexture,vUV); }");
-prg=gl.createProgram();gl.attachShader(prg,vs);gl.attachShader(prg,fs);gl.linkProgram(prg);
-if(!gl.getProgramParameter(prg,gl.LINK_STATUS))throw Error("Program link");
-gl.useProgram(prg);
-var verts=[],idx=[],nx=92,ny=138;
-for(var j=0;j<=ny;j++)for(var i=0;i<=nx;i++){var u=i/nx,v=j/ny;verts.push(u,v,depthAt(u,v));}
-for(var y=0;y<ny;y++)for(var x=0;x<nx;x++){
-var a=y*(nx+1)+x,b=a+1,c=a+(nx+1),d=c+1;idx.push(a,c,b,b,c,d);
-}
-indices=idx.length;
-var vb=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,vb);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(verts),gl.STATIC_DRAW);
-var ib=gl.createBuffer();gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,ib);gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint16Array(idx),gl.STATIC_DRAW);
-var uvLoc=gl.getAttribLocation(prg,"aUV"),depLoc=gl.getAttribLocation(prg,"aDepth");
-gl.enableVertexAttribArray(uvLoc);gl.vertexAttribPointer(uvLoc,2,gl.FLOAT,false,12,0);
-gl.enableVertexAttribArray(depLoc);gl.vertexAttribPointer(depLoc,1,gl.FLOAT,false,12,8);
-var texture=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,texture);
-gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,true);
-gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
-gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
-gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
-gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
-gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,photo);
-uniforms.ratio=gl.getUniformLocation(prg,"uRatio");
-uniforms.yaw=gl.getUniformLocation(prg,"uYaw");
-uniforms.pitch=gl.getUniformLocation(prg,"uPitch");
-uniforms.strength=gl.getUniformLocation(prg,"uStrength");
-uniforms.zoom=gl.getUniformLocation(prg,"uZoom");
-gl.uniform1i(gl.getUniformLocation(prg,"uTexture"),0);
-ready=true;failed=false;setStatus("3D-глубина готова. Попробуйте наклонить телефон или провести пальцем.");
-}catch(e){
-failed=true;ready=false;
-canvas.classList.remove("active");photo.style.display="block";
-setStatus("3D недоступно в этом браузере. Обычное фото продолжает работать.");
-}
-}
-function render(){
-if(!ready)return;
-gl.viewport(0,0,canvas.width,canvas.height);
-gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT);
-gl.useProgram(prg);
-gl.uniform1f(uniforms.ratio,photo.naturalWidth/photo.naturalHeight);
-gl.uniform1f(uniforms.yaw,yaw);
-gl.uniform1f(uniforms.pitch,pitch);
-gl.uniform1f(uniforms.strength,Number(strength.value)/100*1.55);
-gl.uniform1f(uniforms.zoom,zoom);
-gl.drawElements(gl.TRIANGLES,indices,gl.UNSIGNED_SHORT,0);
-}
-function setMode(m){
-mode=m;
-document.getElementById("depthBtn").setAttribute("aria-pressed",String(m==="depth"));
-document.getElementById("flatBtn").setAttribute("aria-pressed",String(m==="flat"));
-canvas.classList.toggle("active",m==="depth"&&ready);
-photo.style.display=m==="depth"&&ready?"none":"block";
-if(m==="flat"){auto=false;document.getElementById("autoBtn").setAttribute("aria-pressed","false");}
-if(m==="depth"&&ready)render();
-}
-photo.addEventListener("load",function(){setup();setMode(mode);});
-photo.addEventListener("error",function(){
-if(photo.dataset.retry!=="1"){
-photo.dataset.retry="1";photo.src="https://raw.githubusercontent.com/velardream-ctrl/pakkasukko/preview/docs/assets/pakkasukko-ded-moroz.webp";return;
-}
-setStatus("Не удалось загрузить фотографию. Обновите страницу.");failed=true;
+depthBtn.addEventListener("click",function(){if(broken){message("Объёмное фото пока недоступно: не загрузился один из слоёв.");return;}flat=false;updateMode();});
+flatBtn.addEventListener("click",function(){flat=true;stopAuto();stopSensor();updateMode();});
+autoBtn.addEventListener("click",function(){
+ if(broken||flat){if(broken){message("Слои ещё не загрузились.");return;}flat=false;updateMode();}
+ if(auto){stopAuto();message("Автопоказ остановлен.");}
+ else{stopSensor();auto=true;setPressed(autoBtn,true);message("Фон мягко перемещается за Дедом Морозом.");}
 });
-if(photo.complete&&photo.naturalWidth){setup();setMode(mode);}
-document.getElementById("depthBtn").onclick=function(){setMode("depth");};
-document.getElementById("flatBtn").onclick=function(){setMode("flat");};
-document.getElementById("resetBtn").onclick=function(){
-yaw=0;pitch=0;zoom=1;auto=false;baseline=null;strength.value="55";strengthText.value="55%";
-document.getElementById("autoBtn").setAttribute("aria-pressed","false");render();
-};
-document.getElementById("autoBtn").onclick=function(){
-setMode("depth");auto=!auto;this.setAttribute("aria-pressed",String(auto));
-};
-strength.addEventListener("input",function(){strengthText.value=this.value+"%";render();});
-document.getElementById("motionBtn").onclick=async function(){
-if(sensor){sensor=false;window.removeEventListener("deviceorientation",orientation);this.setAttribute("aria-pressed","false");setStatus("Датчик отключён. Можно управлять пальцем.");return;}
-if(!isSafariMotionAvailable()){setStatus("Датчик ориентации недоступен. Используйте палец.");return;}
-try{
-if(typeof DeviceOrientationEvent.requestPermission==="function"){
-var answer=await DeviceOrientationEvent.requestPermission();
-if(answer!=="granted"){setStatus("Доступ к движению не разрешён. Можно управлять пальцем.");return;}
+function onOrientation(ev){
+ if(!sensor||flat||broken||ev.gamma===null||ev.beta===null)return;
+ if(!base){base={gamma:ev.gamma,beta:ev.beta};message("Готово! Медленно наклоняйте телефон влево и вправо.");}
+ tx=clamp((ev.gamma-base.gamma)/18,-1,1);
+ ty=clamp((ev.beta-base.beta)/25,-1,1);
 }
-sensor=true;baseline=null;window.addEventListener("deviceorientation",orientation,{passive:true});
-this.setAttribute("aria-pressed","true");setStatus("Датчик включён. Медленно наклоняйте iPhone.");
-}catch(e){setStatus("Не удалось включить датчик. Управляйте пальцем.");}
-};
-function orientation(e){
-if(!sensor||mode!=="depth"||typeof e.gamma!=="number"||typeof e.beta!=="number")return;
-if(!baseline)baseline={gamma:e.gamma,beta:e.beta};
-yaw=clamp((e.gamma-baseline.gamma)*Math.PI/160,-.36,.36);
-pitch=clamp((e.beta-baseline.beta)*Math.PI/200,-.24,.24);
-render();
-}
-stage.addEventListener("pointerdown",function(e){if(mode!=="depth")return;e.preventDefault();stage.setPointerCapture(e.pointerId);pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});});
-stage.addEventListener("pointermove",function(e){
-if(!pointers.has(e.pointerId)||mode!=="depth")return;e.preventDefault();
-var prev=Array.from(pointers.values()),old=pointers.get(e.pointerId);
-pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
-if(pointers.size===1){
-yaw=clamp(yaw+(e.clientX-old.x)*.004,-.38,.38);
-pitch=clamp(pitch+(e.clientY-old.y)*.004,-.28,.28);
-}else if(pointers.size===2){
-var next=Array.from(pointers.values()),dist=function(q){return Math.hypot(q[0].x-q[1].x,q[0].y-q[1].y);};
-if(dist(prev)>5)zoom=clamp(zoom*dist(next)/dist(prev),.83,1.28);
-}
-render();
+motionBtn.addEventListener("click",async function(){
+ if(sensor){stopSensor();message("Датчик движения выключен.");return;}
+ if(!window.DeviceOrientationEvent){message("Датчик наклона недоступен в этом браузере. Попробуйте открыть страницу в Safari.");return;}
+ try{
+  if(typeof window.DeviceOrientationEvent.requestPermission==="function"){
+   var permission=await window.DeviceOrientationEvent.requestPermission();
+   if(permission!=="granted"){message("Доступ к движению не разрешён. Можно управлять пальцем.");return;}
+  }
+  if(flat){flat=false;updateMode();}
+  stopAuto();sensor=true;base=null;setPressed(motionBtn,true);
+  window.addEventListener("deviceorientation",onOrientation,{passive:true});
+  message("Датчик включён. Наклоните iPhone; если движения нет, откройте страницу в Safari.");
+ }catch(e){message("Не удалось включить датчик. Откройте страницу в Safari и разрешите движение.");}
 });
-function stop(e){pointers.delete(e.pointerId);}
-stage.addEventListener("pointerup",stop);stage.addEventListener("pointercancel",stop);
-stage.addEventListener("wheel",function(e){if(mode!=="depth")return;e.preventDefault();zoom=clamp(zoom*(e.deltaY>0?.96:1.04),.83,1.28);render();},{passive:false});
-for(var k=0;k<32;k++){
-var f=document.createElement("span");f.className="flake";
-var rad=.7+(k*17%5)*.55;
-f.style.cssText="left:"+(k*36.79%100)+"%;top:"+(-k*19%700)+"px;width:"+rad+"px;height:"+rad+"px;opacity:"+(.1+(k%4)*.1)+";animation-duration:"+(9+k%10)+"s;animation-delay:"+(-k*.49)+"s";
-document.getElementById("snow").appendChild(f);
+document.getElementById("resetBtn").addEventListener("click",function(){
+ stopAuto();stopSensor();tx=ty=0;targetZoom=zoom=1;pinchBase=0;
+ if(!broken){flat=false;updateMode();}
+ message("Положение сброшено. Проведите по фотографии пальцем или мышью.");
+});
+strength.addEventListener("input",function(){strengthText.textContent=strength.value+"%";});
+function distance(a,b){return Math.hypot(a.x-b.x,a.y-b.y);}
+scene.addEventListener("pointerdown",function(ev){
+ if(broken||flat)return;
+ if(ev.pointerType==="mouse"&&ev.button!==0)return;
+ scene.setPointerCapture(ev.pointerId);
+ pointers.set(ev.pointerId,{x:ev.clientX,y:ev.clientY});
+ scene.classList.add("dragging");
+ stopAuto();stopSensor();
+ if(pointers.size===1){dragStart={x:ev.clientX,y:ev.clientY,tx:tx,ty:ty};pinchBase=0;}
+ if(pointers.size===2){var pts=Array.from(pointers.values());pinchBase=distance(pts[0],pts[1]);pinchZoom=targetZoom;dragStart=null;}
+});
+scene.addEventListener("pointermove",function(ev){
+ if(!pointers.has(ev.pointerId)||broken||flat)return;
+ pointers.set(ev.pointerId,{x:ev.clientX,y:ev.clientY});
+ if(pointers.size===2){
+  var pts=Array.from(pointers.values());
+  if(pinchBase>0)targetZoom=clamp(pinchZoom*distance(pts[0],pts[1])/pinchBase,1,1.2);
+ }else if(dragStart){
+  var w=Math.max(scene.clientWidth,260);
+  tx=clamp(dragStart.tx+(ev.clientX-dragStart.x)/(w*.35),-1,1);
+  ty=clamp(dragStart.ty+(ev.clientY-dragStart.y)/(w*.48),-1,1);
+ }
+});
+function endPointer(ev){
+ pointers.delete(ev.pointerId);
+ if(pointers.size===0){scene.classList.remove("dragging");dragStart=null;pinchBase=0;}
+ else if(pointers.size===1){var p=Array.from(pointers.values())[0];dragStart={x:p.x,y:p.y,tx:tx,ty:ty};pinchBase=0;}
 }
-function animation(t){
-if(auto&&mode==="depth"&&ready&&!document.hidden){
-yaw=Math.sin(t*.00055)*.30;
-pitch=Math.sin(t*.00037)*.08;
-render();
+scene.addEventListener("pointerup",endPointer);
+scene.addEventListener("pointercancel",endPointer);
+scene.addEventListener("lostpointercapture",endPointer);
+function tick(now){
+ var dt=Math.min(64,now-lastTime||16);lastTime=now;
+ if(auto&&!flat){tx=Math.sin(now*.00047)*.92;ty=Math.cos(now*.00037)*.58;}
+ var ease=1-Math.exp(-dt/110);
+ x+=(tx-x)*ease;y+=(ty-y)*ease;zoom+=(targetZoom-zoom)*ease;
+ var intensity=Number(strength.value)/100;
+ var px=Math.min(scene.clientWidth*.068,29)*intensity;
+ var py=Math.min(scene.clientHeight*.052,35)*intensity;
+ bg.style.setProperty("--bg-x",(-x*px).toFixed(2)+"px");
+ bg.style.setProperty("--bg-y",(-y*py).toFixed(2)+"px");
+ figure.style.setProperty("--figure-x",(x*px*.12).toFixed(2)+"px");
+ figure.style.setProperty("--figure-y",(y*py*.09).toFixed(2)+"px");
+ figure.style.setProperty("--shadow-x",(-x*px*.14).toFixed(2)+"px");
+ comp.style.transform="scale("+zoom.toFixed(4)+")";
+ requestAnimationFrame(tick);
 }
-lastTime=t;requestAnimationFrame(animation);
+requestAnimationFrame(tick);
+var loaded=0;
+function assetReady(){
+ loaded++;
+ if(loaded===2&&!broken){ready=true;message("Готово! Фон двигается отдельно — перед ним настоящий Дед Мороз с посохом.");}
 }
-requestAnimationFrame(animation);
-if(typeof ResizeObserver!=="undefined")new ResizeObserver(setup).observe(stage);
-else window.addEventListener("resize",setup,{passive:true});
+function assetError(){
+ if(broken)return;
+ broken=true;stopAuto();stopSensor();comp.classList.add("broken");
+ message("Не удалось загрузить один из слоёв. Показываем исходную фотографию. Обновите страницу чуть позже.");
+}
+[bg,figure].forEach(function(img){
+ if(img.complete){if(img.naturalWidth>0)assetReady();else assetError();}
+ else{img.addEventListener("load",assetReady,{once:true});img.addEventListener("error",assetError,{once:true});}
+});
+var snow=document.getElementById("snow");
+for(var i=0;i<24;i++){
+ var flake=document.createElement("span");
+ var size=1+Math.random()*3.2;
+ flake.style.setProperty("--left",(Math.random()*100).toFixed(2)+"%");
+ flake.style.setProperty("--size",size.toFixed(1)+"px");
+ flake.style.setProperty("--opacity",(0.18+Math.random()*.45).toFixed(2));
+ flake.style.setProperty("--blur",(Math.random()*1.2).toFixed(1)+"px");
+ flake.style.setProperty("--duration",(7+Math.random()*13).toFixed(2)+"s");
+ flake.style.setProperty("--delay",(-Math.random()*23).toFixed(2)+"s");
+ flake.style.setProperty("--drift",((Math.random()-.5)*60).toFixed(1)+"px");
+ snow.appendChild(flake);
+}
 })();
 </script>
 </body>
