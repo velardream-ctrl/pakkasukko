@@ -45,7 +45,7 @@ export function mountSpatialPhoto({model,currentDevice}){
   shadow.className='pk-space-shadow';figure.className='pk-space-figure';
   stage.append(base,moving,shadow,figure);
   photo.append(stage);
-  let active=false,currentId='',request=0,autoBlockedUntil=0,orientation=false,neutral=null;
+  let active=false,currentId='',request=0,autoBlockedUntil=0,orientation=false,neutral=null,frameId=0;
   let x=0,y=0,targetX=0,targetY=0,last=0,pointer=null,dragged=false,enabledDevice='';
   const strength=settings.strength/100;
   const clamp=(n,a,b)=>Math.min(b,Math.max(a,n));
@@ -59,6 +59,7 @@ export function mountSpatialPhoto({model,currentDevice}){
   }
   function ordinary(){
     active=false;stage.hidden=true;photo.classList.remove('pk-space-active');
+    if(frameId){cancelAnimationFrame(frameId);frameId=0;}
   }
   function refresh(){
     const device=currentDevice(),scene=chosenSpatialScene(settings,device);
@@ -79,6 +80,7 @@ export function mountSpatialPhoto({model,currentDevice}){
       stage.setAttribute('aria-label',scene.title||'Пространственная зимняя фотография');
       stage.hidden=false;photo.classList.add('pk-space-active');
       active=true;currentId=scene.id;
+      if(!frameId)frameId=requestAnimationFrame(tick);
     }).catch(()=>{if(ticket===request)ordinary();});
   }
   const reduce=window.matchMedia?.('(prefers-reduced-motion: reduce)').matches||false;
@@ -102,9 +104,8 @@ export function mountSpatialPhoto({model,currentDevice}){
       set('--pk-space-bg-yaw',(-x*5.2*strength).toFixed(2)+'deg');
       set('--pk-space-bg-pitch',(y*3.4*strength).toFixed(2)+'deg');
     }
-    requestAnimationFrame(tick);
+    frameId=active?requestAnimationFrame(tick):0;
   }
-  requestAnimationFrame(tick);
   stage.addEventListener('pointerdown',ev=>{
     if(!active||ev.pointerType==='mouse'&&ev.button!==0)return;
     pointer={id:ev.pointerId,startX:ev.clientX,startY:ev.clientY,baseX:targetX,baseY:targetY};
