@@ -15,16 +15,16 @@ header{text-align:center;margin:0 auto 20px}
 .kicker{font-size:11px;letter-spacing:.26em;color:#e7c385;font-weight:700;margin:3px 0 10px}
 h1{font:400 clamp(27px,5vw,44px)/1.14 Georgia,serif;letter-spacing:-.018em;margin:0 0 10px}
 .subtitle{font-size:clamp(13px,2vw,16px);color:#b7cbd2;max-width:620px;line-height:1.5;margin:0 auto}
-.demo{max-width:780px;margin:auto;background:#102a36;border:1px solid #2e5060;border-radius:22px;overflow:hidden;box-shadow:0 20px 80px #0009}
-.scene{position:relative;display:grid;place-items:center;overflow:hidden;min-height:425px;height:min(66svh,730px);background:radial-gradient(ellipse at 50% 56%,#294158,#101c2d 74%);touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none}
+.demo{max-width:940px;margin:auto;background:#102a36;border:1px solid #2e5060;border-radius:22px;overflow:hidden;box-shadow:0 20px 80px #0009}
+.scene{position:relative;display:grid;place-items:center;overflow:hidden;min-height:425px;height:min(67svh,610px);background:radial-gradient(ellipse at 50% 56%,#294158,#101c2d 74%);touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none}
 .scene.dragging{cursor:grabbing}
-.ambient{position:absolute;inset:-8%;background:url("./assets/demo-3d-background.png") center/cover;filter:blur(32px) brightness(.54) saturate(.8);pointer-events:none;opacity:.8}
-.composition{position:relative;aspect-ratio:2/3;height:100%;max-width:100%;overflow:hidden;background:#08101c;box-shadow:0 12px 55px #000a;will-change:transform}
+.ambient{position:absolute;inset:-8%;background:url("./assets/demo-3d-panorama.png") center/cover;filter:blur(32px) brightness(.54) saturate(.8);pointer-events:none;opacity:.8}
+.composition{position:absolute;inset:0;width:100%;height:100%;overflow:hidden;background:#08101c;box-shadow:0 12px 55px #000a;will-change:transform}
 .composition img{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;display:block;pointer-events:none;-webkit-user-drag:none}
-.background{z-index:1;transform:translate3d(var(--bg-x,0px),var(--bg-y,0px),0) scale(1.17);transform-origin:center;will-change:transform}
-.contact-shadow{z-index:2;position:absolute;left:27%;right:23%;height:5%;bottom:2.3%;border-radius:50%;background:#080c1c73;filter:blur(14px);transform:translate3d(var(--shadow-x,0px),4px,0);pointer-events:none}
-.figure{z-index:3;transform:translate3d(var(--figure-x,0px),var(--figure-y,0px),0);filter:drop-shadow(var(--shadow-x,0px) 9px 13px #02091770);will-change:transform}
-.original{z-index:5;opacity:0;transition:opacity .24s}
+.background{z-index:1;left:50%!important;right:auto!important;top:0!important;bottom:auto!important;width:auto!important;max-width:none!important;height:100%;object-fit:cover;transform:translate3d(calc(-50% + var(--bg-focus,0px) + var(--bg-x,0px)),var(--bg-y,0px),0) scale(var(--bg-scale,1.34));transform-origin:center;will-change:transform}
+.contact-shadow{z-index:2;position:absolute;left:50%;width:min(35%,280px);height:4%;bottom:2.3%;border-radius:50%;background:#080c1c73;filter:blur(14px);transform:translate3d(calc(-50% + var(--shadow-x,0px)),4px,0);pointer-events:none}
+.figure{z-index:3;left:50%!important;right:auto!important;top:0!important;bottom:auto!important;width:auto!important;max-width:none!important;height:100%;object-fit:contain;transform:translate3d(calc(-50% + var(--figure-x,0px)),var(--figure-y,0px),0);filter:drop-shadow(var(--shadow-x,0px) 9px 13px #02091770);will-change:transform}
+.original{z-index:5;opacity:0;object-fit:contain!important;transition:opacity .24s}
 .composition.flat .original,.composition.broken .original{opacity:1}
 .composition.flat .figure,.composition.broken .figure,.composition.flat .contact-shadow,.composition.broken .contact-shadow{opacity:0}
 .snow{position:absolute;inset:0;z-index:4;pointer-events:none;overflow:hidden}
@@ -44,7 +44,7 @@ button:focus-visible,input:focus-visible{outline:3px solid #ffdba5;outline-offse
 .details strong{color:#e0c38c;font-weight:500}
 @media(max-width:600px){
  main{padding:13px 8px 28px}header{margin-bottom:13px}.kicker{font-size:10px}
- .scene{height:min(62svh,580px);min-height:390px}.controls{gap:7px;padding:12px 8px}
+ .scene{height:min(64svh,600px);min-height:390px}.controls{gap:7px;padding:12px 8px}
  button{font-size:13px;padding:10px 11px}.demo{border-radius:17px}.scene-overlay{bottom:12px;font-size:12px;padding:7px 11px}
  .details{font-size:12px}
 }
@@ -56,19 +56,19 @@ button:focus-visible,input:focus-visible{outline:3px solid #ffdba5;outline-offse
 <header>
 <div class="kicker">PAKKASUKKO · ТЕСТ 3D</div>
 <h1>Внутри зимней сказки</h1>
-<p class="subtitle">Настоящий Дед Мороз — впереди. Церковь, снег и ёлки — на отдельном фоне, который движется за ним.</p>
+<p class="subtitle">Дед Мороз — впереди, за ним — широкий зимний лес с церковью и заснеженными елями. Двигайте фотографию и открывайте новые части пейзажа.</p>
 </header>
 <section class="demo" aria-label="Интерактивная фотография Деда Мороза">
 <div class="scene" id="scene" aria-label="Проведите пальцем или мышью, чтобы увидеть глубину">
 <div class="ambient" aria-hidden="true"></div>
 <div class="composition" id="composition">
-<img class="background" id="background" src="./assets/demo-3d-background.png" alt="">
+<img class="background" id="background" src="./assets/demo-3d-panorama.png" alt="">
 <div class="contact-shadow" aria-hidden="true"></div>
 <img class="figure" id="figure" src="./assets/demo-3d-santa.png" alt="Дед Мороз в красно-золотом костюме с волшебным светящимся посохом">
 <div class="snow" id="snow" aria-hidden="true"></div>
 <img class="original" id="original" src="./assets/pakkasukko-ded-moroz.webp" alt="Оригинальная фотография Деда Мороза у заснеженной церкви">
 </div>
-<div class="scene-overlay" id="hint">Проведите пальцем по фото</div>
+<div class="scene-overlay" id="hint">Проведите пальцем — фон шире</div>
 </div>
 <div class="controls">
 <button type="button" id="depthBtn" aria-pressed="true">✦ Объёмное фото</button>
@@ -81,7 +81,7 @@ button:focus-visible,input:focus-visible{outline:3px solid #ffdba5;outline-offse
 <div class="status" id="status" role="status" aria-live="polite">Загружаем Деда Мороза и зимний фон…</div>
 </section>
 <p class="instructions">Проведите по фотографии пальцем или мышью. Для эффекта от наклона телефона нажмите «Движение iPhone» и разрешите доступ к датчику. Кнопка «Автопоказ» показывает движение без датчика.</p>
-<div class="details"><strong>Как устроено:</strong> персонаж с посохом вырезан из фотографии; пространство за ним восстановлено, чтобы при движении фон оставался цельным. Это тестовый эффект двухслойной глубины, а не полноценная 3D-модель или точная технология Apple. Основной сайт не изменён.</div>
+<div class="details"><strong>Как устроено:</strong> персонаж с посохом вырезан из фотографии; пространство за ним восстановлено, чтобы при движении фон оставался цельным. Это тестовый эффект двухслойной глубины с широким лесным фоном, а не полноценная 3D-модель или точная технология Apple. Основной сайт не изменён.</div>
 </main>
 <script>
 (function(){
@@ -109,8 +109,8 @@ function stopSensor(){sensor=false;base=null;setPressed(motionBtn,false);window.
 function updateMode(){
  comp.classList.toggle("flat",flat);
  setPressed(depthBtn,!flat);setPressed(flatBtn,flat);
- hint.textContent=flat?"Это оригинальное фото":"Проведите пальцем по фото";
- if(!broken)message(flat?"Оригинальная фотография без эффекта глубины.":"Два слоя готовы. Двигайте фото — фон останется за Дедом Морозом.");
+ hint.textContent=flat?"Это оригинальное фото":"Проведите пальцем — фон шире";
+ if(!broken)message(flat?"Оригинальная фотография без эффекта глубины.":"Панорама леса готова. Двигайте фото — Дед Мороз смещается, а зимний лес открывается за ним.");
 }
 depthBtn.addEventListener("click",function(){if(broken){message("Объёмное фото пока недоступно: не загрузился один из слоёв.");return;}flat=false;updateMode();});
 flatBtn.addEventListener("click",function(){flat=true;stopAuto();stopSensor();updateMode();});
@@ -182,13 +182,21 @@ function tick(now){
  var ease=1-Math.exp(-dt/110);
  x+=(tx-x)*ease;y+=(ty-y)*ease;zoom+=(targetZoom-zoom)*ease;
  var intensity=Number(strength.value)/100;
- var px=Math.min(scene.clientWidth*.068,29)*intensity;
- var py=Math.min(scene.clientHeight*.052,35)*intensity;
+ var ratio=bg.naturalWidth&&bg.naturalHeight?bg.naturalWidth/bg.naturalHeight:1.5;
+ var widthAtHeight=scene.clientHeight*ratio;
+ var fitScale=Math.max(1,scene.clientWidth/Math.max(1,widthAtHeight));
+ var bgScale=fitScale*1.34;
+ var safeX=Math.max(0,(widthAtHeight*bgScale-scene.clientWidth)/2-6);
+ var px=Math.min(scene.clientWidth*.17,125,safeX)*intensity;
+ var py=Math.min(scene.clientHeight*.055,36)*intensity;
+ var fx=Math.min(scene.clientWidth*.095,74)*intensity;
+ bg.style.setProperty("--bg-scale",bgScale.toFixed(4));
+ bg.style.setProperty("--bg-focus",(Math.max(0,(640-scene.clientWidth)*.4)).toFixed(1)+"px");
  bg.style.setProperty("--bg-x",(-x*px).toFixed(2)+"px");
  bg.style.setProperty("--bg-y",(-y*py).toFixed(2)+"px");
- figure.style.setProperty("--figure-x",(x*px*.12).toFixed(2)+"px");
- figure.style.setProperty("--figure-y",(y*py*.09).toFixed(2)+"px");
- figure.style.setProperty("--shadow-x",(-x*px*.14).toFixed(2)+"px");
+ figure.style.setProperty("--figure-x",(x*fx).toFixed(2)+"px");
+ figure.style.setProperty("--figure-y",(y*py*.20).toFixed(2)+"px");
+ figure.style.setProperty("--shadow-x",(-x*fx*.32).toFixed(2)+"px");
  comp.style.transform="scale("+zoom.toFixed(4)+")";
  requestAnimationFrame(tick);
 }
@@ -196,7 +204,7 @@ requestAnimationFrame(tick);
 var loaded=0;
 function assetReady(){
  loaded++;
- if(loaded===2&&!broken){ready=true;message("Готово! Фон двигается отдельно — перед ним настоящий Дед Мороз с посохом.");}
+ if(loaded===2&&!broken){ready=true;message("Готово! Широкая лесная панорама движется за Дедом Морозом — попробуйте повести пальцем в стороны.");}
 }
 function assetError(){
  if(broken)return;
