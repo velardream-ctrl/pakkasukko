@@ -17,7 +17,8 @@ test('ordinary photo is retained on every device by default, with built-in spati
  assert.equal(s.motions.tablet,'auto');
  assert.equal(s.motions.desktop,'auto');
  assert.equal(chosenSpatialScene(s,'phone'),BUILTIN_SPATIAL);
- assert.match(spatialAsset('builtin-santa'),/demo-3d-santa\.png/);
+ assert.match(spatialAsset('builtin-santa'),/demo-3d-santa\.webp/);
+ assert.equal(spatialFallbackAsset(spatialAsset('builtin-santa')),'./assets/demo-3d-santa.png');
  assert.match(spatialAsset('builtin-panorama'),/spatial-lab-panorama\.webp/);
  assert.equal(spatialFallbackAsset(spatialAsset('builtin-panorama')),'./assets/spatial-lab-panorama.png');
  assert.equal(spatialFallbackAsset(spatialAsset('builtin-original')),'');
@@ -98,4 +99,15 @@ test('builtin panorama uses mobile-friendly 2D translation and automatic WebP op
  assert.ok(lab);assert.doesNotMatch(lab,/rotateX|rotateY|perspective/);
  assert.match(js,/1000\/30/);
  assert.match(workflow,/node scripts\/optimize-spatial\.mjs/);
+});
+
+test('initial spatial animation waits for image decode and eases into automatic motion',()=>{
+ const js=readFileSync(new URL('../docs/spatial-gallery.js',import.meta.url),'utf8');
+ const optimizer=readFileSync(new URL('../scripts/optimize-spatial.mjs',import.meta.url),'utf8');
+ assert.match(js,/image\.decode\(\)\.then/);
+ assert.match(js,/motionStartedAt=performance\.now\(\)/);
+ assert.match(js,/rise=t\*t\*\(3-2\*t\)/);
+ assert.match(optimizer,/demo-3d-santa\.webp/);
+ assert.match(optimizer,/alphaQuality:100/);
+ assert.match(optimizer,/spatial-lab-panorama\.webp/);
 });

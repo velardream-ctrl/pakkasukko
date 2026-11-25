@@ -2,7 +2,7 @@ import {deliveryConfig,deliveryLink} from './video-service.js';
 import {mountFares} from './fare-form.js?v=45';
 import {fitTagline} from './tagline.js';
 import {pageText,initial,bindPage,renderPage,deviceFor} from './site.js?v=45';
-import {mountSpatialPhoto} from './spatial-gallery.js?v=6';
+import {mountSpatialPhoto} from './spatial-gallery.js?v=7';
 const $=(s)=>document.querySelector(s);
 fitTagline(document);
 $('#year').textContent=new Date().getFullYear();

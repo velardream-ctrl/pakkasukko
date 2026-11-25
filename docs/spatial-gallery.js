@@ -5,7 +5,7 @@ export const BUILTIN_SPATIAL=Object.freeze({
   foregroundId:'builtin-santa',backgroundId:'builtin-panorama',groundId:'builtin-panorama'
 });
 const BUILTIN_ASSETS={
-  'builtin-santa':'./assets/demo-3d-santa.png',
+  'builtin-santa':'./assets/demo-3d-santa.webp',
   'builtin-panorama':'./assets/spatial-lab-panorama.webp',
   'builtin-original':'./assets/pakkasukko-ded-moroz.webp'
 };
@@ -38,7 +38,7 @@ export function spatialAsset(id,editing=false){
 }
 // GitHub-only previews retain the original PNG; the deployed site uses a lighter WebP.
 export function spatialFallbackAsset(src){
-  return src.endsWith('/spatial-lab-panorama.webp')?src.replace(/\.webp$/,'.png'):'';
+  return /\/(?:spatial-lab-panorama|demo-3d-santa)\.webp$/.test(src)?src.replace(/\.webp$/,'.png'):'';
 }
 export function chosenSpatialScene(settings,device){
   return settings.scenes.find(c=>c.id===settings.selected[device])||BUILTIN_SPATIAL;
@@ -66,17 +66,25 @@ export function mountSpatialPhoto({model,currentDevice}){
   frame.append(base,moving,shadow,figure);stage.append(frame);
   stage.setAttribute('aria-label','Пространственное фото: движение пальцем или наклоном телефона');
   photo.append(stage);
-  let active=false,currentId='',request=0,last=0,frameId=0,enabledDevice='',currentMotion='auto';
+  let active=false,currentId='',request=0,last=0,frameId=0,enabledDevice='',currentMotion='auto',motionStartedAt=0;
   let stageWidth=0,stageHeight=0,lastSensorAt=0,sensorTimer=0;const previousCss={};
   let x=0,y=0,targetX=0,targetY=0,pointer=null,autoBlockedUntil=0;
   let sensorActive=false,sensorSamples=0,neutral=null,gravityNeutral=null,lastOrientationAt=0;
   const strength=settings.strength/100;
   const reduce=window.matchMedia?.('(prefers-reduced-motion: reduce)').matches||false;
   function preload(src){
+    // Prepare the full image before revealing animated CSS background layers.
+    // Without decode(), mobile Safari may decode the foreground on the first moving frame.
     return new Promise(resolve=>{
       const image=new Image();
-      image.onload=()=>resolve(image.naturalWidth>0);
-      image.onerror=()=>resolve(false);image.src=src;
+      image.decoding='async';
+      image.onload=()=>{
+        if(typeof image.decode==='function'){
+          image.decode().then(()=>resolve(image.naturalWidth>0),()=>resolve(image.naturalWidth>0));
+        }else resolve(image.naturalWidth>0);
+      };
+      image.onerror=()=>resolve(false);
+      image.src=src;
     });
   }
   function stopTilt(){
@@ -162,7 +170,8 @@ export function mountSpatialPhoto({model,currentDevice}){
       moving.style.backgroundImage='url("'+loadedBg+'")';
       figure.style.backgroundImage='url("'+loadedFg+'")';
       stage.hidden=false;photo.setAttribute('role','group');photo.classList.add('pk-space-active');photo.parentElement?.classList.add('pk-space-hero-active');
-      active=true;currentId=chosen.id;stageWidth=stage.clientWidth;stageHeight=stage.clientHeight;
+      active=true;currentId=chosen.id;motionStartedAt=performance.now();last=0;
+      stageWidth=stage.clientWidth;stageHeight=stage.clientHeight;
       startUnrestrictedTilt();
       if(!frameId)frameId=requestAnimationFrame(tick);
     }).catch(()=>{if(ticket===request)ordinary();});
@@ -173,12 +182,16 @@ export function mountSpatialPhoto({model,currentDevice}){
     // Avoid 60 costly masked repaints a second on older iPhones.
     const interval=enabledDevice==='phone'?1000/30:enabledDevice==='tablet'?1000/40:1000/50;
     if(last&&now-last<interval-1)return;
+    if(!last)last=now;
     const dt=Math.min(65,now-last||16);last=now;
     const builtin=stage.classList.contains('pk-space-lab-scene');
     if(currentMotion==='tilt'&&sensorActive&&sensorSamples>0&&now-lastSensorAt>3800)fallbackToAuto();
     if((currentMotion==='auto'||currentMotion==='tilt'&&sensorSamples===0)&&!pointer&&!reduce&&now>autoBlockedUntil){
-      targetX=Math.sin(now*(builtin ? 0.00062 : 0.00034))*(builtin ? 0.78 : 0.52);
-      targetY=Math.cos(now*(builtin ? 0.00047 : 0.00027))*(builtin ? 0.44 : 0.35);
+      // Give the newly painted masks and GPU layers time to settle; no first-frame lurch.
+      const t=Math.min(1,Math.max(0,(now-motionStartedAt-100)/700));
+      const rise=t*t*(3-2*t);
+      targetX=Math.sin(now*(builtin ? 0.00062 : 0.00034))*(builtin ? 0.78 : 0.52)*rise;
+      targetY=Math.cos(now*(builtin ? 0.00047 : 0.00027))*(builtin ? 0.44 : 0.35)*rise;
     }
     const ease=1-Math.exp(-dt/(builtin?82:120));
     x+=(targetX-x)*ease;y+=(targetY-y)*ease;
