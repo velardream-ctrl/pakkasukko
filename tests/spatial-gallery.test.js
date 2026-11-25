@@ -77,15 +77,17 @@ test('seamless panoramic background and rigid Santa replace the visible original
  assert.equal(spatialSnowMask(72).includes('transparent 87%'),true);
 });
 
-test('spatial layer accepts taps above hero text, with an actionable permission button',()=>{
+test('spatial hero accepts touches and never prompts visitors for motion access',()=>{
  const css=readFileSync(new URL('../docs/spatial-gallery.css',import.meta.url),'utf8');
  const js=readFileSync(new URL('../docs/spatial-gallery.js',import.meta.url),'utf8');
  assert.match(css,/\.hero\.pk-space-hero-active \.hero-photo\.pk-space-active\{z-index:0;pointer-events:auto\}/);
  assert.match(css,/\.hero\.pk-space-hero-active \.hero-inner\{pointer-events:none\}/);
- assert.match(css,/\.hero\.pk-space-hero-active \.hero-inner :is\(a,button,input,select,textarea\)\{pointer-events:auto\}/);
- assert.match(js,/document\.createElement\('button'\)/);
+ assert.match(js,/window\.addEventListener\('deviceorientation'/);
+ assert.match(js,/window\.addEventListener\('devicemotion'/);
  assert.match(js,/function fallbackToAuto\(\)/);
  assert.match(js,/sensorTimer=setTimeout/);
+ assert.doesNotMatch(js,/requestPermission|pk-space-tilt-hint|Коснитесь фото/);
+ assert.doesNotMatch(css,/pk-space-tilt-hint/);
 });
 test('builtin panorama uses mobile-friendly 2D translation and automatic WebP optimization',()=>{
  const css=readFileSync(new URL('../docs/spatial-gallery.css',import.meta.url),'utf8');
