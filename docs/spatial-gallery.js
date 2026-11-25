@@ -49,6 +49,14 @@ export function matchSpatialFraming(img,frame,figure,appearance){
   frame.style.transformOrigin=appearance.transformOrigin;
   figure.style.backgroundPosition=appearance.objectPosition;
 }
+// Update only the profile currently being previewed; other devices remain untouched.
+export function patchSpatialSettings(model,device,field,value){
+  if(!SPATIAL_DEVICES.includes(device)||!['selected','motions','backgroundZoom','backgroundFocus','snowLevel','strength'].includes(field))return false;
+  model.spatial??={};
+  if(field==='strength')model.spatial.strength=value;
+  else{model.spatial[field]??={};model.spatial[field][device]=value;}
+  return true;
+}
 export function spatialSnowMask(level){
   const n=clamp(Number(level)||72,62,85);
   return 'linear-gradient(to bottom,#000 0%,#000 '+n+'%,#000c '+(n+5)+'%,#0005 '+(n+10)+'%,transparent '+(n+15)+'%)';
@@ -56,7 +64,7 @@ export function spatialSnowMask(level){
 export function mountSpatialPhoto({model,currentDevice}){
   const photo=document.querySelector('#top .hero-photo');
   if(!photo)return {refresh(){}};
-  const settings=spatialSettings(model);
+  let settings=spatialSettings(model);
   const stage=document.createElement('div');stage.className='pk-space-scene';stage.hidden=true;
   const frame=document.createElement('div');frame.className='pk-space-frame';
   const base=document.createElement('div'),moving=document.createElement('div');
@@ -70,7 +78,7 @@ export function mountSpatialPhoto({model,currentDevice}){
   let stageWidth=0,stageHeight=0,lastSensorAt=0,sensorTimer=0;const previousCss={};
   let x=0,y=0,targetX=0,targetY=0,pointer=null,autoBlockedUntil=0;
   let sensorActive=false,sensorSamples=0,neutral=null,gravityNeutral=null,lastOrientationAt=0;
-  const strength=settings.strength/100;
+  let strength=settings.strength/100;
   const reduce=window.matchMedia?.('(prefers-reduced-motion: reduce)').matches||false;
   function preload(src){
     // Prepare the full image before revealing animated CSS background layers.
@@ -136,6 +144,14 @@ export function mountSpatialPhoto({model,currentDevice}){
     active=false;stage.hidden=true;photo.setAttribute('role','img');photo.classList.remove('pk-space-active');photo.parentElement?.classList.remove('pk-space-hero-active');stopTilt();
     if(frameId){cancelAnimationFrame(frameId);frameId=0;}
   }
+  function applyTuning(device,builtin){
+    stage.style.setProperty('--pk-space-bg-size',settings.backgroundZoom[device]+'%');
+    stage.style.setProperty('--pk-space-bg-focus',settings.backgroundFocus[device]+'%');
+    if(builtin){
+      const mask=spatialSnowMask(settings.snowLevel[device]);
+      moving.style.webkitMaskImage=mask;moving.style.maskImage=mask;
+    }else{moving.style.webkitMaskImage='';moving.style.maskImage='';}
+  }
   function refresh(){
     const device=currentDevice(),chosen=chosenSpatialScene(settings,device);
     if(enabledDevice!==device){stopTilt();targetX=targetY=x=y=0;}
@@ -145,12 +161,7 @@ export function mountSpatialPhoto({model,currentDevice}){
     if(img)matchSpatialFraming(img,frame,figure,getComputedStyle(img));
     const builtin=chosen.id===BUILTIN_SPATIAL.id;
     stage.classList.toggle('pk-space-lab-scene',builtin);
-    stage.style.setProperty('--pk-space-bg-size',settings.backgroundZoom[device]+'%');
-    stage.style.setProperty('--pk-space-bg-focus',settings.backgroundFocus[device]+'%');
-    if(builtin){
-      const mask=spatialSnowMask(settings.snowLevel[device]);
-      moving.style.webkitMaskImage=mask;moving.style.maskImage=mask;
-    }else{moving.style.webkitMaskImage='';moving.style.maskImage='';}
+    applyTuning(device,builtin);
     if(!settings.enabled||settings.modes[device]!=='spatial'){ordinary();return;}
     if(currentMotion!=='tilt'&&sensorActive)stopTilt();
     if(active&&currentId===chosen.id){startUnrestrictedTilt();return;}
@@ -224,5 +235,17 @@ export function mountSpatialPhoto({model,currentDevice}){
   window.addEventListener('pageshow',()=>{if(active&&currentMotion==='tilt')startUnrestrictedTilt();});
   document.addEventListener('visibilitychange',()=>{if(document.hidden)stopTilt();else if(active&&currentMotion==='tilt')startUnrestrictedTilt();});
   document.addEventListener('pakkasukko:layout',()=>{if(active){stageWidth=stage.clientWidth;stageHeight=stage.clientHeight;}refresh();});
-  refresh();return {refresh};
+  function updateModel(force=false){
+    // Keep slider changes instant without recalculating the whole hero crop per input.
+    const previous=settings,device=currentDevice();
+    settings=spatialSettings(model);
+    strength=settings.strength/100;
+    if(!force&&active&&enabledDevice===device&&previous.enabled===settings.enabled&&
+       previous.modes[device]===settings.modes[device]&&
+       previous.motions[device]===settings.motions[device]&&
+       previous.selected[device]===settings.selected[device]){
+      applyTuning(device,chosenSpatialScene(settings,device).id===BUILTIN_SPATIAL.id);
+    }else refresh();
+  }
+  refresh();return {refresh,updateModel};
 }

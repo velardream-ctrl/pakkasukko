@@ -2,6 +2,7 @@ import {deliveryFields} from './delivery-editor.js';
 import {fitTagline,taglineSlider} from './tagline.js';
 import {applySnow} from './snow.js';
 import {snowPanel} from './snow-panel.js';
+import {spatialSettings,BUILTIN_SPATIAL,patchSpatialSettings} from './spatial-gallery.js?v=8';
 import {initial,mediaURL,baseCrop,baseSectionCrop,sectionCrop,cropPhoto,applySectionCrop,renderPage,setField,applyHeroShade,heroShadePercent,applyRoutesShade,routesShadePercent,heroImageId,setHeroDeviceImage} from './site.js?v=45';
 
 // RUN-009: In-page controls are loaded only after the protected /api/admin/editor request succeeds.
@@ -53,7 +54,7 @@ function pictureId(el){
   return sectionOf(el);
 }
 function cropBounds(n){return Math.max(-100,Math.min(100,Math.round(n)));}
-export async function startInlineEditor({model,fields,currentDevice,onAdmin,fares}){
+export async function startInlineEditor({model,fields,currentDevice,onAdmin,fares,spatialPhoto}){
   let result;
   try{
     const r=await fetch('/api/admin/editor',{cache:'no-store',credentials:'same-origin'});
@@ -96,6 +97,7 @@ export async function startInlineEditor({model,fields,currentDevice,onAdmin,fare
   replaceModel(baseline);
   onAdmin?.();
   renderPage(document,model,fields,currentDevice(),true,fares);
+  spatialPhoto?.updateModel(true);
   function info(message,isError=false){
     status.textContent=message;status.classList.toggle('pk-error',isError);
     saveButton.classList.toggle('pk-unsaved',dirty);
@@ -106,6 +108,7 @@ export async function startInlineEditor({model,fields,currentDevice,onAdmin,fare
     pinItems=[];
     pins.replaceChildren();
     renderPage(document,model,fields,currentDevice(),true,fares);
+    spatialPhoto?.updateModel(true);
     refreshPins();
     positionDrag();
   }
@@ -141,7 +144,9 @@ export async function startInlineEditor({model,fields,currentDevice,onAdmin,fare
     }
     for(const el of document.querySelectorAll('.hero-photo,.about-portrait,.section-media-frame')){
       if(el.closest('[hidden]'))continue;
-      makePin('photo',el,pictureId(el),'Изменить фотографию',()=>photoPanel(pictureId(el)));
+      const id=pictureId(el),view=spatialSettings(model);
+      const spatial=id==='top'&&view.enabled&&view.modes[currentDevice()]==='spatial';
+      makePin('photo',el,id,spatial?'✧ Настроить пространственную 3D-фотографию':'Изменить фотографию',()=>photoPanel(id));
     }
     positionPins();
   }
@@ -161,10 +166,11 @@ export async function startInlineEditor({model,fields,currentDevice,onAdmin,fare
   }
   function openPanel(title){
     panelTitle.textContent=title;panelBody.replaceChildren();panel.hidden=false;
+    panel.dataset.spatial='';panel.dataset.device='';
     clearDrag();
     panelBody.scrollTop=0;
   }
-  function closePanel(){panel.hidden=true;openPicture='';clearDrag();}
+  function closePanel(){panel.hidden=true;panel.dataset.spatial='';panel.dataset.device='';openPicture='';clearDrag();}
   function callRow(parent){return parent.appendChild(make('div','pk-row'));}
   function textPanel(el,group){
     openPanel('✎ '+(names[group]||group));
@@ -278,9 +284,78 @@ export async function startInlineEditor({model,fields,currentDevice,onAdmin,fare
     if(target==='top')cropPhoto(document,{...photoState(model,target,currentDevice()),image:heroImageId(model,currentDevice())},true);
     else applySectionCrop(document,model,target,currentDevice(),true);
   }
+  function spatialPanel(){
+    const device=currentDevice(),view=spatialSettings(model);
+    openPicture='top';
+    openPanel('✧ 3D-фотография · Главный экран');
+    panel.dataset.spatial='true';panel.dataset.device=device;
+    const deviceName=device==='desktop'?'Компьютер':device==='tablet'?'Планшет':'Телефон';
+    panelBody.append(make('p','pk-hint','Изменения видны сразу на фотографии. Сохраните черновик или опубликуйте результат кнопкой внизу страницы.'));
+    panelBody.append(make('strong','pk-spatial-device','Настройки для устройства: '+deviceName));
+    const apply=(field,value)=>{
+      if(!patchSpatialSettings(model,device,field,value))return;
+      spatialPhoto?.updateModel();
+      changed();
+    };
+    function selectField(label,options,value,onChange){
+      const wrapper=make('label','pk-field');
+      wrapper.append(make('span','',label));
+      const select=make('select');
+      for(const [id,text] of options)option(select,id,text);
+      select.value=value;
+      select.addEventListener('change',()=>onChange(select.value));
+      wrapper.append(select);panelBody.append(wrapper);
+      return select;
+    }
+    function rangeField(field,label,min,max,value){
+      const wrapper=make('label','pk-field');
+      wrapper.append(make('span','',label));
+      const row=make('div','pk-range-row');
+      const range=make('input');range.type='range';range.min=String(min);range.max=String(max);range.step='1';range.value=String(value);
+      const number=make('input');number.type='number';number.min=String(min);number.max=String(max);number.step='1';number.className='pk-number';number.value=String(value);
+      const change=raw=>{
+        const n=Number(raw);
+        if(!Number.isInteger(n)||n<min||n>max){number.value=range.value;return;}
+        range.value=number.value=String(n);
+        apply(field,n);
+      };
+      range.addEventListener('input',()=>change(range.value));
+      number.addEventListener('change',()=>change(number.value));
+      row.append(range,number);wrapper.append(row);panelBody.append(wrapper);
+    }
+    selectField('Пространственная сцена',view.scenes.map(scene=>[scene.id,scene.title]),
+      view.selected[device],value=>{apply('selected',value);spatialPanel();});
+    selectField('Управление движением',[
+      ['auto','Автопоказ + движение пальцем'],
+      ['manual','Только пальцем или мышью'],
+      ['tilt','Наклон телефона (если разрешён) + палец']
+    ],view.motions[device],value=>apply('motions',value));
+    rangeField('strength','Сила 3D-движения · общая для устройств (%)',0,100,view.strength);
+    rangeField('backgroundZoom','Масштаб церкви и заднего фона (%)',95,135,view.backgroundZoom[device]);
+    rangeField('backgroundFocus','Расположение церкви по горизонтали (%)',32,54,view.backgroundFocus[device]);
+    if(view.selected[device]===BUILTIN_SPATIAL.id){
+      rangeField('snowLevel','Граница неподвижного снега у ног (%)',62,85,view.snowLevel[device]);
+    }else{
+      panelBody.append(make('p','pk-hint','Для загруженной сцены граница снега определяется её собственными слоями.'));
+    }
+    button(panelBody,'Сбросить положение фона и снега',()=>{
+      const defaults={backgroundZoom:100,backgroundFocus:42,snowLevel:72};
+      for(const [field,value] of Object.entries(defaults)){
+        patchSpatialSettings(model,device,field,value);
+      }
+      spatialPhoto?.updateModel();changed();spatialPanel();
+    });
+    const library=make('a','pk-action','Добавить новую 3D-сцену ↗');
+    library.href='./spatial-admin.html';panelBody.append(library);
+  }
   function photoPanel(target){
+    if(target==='top'){
+      const view=spatialSettings(model);
+      if(view.enabled&&view.modes[currentDevice()]==='spatial')return spatialPanel();
+    }
     openPicture=target;
     openPanel('▣ Фотография · '+titleOf(target));
+    if(target==='top')panel.dataset.device=currentDevice();
     panelBody.append(make('p','pk-hint','Выберите фотографию и передвигайте её прямо в рамке. Для каждого устройства положение сохраняется отдельно.'));
     const deviceRow=callRow(panelBody);
     const current=make('strong','',currentDevice()==='desktop'?'Компьютер':currentDevice()==='tablet'?'Планшет':'Телефон');deviceRow.append(current);
@@ -455,8 +530,11 @@ export async function startInlineEditor({model,fields,currentDevice,onAdmin,fare
   button(bar,'Отменить',()=>reset(),'pk-cancel');
   const update=()=>{if(active)positionPins();};
   addEventListener('scroll',update,{passive:true});
-  addEventListener('resize',()=>{if(active){refreshPins();positionDrag();}},{passive:true});
-  document.addEventListener('pakkasukko:layout',()=>{if(active)refreshPins();});
+  function refreshDevicePanel(){
+    if(active&&!panel.hidden&&openPicture==='top'&&panel.dataset.device&&panel.dataset.device!==currentDevice())photoPanel('top');
+  }
+  addEventListener('resize',()=>{if(active){refreshPins();positionDrag();refreshDevicePanel();}},{passive:true});
+  document.addEventListener('pakkasukko:layout',()=>{if(active){refreshPins();refreshDevicePanel();}});
   document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!panel.hidden)closePanel();});
   refreshPins();
   info('Режим администратора · изменения сохраняются в черновик');
