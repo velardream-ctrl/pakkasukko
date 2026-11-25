@@ -198,3 +198,26 @@ test('RUN-037: video delivery requires seven days and never reserves a visit slo
  assert.equal((await request('admin/video-orders/delete',{id})).status,200);
  }finally{globalThis.fetch=original;}
 });
+
+test('RUN-038: explicit service modes override names and support original cards',async()=>{
+ const {request,env,sqlite,login}=fixture();
+ const {deliveryConfig,earliestDelivery,helsinkiDay}=await import('../docs/video-service.js');
+ const {prices,quote}=await import('../docs/fares.js');
+ const model={cards:[{id:'video',title:'Видео поздравление',price:'50 €'},{id:'new',title:'Подарок',price:'20 €'}],deliveryModes:{gift:{mode:'delivery',days:2},video:{mode:'visit',days:7},new:{mode:'delivery',days:0}}};
+ assert.equal(deliveryConfig(model,'gift').days,2);assert.equal(deliveryConfig(model,'video').mode,'visit');
+ assert.equal(deliveryConfig({cards:model.cards},'video').mode,'delivery');assert.equal(deliveryConfig(model,'new').days,0);
+ assert.equal(prices(model).video.remote,false);assert.equal(prices(model).gift.remote,true);
+ Object.assign(env,{TURNSTILE_SITE_KEY:'site',TURNSTILE_SECRET:'secret',OWNER_EMAIL:'owner@example.test',FROM_EMAIL:'from@example.test',RESEND_API_KEY:'test'});
+ for(const key of ['enabled','mail_test','mail_received','privacy_confirmed'])sqlite.prepare('INSERT INTO booking_settings VALUES(?,?)').run(key,'true');
+ sqlite.prepare('INSERT INTO site_revisions(body,published,created_at) VALUES(?,1,?)').run(JSON.stringify(model),'test');
+ const original=globalThis.fetch;try{globalThis.fetch=async()=>Response.json({success:true});
+ const data={service:'gift',name:'Test',email:'client@example.test',turnstileToken:'test',submissionKey:crypto.randomUUID()};
+ assert.equal((await request('video-orders',{...data,deliveryDate:helsinkiDay()})).status,400);
+ assert.equal((await request('video-orders',{...data,deliveryDate:earliestDelivery(helsinkiDay(),2)})).status,201);
+ assert.equal((await request('video-orders',{...data,service:'video',submissionKey:crypto.randomUUID(),deliveryDate:earliestDelivery(helsinkiDay(),7)})).status,409);
+ assert.equal((await request('video-orders',{...data,service:'new',submissionKey:crypto.randomUUID(),deliveryDate:helsinkiDay()})).status,201);
+ assert.equal((await request('bookings',data)).status,400);
+ assert.equal(sqlite.prepare('SELECT COUNT(*) n FROM slots').get().n,0);
+ await login();assert.equal((await request('admin/video-orders')).status,200);
+ }finally{globalThis.fetch=original;}
+});

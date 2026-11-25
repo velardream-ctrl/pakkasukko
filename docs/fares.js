@@ -1,3 +1,4 @@
+import {deliveryConfig} from './video-service.js';
 export const defaultFare={fuel:2.20,consumption:10,km:{Kitee:0,Puhos:15,'Tohmajärvi':20,Joensuu:67},routes:{}};
 export function validFare(f){
   const number=(n,min,max)=>typeof n==='number'&&Number.isFinite(n)&&n>=min&&n<=max;
@@ -19,9 +20,9 @@ export function prices(site={},content={}){
   // Existing editor text keys for the price elements in the three original cards.
   const items={};
   for(const [service,key,field,fallback] of [['gift',9,'giftPrice','от 50 €'],['home',16,'homePrice','от 100 €'],['event',23,'eventPrice','По запросу']]){
-    items[service]={label:site.texts?.['programs-'+key]??content[field]??fallback,remote:false};
+    items[service]={label:site.texts?.['programs-'+key]??content[field]??fallback,remote:deliveryConfig(site,service)?.mode==='delivery'};
   }
-  for(const card of site.cards||[])items[card.id]={label:card.price||'По запросу',remote:/видео|онлайн/i.test(card.title)};
+  for(const card of site.cards||[])items[card.id]={label:card.price||'По запросу',remote:deliveryConfig(site,card.id)?.mode==='delivery'||(!Object.hasOwn(site.deliveryModes||{},card.id)&&/онлайн/i.test(card.title))};
   return items;
 }
 export const euros=cents=>(cents/100).toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2})+' €';

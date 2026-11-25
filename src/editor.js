@@ -1,3 +1,4 @@
+import {serviceCard,isVideoGreeting} from '../docs/video-service.js';
 import {currentCopy} from './privacy-copy.js';
 export async function published(env){
   if(!env.DB)return {};
@@ -22,6 +23,7 @@ export async function editorAPI(req,env,path,reply){
       if(!body)return reply({error:'Версия не найдена'},404);
     }else{
       if(!model || !['texts','crops','pictures','seo'].every(k=>model[k] && typeof model[k]==='object'&&!Array.isArray(model[k])) || !['order','hidden','cards'].every(k=>Array.isArray(model[k])))return reply({error:'Некорректный черновик'},400);
+      if(model.deliveryModes!==undefined){const modes=model.deliveryModes;if(!modes||typeof modes!=='object'||Array.isArray(modes)||Object.entries(modes).some(([id,v])=>!serviceCard(model,id)||!['visit','delivery'].includes(v?.mode)||!Number.isInteger(v.days)||v.days<(isVideoGreeting(serviceCard(model,id))&&v.mode==='delivery'?7:0)||v.days>365))return reply({error:'Проверьте способы оказания услуг и сроки подготовки.'},400);}
       body=JSON.stringify(model);
     }
     const result=await db.prepare('INSERT INTO site_revisions(body,published,created_at) SELECT ?,?,? WHERE (SELECT COALESCE(MAX(id),0) FROM site_revisions)=?').bind(body,publish===true&&!restore?1:0,new Date().toISOString(),id).run();

@@ -1,5 +1,7 @@
 import {fitTagline,taglineSlider} from './tagline.js';
 import {applySnow} from './snow.js';
+import {deliveryFields} from './delivery-editor.js';
+import {BUILTIN_SERVICES} from './video-service.js';
 import {snowPanel} from './snow-panel.js';
 import {applyBrand,setField,devices,baseCrop,baseSectionCrop,sectionCrop,initial,bindPage,renderPage,cropPhoto,applySectionCrop,applyHeroShade,heroShadePercent,applyRoutesShade,routesShadePercent,heroImageId,setHeroDeviceImage,setHeroGlobalImage,mediaURL} from './site.js';
 const $=id=>document.getElementById(id);
@@ -177,6 +179,11 @@ function section(){
 }
 function cards(){
   $('cards').replaceChildren();
+  for(const service of BUILTIN_SERVICES){
+    const box=document.createElement('fieldset');box.className='program-edit-fields';
+    const legend=document.createElement('legend');legend.textContent=service.title;box.append(legend);
+    deliveryFields(box,model,service.id,draw);$('cards').append(box);
+  }
   for(const [index,c] of model.cards.entries()){
     const box=document.createElement('fieldset');box.className='program-edit-fields';
     const legend=document.createElement('legend');legend.textContent='Программа '+String(index+4).padStart(2,'0');box.append(legend);
@@ -188,7 +195,8 @@ function cards(){
       const control=input(box,label,c[k]||'',v=>{c[k]=v;draw();},k==='description'?'textarea':'text');
       control.dataset.cardIndex=String(index);control.dataset.cardKey=k;
     }
-    button(box,'Удалить карточку',()=>{model.cards.splice(model.cards.indexOf(c),1);cards();draw();});
+    deliveryFields(box,model,c.id,draw);
+    button(box,'Удалить карточку',()=>{delete model.deliveryModes?.[c.id];model.cards.splice(model.cards.indexOf(c),1);cards();draw();});
     $('cards').append(box);
   }
 }
@@ -316,7 +324,7 @@ $('picture').onchange=async e=>{
 };
 for(const [id,delta] of [['up',-1],['down',1]])action(id,()=>{const i=model.order.indexOf($('section').value),j=i+delta;if(j>=0&&j<model.order.length){[model.order[i],model.order[j]]=[model.order[j],model.order[i]];outline();draw();note('Порядок: '+model.order.map(groupName).join(' · '));}});
 action('visibility',()=>{const k=$('section').value;model.hidden=model.hidden.includes(k)?model.hidden.filter(i=>i!==k):[...model.hidden,k];outline();section();draw();});
-action('add',()=>{model.cards.push({id:crypto.randomUUID(),title:'Новая программа',description:'',price:'',duration:''});cards();draw();});
+action('add',()=>{const id=crypto.randomUUID();model.cards.push({id,title:'Новая программа',description:'',price:'',duration:''});model.deliveryModes??={};model.deliveryModes[id]={mode:'visit',days:7};cards();draw();});
 action('save',()=>commit());action('publish',()=>commit(true));action('restore',()=>{if($('history').value)return commit(false,Number($('history').value));});
 action('cancel',reset);action('reset',()=>{Object.assign(crop(),{x:0,y:0,zoom:100,fit:'contain'});draw();});
 const drag=$('drag');

@@ -1,15 +1,16 @@
-import {isVideoGreeting,earliestDelivery,helsinkiDay,videoNotice} from './video-service.js';
+import {serviceCard,deliveryConfig,deliveryNotice,earliestDelivery,helsinkiDay} from './video-service.js';
 const $=id=>document.getElementById(id),form=$('videoForm'),fields=$('videoFields'),send=$('videoSend'),status=$('videoStatus'),date=form.elements.deliveryDate;
-$('videoNotice').textContent=videoNotice;
-let token='',widget,busy=false,card,key='',signature='';
+let token='',widget,busy=false,card,delivery,key='',signature='';
 async function init(){
  try{
   const r=await fetch('/api/public-config',{cache:'no-store'});if(!r.ok)throw Error();
   const config=await r.json(),id=new URLSearchParams(location.search).get('service');
-  card=(config.site?.cards||[]).find(c=>isVideoGreeting(c)&&(!id||c.id===id));
-  if(!card){status.textContent='Видеопоздравление пока недоступно.';return;}
-  $('videoTitle').textContent=card.title;$('videoDescription').textContent=card.description||'';$('videoPrice').textContent='Стоимость: '+(card.price||'По запросу');
-  date.min=earliestDelivery(helsinkiDay());$('videoEarliest').textContent='Самая ранняя дата получения: '+date.min.split('-').reverse().join('.');
+  const selected=id||(config.site?.cards||[]).find(c=>deliveryConfig(config.site,c.id)?.mode==='delivery')?.id;
+  card=serviceCard(config.site,selected);delivery=deliveryConfig(config.site,selected);
+  if(!card||delivery?.mode!=='delivery'){status.textContent='Эта услуга не доступна для заказа по дате получения.';return;}
+  $('videoTitle').textContent=card.title;$('videoDescription').textContent=card.description||'';$('videoPrice').textContent='Стоимость: '+(config.services?.[card.id]?.label||card.price||'По запросу');$('videoNotice').textContent=deliveryNotice(delivery);
+  if(!delivery.video){$('deliveryIntro').textContent='Укажите желаемую дату получения услуги. Дату и стоимость подтвердим лично.';$('deliveryDateLabel').firstChild.textContent='Желаемая дата получения услуги';$('deliveryEmailLabel').firstChild.textContent='Электронная почта для связи';$('deliveryMessageLabel').firstChild.textContent='Ваши пожелания';form.elements.message.placeholder='Расскажите о ваших пожеланиях…';send.textContent='Заказать услугу ↗';}
+  date.min=earliestDelivery(helsinkiDay(),delivery.days);$('videoEarliest').textContent='Самая ранняя дата получения: '+date.min.split('-').reverse().join('.');
   if(!config.bookingsEnabled||!config.turnstileSiteKey){status.textContent='Приём заявок пока закрыт.';return;}
   const script=document.createElement('script');script.src='https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';script.async=true;
   script.onerror=()=>status.textContent='Не удалось загрузить защиту. Обновите страницу.';
@@ -18,7 +19,7 @@ async function init(){
  }catch{status.textContent='Не удалось открыть форму. Попробуйте позже.';}
 }
 form.onsubmit=async e=>{
- e.preventDefault();if(busy||!token||!card)return;date.min=earliestDelivery(helsinkiDay());if(!form.reportValidity())return;
+ e.preventDefault();if(busy||!token||!card)return;date.min=earliestDelivery(helsinkiDay(),delivery.days);if(!form.reportValidity())return;
  const data={...Object.fromEntries(new FormData(form)),service:card.id};delete data.consent;
  const sig=JSON.stringify(data);if(sig!==signature){signature=sig;key=crypto.randomUUID();}
  busy=true;send.disabled=true;status.textContent='Отправляем заявку…';

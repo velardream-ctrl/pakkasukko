@@ -1,4 +1,4 @@
-import {isVideoGreeting,videoNotice} from './video-service.js';
+import {deliveryConfig,deliveryNotice,deliveryLink} from './video-service.js';
 export const devices = {desktop:[1440,900],tablet:[820,1180],phone:[390,844]};
 export const portrait = './assets/pakkasukko-ded-moroz.webp';
 export const baseCrop = () => ({x:0,y:0,zoom:100,image:''});
@@ -60,7 +60,7 @@ export function applySectionCrop(doc,model,section,device,editing=false){
   img.style.transform='translate('+Math.max(-100,Math.min(100,Number(crop.x)||0))+'%, '+Math.max(-100,Math.min(100,Number(crop.y)||0))+'%) scale('+Math.max(.35,Math.min(3,(Number(crop.zoom)||100)/100))+')';
 }
 
-export const initial = () => ({sections:[],headingOverrides:{},texts:{},crops:{},sectionCrops:{},shades:{},routesShades:{},hidden:[],order:[],cards:[],pictures:{},seo:{},logo:"",contacts:{},durations:{}});
+export const initial = () => ({sections:[],headingOverrides:{},texts:{},crops:{},sectionCrops:{},shades:{},routesShades:{},hidden:[],order:[],cards:[],pictures:{},seo:{},logo:"",contacts:{},durations:{},deliveryModes:{}});
 // Additional programs use the same visual structure as the three original cards.
 // Presentation defaults are derived at render time, so old D1 drafts stay intact.
 export function programPresentation(card,index){
@@ -235,9 +235,12 @@ export function renderPage(doc,model,fields,device,editing=false){
     else if(key==='phone')link.href='tel:'+value.replace(/[^+0-9]/g,'');else continue;
     doc.querySelector('#contact .container').append(link);
   }
-  doc.querySelectorAll('.program-duration').forEach(el=>el.remove());
+  doc.querySelectorAll('.program-duration,.delivery-notice').forEach(el=>el.remove());
   for(const link of doc.querySelectorAll('[data-service]')){
-    const value=model.durations?.[link.dataset.service];
+    const id=link.dataset.service,config=deliveryConfig(model,id);
+    link.href=config?.mode==='delivery'?deliveryLink(id):'#booking';
+    if(config?.mode==='delivery'){const p=doc.createElement('p');p.className='delivery-notice program-duration';p.textContent=deliveryNotice(config);link.closest('.card').append(p);}
+    const value=model.durations?.[id];
     if(value){const p=doc.createElement('p');p.className='program-duration';p.textContent=value;link.closest('.card').append(p);}
   }
   const programGrid=doc.querySelector('.cards');
@@ -254,7 +257,8 @@ export function renderPage(doc,model,fields,device,editing=false){
     }
     box.append(title);
     const description=doc.createElement('p');description.className='card-description';description.textContent=card.description||'';box.append(description);
-    if(isVideoGreeting(card)){const notice=doc.createElement('p');notice.className='program-duration';notice.textContent=videoNotice;box.append(notice);}
+    const delivery=deliveryConfig(model,card.id);
+    if(delivery?.mode==='delivery'){const notice=doc.createElement('p');notice.className='delivery-notice program-duration';notice.textContent=deliveryNotice(delivery);box.append(notice);}
     if(card.duration){
       const duration=doc.createElement('p');duration.className='program-duration';
       duration.textContent=card.duration;box.append(duration);
@@ -263,8 +267,8 @@ export function renderPage(doc,model,fields,device,editing=false){
     const price=doc.createElement('strong');price.textContent=card.price||'По запросу';foot.append(price);
     if(card.id){
       const option=doc.createElement('option');option.className='extra-option';option.value=card.id;option.textContent=card.title+' · '+card.price;doc.querySelector('#service').append(option);
-      const link=doc.createElement('a');link.href=isVideoGreeting(card)?'./video.html?service='+encodeURIComponent(card.id):'#booking';link.textContent=(isVideoGreeting(card)?'Заказать видео':pageText(model,'programButton'))+' ↗';
-      if(!isVideoGreeting(card))link.onclick=()=>{doc.querySelector('#service').value=card.id;doc.querySelector('#service').dispatchEvent(new Event('change'));};foot.append(link);
+      const link=doc.createElement('a');link.href=delivery?.mode==='delivery'?deliveryLink(card.id):'#booking';link.textContent=(delivery?.mode==='delivery'?(delivery.video?'Заказать видео':'Заказать услугу'):pageText(model,'programButton'))+' ↗';
+      if(delivery?.mode!=='delivery')link.onclick=()=>{doc.querySelector('#service').value=card.id;doc.querySelector('#service').dispatchEvent(new Event('change'));};foot.append(link);
     }
     box.append(foot);
     programGrid.append(box);

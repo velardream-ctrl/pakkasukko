@@ -1,11 +1,11 @@
-import {isVideoGreeting} from './video-service.js';
+import {deliveryConfig,deliveryLink} from './video-service.js';
 import {mountFares} from './fare-form.js';
 import {fitTagline} from './tagline.js';
 import {pageText,initial,bindPage,renderPage,deviceFor} from './site.js';
 const $=(s)=>document.querySelector(s);
 fitTagline(document);
 $('#year').textContent=new Date().getFullYear();
-document.querySelectorAll('[data-service]').forEach(a=>a.addEventListener('click',()=>{$('#service').value=a.dataset.service;$('#service').dispatchEvent(new Event('change'));}));
+document.querySelectorAll('[data-service]').forEach(a=>a.addEventListener('click',()=>{if(a.getAttribute('href')!=='#booking')return;$('#service').value=a.dataset.service;$('#service').dispatchEvent(new Event('change'));}));
 const pageIsPreview=location.hostname.endsWith('github.io')||location.hostname.endsWith('githack.com')||location.hostname==='localhost'&&location.port===''; 
 async function activate(){
   if(pageIsPreview){
@@ -23,12 +23,14 @@ async function activate(){
       if(config.content&&typeof config.content[key]==='string'&&config.content[key])document.getElementById(id).textContent=config.content[key];
     }
     const model=Object.assign(initial(),config.site);
-    $('#service').addEventListener('change',()=>{const card=model.cards.find(c=>c.id===$('#service').value);if(isVideoGreeting(card))location.assign('./video.html?service='+encodeURIComponent(card.id));});
+    $('#service').addEventListener('change',()=>{const id=$('#service').value;if(deliveryConfig(model,id)?.mode==='delivery')location.assign(deliveryLink(id));});
     const currentDevice=()=>deviceFor(innerWidth,innerHeight);
     const boundFields=bindPage(document);
     let ownerPreview=false;
     const redraw=()=>renderPage(document,model,boundFields,currentDevice(),ownerPreview);
     redraw();
+    const visitOption=[...$('#service').options].find(o=>deliveryConfig(model,o.value)?.mode==='visit');
+    if(deliveryConfig(model,$('#service').value)?.mode==='delivery'&&visitOption)$('#service').value=visitOption.value;
     addEventListener('resize',()=>{redraw();document.dispatchEvent(new Event('pakkasukko:layout'));});
     // Ordinary visitors receive no editing UI. Authentication is validated by the Worker.
     try{
@@ -40,6 +42,7 @@ async function activate(){
     const selectable=Boolean(config.bookingsEnabled&&config.turnstileSiteKey);
     const select=$('#dateSelect'),area=$('#slots'),form=$('#bookingForm'),submit=$('#bookingSubmit');
     const fare=mountFares(form,config);
+    if(!visitOption){$('#bookingMode').textContent='Все услуги заказываются по дате получения. Выберите нужную карточку выше.';form.hidden=true;select.hidden=true;area.hidden=true;return;}
     // Keep the calculator available even while the booking calendar is closed.
     $('#bookingFields').disabled=false;
     for(const control of form.querySelectorAll('input,textarea,button')){

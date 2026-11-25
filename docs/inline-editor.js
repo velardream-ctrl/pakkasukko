@@ -1,3 +1,4 @@
+import {deliveryFields} from './delivery-editor.js';
 import {fitTagline,taglineSlider} from './tagline.js';
 import {applySnow} from './snow.js';
 import {snowPanel} from './snow-panel.js';
@@ -180,10 +181,13 @@ export async function startInlineEditor({model,fields,currentDevice,onAdmin}){
             entry[key]=value;changed();draw();
           });
         }
-        button(panelBody,'Удалить карточку',()=>{model.cards.splice(index,1);changed();draw();closePanel();});
+        deliveryFields(panelBody,model,entry.id,()=>{changed();draw();});
+        button(panelBody,'Удалить карточку',()=>{delete model.deliveryModes?.[entry.id];model.cards.splice(index,1);changed();draw();closePanel();});
         return;
       }
     }
+    const builtin=el.closest('.card')?.querySelector('[data-service]')?.dataset.service;
+    if(builtin)deliveryFields(panelBody,model,builtin,()=>{changed();draw();});
     const custom=model.sections.find(s=>s.id===group);
     if(custom){
       for(const [key,label] of [['title','Заголовок'],['body','Текст']]){

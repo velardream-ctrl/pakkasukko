@@ -1,5 +1,5 @@
 import {billing} from './billing.js';
-import {isVideoGreeting,earliestDelivery} from '../docs/video-service.js';
+import {serviceCard,deliveryConfig,earliestDelivery} from '../docs/video-service.js';
 import {defaultFare,validFare,prices,quote,describe,visitQuote,euros} from '../docs/fares.js';
 import {mediaAPI} from './media.js';
 import {musicAPI} from './music.js';
@@ -81,29 +81,29 @@ async function api(req,env,ctx,url){
  if(path==='/api/slots'&&method==='GET'){if(!env.DB)return reply({slots:[],timezone:'Europe/Helsinki'});const s=await env.DB.prepare('SELECT id,start_at,end_at,status FROM slots WHERE start_at>=? ORDER BY start_at LIMIT 500').bind(fiNow().slice(0,10)+'T00:00').all();return reply({slots:s.results||[],timezone:'Europe/Helsinki'});}
  if(path==='/api/video-orders'&&method==='POST'){
    if(!(await bookingState(env)).enabled)return fail('Приём заявок пока не включён.',503);
-   const b=await parse(req),card=(await published(env)).cards?.find(c=>c.id===b.service&&isVideoGreeting(c));
-   if(!card)return fail('Видеопоздравление недоступно.',409);
+   const b=await parse(req),site=await published(env),card=serviceCard(site,b.service),deliveryMode=deliveryConfig(site,b.service);
+   if(!card||deliveryMode?.mode!=='delivery')return fail('Услуга не доступна для заказа по дате получения.',409);
    const delivery=clean(b.deliveryDate,10),name=clean(b.name,100),email=clean(b.email,150),phone=clean(b.phone,40),message=clean(b.message,1200);
    const key=clean(b.submissionKey,80);
    if(!/^[a-f0-9-]{36}$/.test(key))return fail('Обновите форму заявки.');
    const fingerprint=await mac(env.SESSION_SECRET,JSON.stringify({service:card.id,delivery,name,email,phone,message}));
    const previous=await env.DB.prepare('SELECT id,fingerprint,delivery_date FROM video_orders WHERE submission_key=?').bind(key).first();
    if(previous)return same(previous.fingerprint,fingerprint)?reply({id:previous.id,deliveryDate:previous.delivery_date},201):fail('Данные отправки изменились.',409);
-   if(!validStamp(delivery+'T00:00')||delivery<earliestDelivery(fiNow().slice(0,10)))return fail('Видеопоздравление нужно заказать минимум за 7 календарных дней до получения.');
+   if(!validStamp(delivery+'T00:00')||delivery<earliestDelivery(fiNow().slice(0,10),deliveryMode.days))return fail('Услугу нужно заказать минимум за '+deliveryMode.days+' календарных дн. до получения.');
    if(name.length<2||!/^\S+@[^\s@]+\.[^\s@]+$/.test(email))return fail('Укажите имя и действительный email.');
    if(!await human(clean(b.turnstileToken,2048),req,env))return fail('Пройдите проверку от спама.',403);
    if(!await rateLimit(req,env,'video-order',5,60))return fail('Слишком много запросов.',429);
-   const id=crypto.randomUUID(),price=clean(card.price,100)||'По запросу';
+   const id=crypto.randomUUID(),price=clean(prices(site,await getContent(env))[card.id]?.label,100)||'По запросу';
    const r=await env.DB.prepare("INSERT INTO video_orders(id,service_id,service,delivery_date,name,email,phone,message,price_label,created_at,submission_key,fingerprint) VALUES(?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(submission_key) DO NOTHING").bind(id,card.id,card.title,delivery,name,email,phone,message,price,now(),key,fingerprint).run();
    if(!r.meta.changes){const saved=await env.DB.prepare('SELECT id,fingerprint,delivery_date FROM video_orders WHERE submission_key=?').bind(key).first();return saved&&same(saved.fingerprint,fingerprint)?reply({id:saved.id,deliveryDate:saved.delivery_date},201):fail('Данные отправки изменились.',409);}
-   ctx.waitUntil(emailOwner(env,'Новое видеопоздравление Pakkasukko',[card.title,'Дата получения: '+delivery,name,email,phone,message,price,'Заявка: '+id].join('\n')));
+   ctx.waitUntil(emailOwner(env,'Новый заказ с датой получения Pakkasukko',[card.title,'Дата получения: '+delivery,name,email,phone,message,price,'Заявка: '+id].join('\n')));
    return reply({id,deliveryDate:delivery},201);
  }
  if(path==='/api/bookings'&&method==='POST'){
    if(!(await bookingState(env)).enabled)return fail('Приём заявок пока не включён.',503);
    const site=await published(env),cards=site.cards||[];
    const input=await parse(req);
-   if(cards.some(c=>c.id===input.service&&isVideoGreeting(c)))return fail('Для видеопоздравления укажите дату получения в отдельной форме.',400);
+   if(deliveryConfig(site,input.service)?.mode==='delivery')return fail('Для этой услуги укажите дату получения в отдельной форме.',400);
    const key=input.submissionKey||'';
    if(key&&!/^[a-f0-9-]{36}$/.test(key))return fail('Неверный идентификатор отправки.');
    const fingerprint=key?await mac(env.SESSION_SECRET,JSON.stringify({...input,turnstileToken:''})):'';
