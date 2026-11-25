@@ -24,7 +24,8 @@ jobs:
         with:
           node-version: '24'
       - run: npm test
-      - run: npm install --no-save --no-package-lock wrangler@4.167.0
+      - run: npm install --no-save --no-package-lock wrangler@4.167.0 sharp@0.34.5
+      - run: node scripts/optimize-spatial.mjs
       - run: node scripts/deploy-preview.mjs
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {spatialSettings,spatialAsset,chosenSpatialScene,matchSpatialFraming,spatialSnowMask,BUILTIN_SPATIAL} from '../docs/spatial-gallery.js';
+import {spatialSettings,spatialAsset,chosenSpatialScene,matchSpatialFraming,spatialSnowMask,spatialFallbackAsset,BUILTIN_SPATIAL} from '../docs/spatial-gallery.js';
 import {validSpatialSettings} from '../src/editor.js';
 
 const uuid='a12f0000-1111-4222-8333-abcdef123456';
@@ -18,7 +18,9 @@ test('ordinary photo is retained on every device by default, with built-in spati
  assert.equal(s.motions.desktop,'auto');
  assert.equal(chosenSpatialScene(s,'phone'),BUILTIN_SPATIAL);
  assert.match(spatialAsset('builtin-santa'),/demo-3d-santa\.png/);
- assert.match(spatialAsset('builtin-panorama'),/spatial-lab-panorama\.png/);
+ assert.match(spatialAsset('builtin-panorama'),/spatial-lab-panorama\.webp/);
+ assert.equal(spatialFallbackAsset(spatialAsset('builtin-panorama')),'./assets/spatial-lab-panorama.png');
+ assert.equal(spatialFallbackAsset(spatialAsset('builtin-original')),'');
  assert.deepEqual(s.snowLevel,{phone:72,tablet:72,desktop:72});
  assert.deepEqual(s.backgroundZoom,{phone:100,tablet:100,desktop:100});
  assert.deepEqual(s.backgroundFocus,{phone:42,tablet:42,desktop:42});
@@ -73,4 +75,25 @@ test('seamless panoramic background and rigid Santa replace the visible original
  assert.match(css,/\.pk-space-figure\s*\{[^}]*transform:none;/);
  assert.doesNotMatch(js,/set\('--pk-space-fg/);
  assert.equal(spatialSnowMask(72).includes('transparent 87%'),true);
+});
+
+test('spatial layer accepts taps above hero text, with an actionable permission button',()=>{
+ const css=readFileSync(new URL('../docs/spatial-gallery.css',import.meta.url),'utf8');
+ const js=readFileSync(new URL('../docs/spatial-gallery.js',import.meta.url),'utf8');
+ assert.match(css,/\.hero\.pk-space-hero-active \.hero-photo\.pk-space-active\{z-index:0;pointer-events:auto\}/);
+ assert.match(css,/\.hero\.pk-space-hero-active \.hero-inner\{pointer-events:none\}/);
+ assert.match(css,/\.hero\.pk-space-hero-active \.hero-inner :is\(a,button,input,select,textarea\)\{pointer-events:auto\}/);
+ assert.match(js,/document\.createElement\('button'\)/);
+ assert.match(js,/function fallbackToAuto\(\)/);
+ assert.match(js,/sensorTimer=setTimeout/);
+});
+test('builtin panorama uses mobile-friendly 2D translation and automatic WebP optimization',()=>{
+ const css=readFileSync(new URL('../docs/spatial-gallery.css',import.meta.url),'utf8');
+ const js=readFileSync(new URL('../docs/spatial-gallery.js',import.meta.url),'utf8');
+ const workflow=readFileSync(new URL('../.github/workflows/pakkasukko-deploy.yml',import.meta.url),'utf8');
+ assert.match(css,/\.pk-space-lab-scene \.pk-space-moving\{[^}]*translate3d/);
+ const lab=css.match(/\.pk-space-lab-scene \.pk-space-moving\{([^}]*)\}/)?.[1];
+ assert.ok(lab);assert.doesNotMatch(lab,/rotateX|rotateY|perspective/);
+ assert.match(js,/1000\/30/);
+ assert.match(workflow,/node scripts\/optimize-spatial\.mjs/);
 });

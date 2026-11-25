@@ -6,7 +6,7 @@ export const BUILTIN_SPATIAL=Object.freeze({
 });
 const BUILTIN_ASSETS={
   'builtin-santa':'./assets/demo-3d-santa.png',
-  'builtin-panorama':'./assets/spatial-lab-panorama.png',
+  'builtin-panorama':'./assets/spatial-lab-panorama.webp',
   'builtin-original':'./assets/pakkasukko-ded-moroz.webp'
 };
 export const SPATIAL_DEVICES=['phone','tablet','desktop'];
@@ -36,6 +36,10 @@ export function spatialAsset(id,editing=false){
   if(UUID.test(String(id||'')))return '/api/'+(editing?'admin/':'')+'media/'+id;
   return '';
 }
+// GitHub-only previews retain the original PNG; the deployed site uses a lighter WebP.
+export function spatialFallbackAsset(src){
+  return src.endsWith('/spatial-lab-panorama.webp')?src.replace(/\.webp$/,'.png'):'';
+}
 export function chosenSpatialScene(settings,device){
   return settings.scenes.find(c=>c.id===settings.selected[device])||BUILTIN_SPATIAL;
 }
@@ -60,10 +64,11 @@ export function mountSpatialPhoto({model,currentDevice}){
   base.className='pk-space-bg pk-space-base';moving.className='pk-space-bg pk-space-moving';
   shadow.className='pk-space-shadow';figure.className='pk-space-figure';
   frame.append(base,moving,shadow,figure);stage.append(frame);
-  const hint=document.createElement('div');hint.className='pk-space-tilt-hint';hint.hidden=true;stage.append(hint);
+  const hint=document.createElement('button');hint.type='button';hint.className='pk-space-tilt-hint';hint.hidden=true;stage.append(hint);
   stage.setAttribute('aria-label','Пространственное фото: движение пальцем или наклоном телефона');
   photo.append(stage);
   let active=false,currentId='',request=0,last=0,frameId=0,enabledDevice='',currentMotion='auto';
+  let stageWidth=0,stageHeight=0,lastSensorAt=0,sensorTimer=0;const previousCss={};
   let x=0,y=0,targetX=0,targetY=0,pointer=null,dragged=false,autoBlockedUntil=0;
   let sensorActive=false,sensorSamples=0,neutral=null,gravityNeutral=null,lastOrientationAt=0,sensorStartedAt=0;
   const strength=settings.strength/100;
@@ -82,10 +87,17 @@ export function mountSpatialPhoto({model,currentDevice}){
       'Датчик не отвечает. Попробуйте Safari или движение пальцем.';
   }
   function stopTilt(){
+    clearTimeout(sensorTimer);sensorTimer=0;
     window.removeEventListener('deviceorientation',onOrientation);
     window.removeEventListener('devicemotion',onMotion);
-    sensorActive=false;sensorSamples=0;neutral=null;gravityNeutral=null;lastOrientationAt=0;
+    sensorActive=false;sensorSamples=0;neutral=null;gravityNeutral=null;lastOrientationAt=0;lastSensorAt=0;
     updateTiltHint();
+  }
+  function fallbackToAuto(){
+    if(!active||currentMotion!=='tilt')return;
+    // This visit falls back; the owner's saved motion preference is unchanged.
+    currentMotion='auto';stage.style.touchAction='pan-y';stopTilt();
+    autoBlockedUntil=0;hint.hidden=true;
   }
   function listenTilt(){
     if(sensorActive)return;
@@ -93,13 +105,13 @@ export function mountSpatialPhoto({model,currentDevice}){
     window.addEventListener('deviceorientation',onOrientation,{passive:true});
     window.addEventListener('devicemotion',onMotion,{passive:true});
     updateTiltHint();
-    setTimeout(()=>{if(active&&currentMotion==='tilt')updateTiltHint();},1700);
+    sensorTimer=setTimeout(()=>{if(active&&currentMotion==='tilt'&&sensorSamples===0)fallbackToAuto();},3400);
   }
   function startUnrestrictedTilt(){
     if(!active||currentMotion!=='tilt'||sensorActive)return;
     const orient=window.DeviceOrientationEvent,motion=window.DeviceMotionEvent;
     if(typeof orient?.requestPermission==='function'||typeof motion?.requestPermission==='function')return;
-    if(typeof orient==='undefined'&&typeof motion==='undefined')return;
+    if(typeof orient==='undefined'&&typeof motion==='undefined'){fallbackToAuto();return;}
     listenTilt();
   }
   function onOrientation(ev){
@@ -107,7 +119,7 @@ export function mountSpatialPhoto({model,currentDevice}){
     if(!neutral)neutral={gamma:ev.gamma,beta:ev.beta};
     targetX=clamp((ev.gamma-neutral.gamma)/17,-1,1);
     targetY=clamp((ev.beta-neutral.beta)/23,-1,1);
-    sensorSamples++;lastOrientationAt=performance.now();if(sensorSamples===1)updateTiltHint();
+    sensorSamples++;lastSensorAt=lastOrientationAt=performance.now();if(sensorSamples===1)updateTiltHint();
   }
   function onMotion(ev){
     if(!active||!sensorActive||currentMotion!=='tilt'||pointer||performance.now()-lastOrientationAt<1200)return;
@@ -118,10 +130,10 @@ export function mountSpatialPhoto({model,currentDevice}){
     if(!gravityNeutral)gravityNeutral={x:gx,y:gy};
     targetX=clamp((gx-gravityNeutral.x)/17,-1,1);
     targetY=clamp((gy-gravityNeutral.y)/23,-1,1);
-    sensorSamples++;if(sensorSamples===1)updateTiltHint();
+    sensorSamples++;lastSensorAt=performance.now();if(sensorSamples===1)updateTiltHint();
   }
   function ordinary(){
-    active=false;stage.hidden=true;photo.classList.remove('pk-space-active');stopTilt();
+    active=false;stage.hidden=true;photo.setAttribute('role','img');photo.classList.remove('pk-space-active');photo.parentElement?.classList.remove('pk-space-hero-active');stopTilt();
     if(frameId){cancelAnimationFrame(frameId);frameId=0;}
   }
   function refresh(){
@@ -144,40 +156,49 @@ export function mountSpatialPhoto({model,currentDevice}){
     if(active&&currentId===chosen.id){startUnrestrictedTilt();updateTiltHint();return;}
     const fg=spatialAsset(chosen.foregroundId),bg=spatialAsset(chosen.backgroundId),ground=spatialAsset(chosen.groundId)||bg;
     if(!fg||!bg){ordinary();return;}
-    const ticket=++request;
-    Promise.all([preload(fg),preload(bg),ground===bg?Promise.resolve(true):preload(ground)]).then(ok=>{
-      if(ticket!==request||!ok.every(Boolean)||!settings.enabled||settings.modes[currentDevice()]!=='spatial'){
+    const load=async src=>{
+      if(await preload(src))return src;
+      const fallback=spatialFallbackAsset(src);
+      return fallback&&await preload(fallback)?fallback:'';
+    };
+    const ticket=++request,bgPromise=load(bg);
+    Promise.all([load(fg),bgPromise,ground===bg?bgPromise:load(ground)]).then(([loadedFg,loadedBg,loadedGround])=>{
+      if(ticket!==request||!loadedFg||!loadedBg||!loadedGround||!settings.enabled||settings.modes[currentDevice()]!=='spatial'){
         if(ticket===request)ordinary();return;
       }
-      base.style.backgroundImage='url("'+ground+'")';
-      moving.style.backgroundImage='url("'+bg+'")';
-      figure.style.backgroundImage='url("'+fg+'")';
-      stage.hidden=false;photo.classList.add('pk-space-active');
-      active=true;currentId=chosen.id;
+      base.style.backgroundImage='url("'+loadedGround+'")';
+      moving.style.backgroundImage='url("'+loadedBg+'")';
+      figure.style.backgroundImage='url("'+loadedFg+'")';
+      stage.hidden=false;photo.setAttribute('role','group');photo.classList.add('pk-space-active');photo.parentElement?.classList.add('pk-space-hero-active');
+      active=true;currentId=chosen.id;stageWidth=stage.clientWidth;stageHeight=stage.clientHeight;
       startUnrestrictedTilt();updateTiltHint();
       if(!frameId)frameId=requestAnimationFrame(tick);
     }).catch(()=>{if(ticket===request)ordinary();});
   }
   function tick(now){
-    const dt=Math.min(65,now-last||16);last=now;
-    if(active){
-      const builtin=stage.classList.contains('pk-space-lab-scene');
-      if(currentMotion==='auto'&&!sensorActive&&!pointer&&!reduce&&now>autoBlockedUntil){
-        targetX=Math.sin(now*(builtin ? 0.00045 : 0.00034))*(builtin ? 0.72 : 0.52);
-        targetY=Math.cos(now*(builtin ? 0.00037 : 0.00027))*(builtin ? 0.44 : 0.35);
-      }
-      const ease=1-Math.exp(-dt/(builtin?82:120));
-      x+=(targetX-x)*ease;y+=(targetY-y)*ease;
-      const W=stage.clientWidth,H=stage.clientHeight;
-      const px=Math.min(W*(builtin ? 0.105 : 0.14),builtin?46:105)*strength;
-      const py=Math.min(H*(builtin ? 0.038 : 0.055),builtin?24:31)*strength;
-      const set=(k,v)=>stage.style.setProperty(k,v);
-      set('--pk-space-x',(-x*px).toFixed(2)+'px');
-      set('--pk-space-y',(-y*py*(builtin?1:.65)).toFixed(2)+'px');
-      set('--pk-space-bg-yaw',(-x*(builtin?2.35:3.9)*strength).toFixed(2)+'deg');
-      set('--pk-space-bg-pitch',(y*(builtin?1.45:2.5)*strength).toFixed(2)+'deg');
-    }
     frameId=active?requestAnimationFrame(tick):0;
+    if(!active||document.hidden)return;
+    // Avoid 60 costly masked repaints a second on older iPhones.
+    const interval=enabledDevice==='phone'?1000/30:enabledDevice==='tablet'?1000/40:1000/50;
+    if(last&&now-last<interval-1)return;
+    const dt=Math.min(65,now-last||16);last=now;
+    const builtin=stage.classList.contains('pk-space-lab-scene');
+    if(currentMotion==='tilt'&&sensorActive&&sensorSamples>0&&now-lastSensorAt>3800)fallbackToAuto();
+    if((currentMotion==='auto'||currentMotion==='tilt'&&sensorSamples===0)&&!pointer&&!reduce&&now>autoBlockedUntil){
+      targetX=Math.sin(now*(builtin ? 0.00062 : 0.00034))*(builtin ? 0.78 : 0.52);
+      targetY=Math.cos(now*(builtin ? 0.00047 : 0.00027))*(builtin ? 0.44 : 0.35);
+    }
+    const ease=1-Math.exp(-dt/(builtin?82:120));
+    x+=(targetX-x)*ease;y+=(targetY-y)*ease;
+    const px=Math.min(stageWidth*(builtin ? 0.105 : 0.14),builtin?46:105)*strength;
+    const py=Math.min(stageHeight*(builtin ? 0.038 : 0.055),builtin?24:31)*strength;
+    const set=(k,v)=>{if(previousCss[k]!==v){previousCss[k]=v;stage.style.setProperty(k,v);}};
+    set('--pk-space-x',(-x*px).toFixed(1)+'px');
+    set('--pk-space-y',(-y*py*(builtin?1:.65)).toFixed(1)+'px');
+    if(!builtin){
+      set('--pk-space-bg-yaw',(-x*3.9*strength).toFixed(2)+'deg');
+      set('--pk-space-bg-pitch',(y*2.5*strength).toFixed(2)+'deg');
+    }
   }
   stage.addEventListener('pointerdown',ev=>{
     if(!active||ev.pointerType==='mouse'&&ev.button!==0)return;
@@ -204,13 +225,15 @@ export function mountSpatialPhoto({model,currentDevice}){
     if(tasks.length){
       const results=await Promise.allSettled(tasks);
       if(!results.some(v=>v.status==='fulfilled'&&v.value==='granted')){
-        hint.hidden=false;hint.textContent='Датчик недоступен. Откройте страницу в Safari или двигайте пальцем.';return;
+        fallbackToAuto();return;
       }
     }
     if(window.DeviceOrientationEvent||window.DeviceMotionEvent)listenTilt();
-    else{hint.hidden=false;hint.textContent='Датчик не поддерживается. Используйте движение пальцем.';}
+    else fallbackToAuto();
   });
   window.addEventListener('pagehide',stopTilt);
-  document.addEventListener('pakkasukko:layout',refresh);
+  window.addEventListener('pageshow',()=>{if(active&&currentMotion==='tilt')startUnrestrictedTilt();});
+  document.addEventListener('visibilitychange',()=>{if(document.hidden)stopTilt();else if(active&&currentMotion==='tilt')startUnrestrictedTilt();});
+  document.addEventListener('pakkasukko:layout',()=>{if(active){stageWidth=stage.clientWidth;stageHeight=stage.clientHeight;}refresh();});
   refresh();return {refresh};
 }

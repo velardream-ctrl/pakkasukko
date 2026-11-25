@@ -1,4 +1,4 @@
-import {spatialSettings,BUILTIN_SPATIAL,spatialAsset,SPATIAL_DEVICES} from './spatial-gallery.js?v=4';
+import {spatialSettings,BUILTIN_SPATIAL,spatialAsset,SPATIAL_DEVICES} from './spatial-gallery.js?v=5';
 const $=id=>document.getElementById(id);
 const defaults={texts:{},crops:{},pictures:{},seo:{},order:[],hidden:[],cards:[]};
 const names={phone:'Телефон',tablet:'Планшет',desktop:'Компьютер'};
