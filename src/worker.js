@@ -232,6 +232,12 @@ async function api(req,env,ctx,url){
    ]);}catch{return fail('Длительность пересекается с другим интервалом.',409);}
    return reply({ok:true});
  }
+ if(path==='/api/admin/messages/delete'&&method==='POST'){
+   const b=await parse(req),id=clean(b?.id,80);
+   if(!id)return fail('Выберите сообщение.');
+   const r=await env.DB.prepare('DELETE FROM messages WHERE id=?').bind(id).run();
+   return r.meta.changes?reply({ok:true}):fail('Сообщение уже удалено или не найдено.',404);
+ }
  if(path==='/api/admin/messages/read'&&method==='POST'){const b=await parse(req);await env.DB.prepare("UPDATE messages SET status='read' WHERE id=?").bind(clean(b.id,80)).run();return reply({ok:true});}
  if(path==='/api/admin/schedule.csv'&&method==='GET'){const r=await env.DB.prepare('SELECT start_at,end_at,status,note FROM slots ORDER BY start_at').all();return csv(r.results,['start_at','end_at','status','note'],'pakkasukko-schedule.csv');}
  if(path==='/api/admin/export'&&method==='GET'){const keys=['start_at','end_at','service','name','phone','email','city','address','message','price','quote_summary','notes','status','created_at'];const r=await env.DB.prepare('SELECT s.start_at,s.end_at,b.service,b.name,b.phone,b.email,b.city,b.address,b.message,d.price,q.summary AS quote_summary,d.notes,COALESCE(d.final_status,b.status) status,b.created_at FROM bookings b JOIN slots s ON s.id=b.slot_id LEFT JOIN booking_details d ON d.booking_id=b.id LEFT JOIN booking_quotes q ON q.booking_id=b.id ORDER BY s.start_at').all();return csv(r.results||[],keys,'pakkasukko-bookings.csv');}

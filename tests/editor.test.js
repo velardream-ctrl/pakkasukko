@@ -90,3 +90,19 @@ test('RUN-034: reschedule is atomic, preserves identity and prevents overlap',as
  assert.equal((await request('admin/slots/edit',{id:a,startAt:'2099-12-20T11:00',minutes:30,status:'open'})).status,409);
  assert.equal((await request('admin/slots/edit',{id:a,startAt:'2099-12-20T09:00',minutes:30,status:'open'})).status,200);
 });
+
+test('RUN-035: only authenticated owner can delete a selected letter',async()=>{
+ const {request,sqlite,login}=fixture();
+ const insert=sqlite.prepare("INSERT INTO messages(id,name,contact,message,status,created_at) VALUES(?,?,?,?,?,?)");
+ insert.run('letter-one','One','one@example.test','Test message','unread','2026-11-25');
+ insert.run('letter-two','Two','two@example.test','Another message','read','2026-11-25');
+ assert.equal((await request('admin/messages/delete',{id:'letter-one'})).status,401);
+ await login();
+ assert.equal((await request('admin/messages/delete',{id:'letter-one'},'https://other.test')).status,403);
+ assert.equal(sqlite.prepare('SELECT COUNT(*) n FROM messages').get().n,2);
+ assert.equal((await request('admin/messages/delete',{id:''})).status,400);
+ assert.equal((await request('admin/messages/delete',{id:'letter-one'})).status,200);
+ assert.deepEqual(sqlite.prepare('SELECT id FROM messages').all().map(r=>r.id),['letter-two']);
+ assert.equal((await request('admin/messages/delete',{id:'letter-one'})).status,404);
+ assert.deepEqual((await (await request('admin/dashboard')).json()).messages.map(r=>r.id),['letter-two']);
+});

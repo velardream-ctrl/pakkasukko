@@ -158,6 +158,12 @@ function render(){
   const item=el('article',undefined,'record');textBlock(item,'h3',v.name);
   textBlock(item,'p','Контакт: '+v.contact);textBlock(item,'p',v.message);textBlock(item,'small',v.created_at+' · '+v.status);
   if(v.status==='unread')button(item,'Отметить прочитанным',async()=>{try{await request('/api/admin/messages/read','POST',{id:v.id});await reload();}catch(e){alert(e.message);}});
+  const remove=button(item,'Удалить сообщение',async()=>{
+    if(!confirm('Удалить письмо от «'+v.name+'»? Восстановить его из админки нельзя.'))return;
+    remove.disabled=true;
+    try{await request('/api/admin/messages/delete','POST',{id:v.id});await reload();}
+    catch(e){alert(e.message);}finally{remove.disabled=false;}
+  },'decline');
   m.append(item);
  }
 
