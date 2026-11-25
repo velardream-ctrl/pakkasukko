@@ -189,7 +189,7 @@ async function api(req,env,ctx,url){
    const f=await parse(req);
    if(!validFare(f))return fail('Проверьте цену топлива, расход и километраж.');
    const km=f.km,routes=f.routes;
-   await setSetting(env,'travel_fare',JSON.stringify({fuel:f.fuel,consumption:f.consumption,km,routes,holidayPercent:f.holidayPercent??50,...(f.holidayRules!==undefined?{holidayRules:f.holidayRules}:{})}));
+   await setSetting(env,'travel_fare',JSON.stringify({fuel:f.fuel,consumption:f.consumption,km,routes,holidayPercent:f.holidayPercent??50,...(f.holidayRules!==undefined?{holidayRules:f.holidayRules}:{}),holidaySort:f.holidaySort||'date'}));
    return reply({ok:true});
  }
  if(path==='/api/admin/editor')return await editorAPI(req,env,path,reply);

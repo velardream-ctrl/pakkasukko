@@ -110,3 +110,11 @@ test('annual rules support New Year crossing, overlap priority and removing all 
   {...extra,name:' '}
  ])assert.equal(validFare({...fare,holidayRules:[rule]}),false);
 });
+
+test('holiday display sorting preferences are validated without changing tariff rules',()=>{
+ assert.equal(validFare({...defaultFare,holidaySort:'date'}),true);
+ assert.equal(validFare({...defaultFare,holidaySort:'percent_desc'}),true);
+ assert.equal(validFare({...defaultFare,holidaySort:'percent_asc'}),true);
+ assert.equal(validFare({...defaultFare,holidaySort:'name'}),true);
+ assert.equal(validFare({...defaultFare,holidaySort:'unsupported'}),false);
+});

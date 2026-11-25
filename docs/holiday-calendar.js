@@ -26,3 +26,12 @@ export function isoToAnnual(iso){
  const date=new Date(iso+'T12:00:00Z');
  return !Number.isNaN(+date)&&date.toISOString().slice(0,10)===iso?m[2]+'.'+m[1]:'';
 }
+
+const startKey=(rule,todayISO)=>(nextAnnualISO(rule.startDate,todayISO)||'9999-12-31')+'T'+String(rule.startTime||'23:59');
+export function compareHolidayRules(a,b,mode='date',todayISO='2026-01-01'){
+ const byDate=startKey(a,todayISO).localeCompare(startKey(b,todayISO));
+ if(mode==='percent_desc')return (Number(b.percent)-Number(a.percent))||byDate;
+ if(mode==='percent_asc')return (Number(a.percent)-Number(b.percent))||byDate;
+ if(mode==='name')return String(a.name||'').localeCompare(String(b.name||''),'ru')||byDate;
+ return byDate;
+}

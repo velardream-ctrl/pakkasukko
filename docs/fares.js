@@ -31,6 +31,7 @@ export function validFare(f){
   if(!number(f?.fuel,0.001,20)||!number(f?.consumption,0.1,100)||f.km?.Kitee!==0)return false;
   if(f.holidayPercent!==undefined&&(!Number.isInteger(f.holidayPercent)||!number(f.holidayPercent,0,300)))return false;
   if(f.holidayRules!==undefined&&(!Array.isArray(f.holidayRules)||f.holidayRules.length>60||!f.holidayRules.every(validHolidayRule)))return false;
+  if(f.holidaySort!==undefined&&!['date','percent_desc','percent_asc','name'].includes(f.holidaySort))return false;
   const cities=Object.keys(f.km),seen=new Set();
   if(cities.length>100 || !f.routes || typeof f.routes!=='object' || Array.isArray(f.routes))return false;
   if(Object.keys(f.routes).some(city=>!Object.hasOwn(f.km,city)))return false;

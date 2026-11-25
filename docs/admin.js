@@ -1,8 +1,8 @@
 import {sellerForm,invoiceControls} from './billing-panel.js';
 import {applyBrand} from './site.js';
 import {musicAdmin} from './music-admin.js';
-import {holidayRules,validFare} from './fares.js?v=55';
-import {nextAnnualISO,endAnnualISO,isoToAnnual} from './holiday-calendar.js?v=56';
+import {holidayRules,validFare} from './fares.js?v=58';
+import {nextAnnualISO,endAnnualISO,isoToAnnual,compareHolidayRules} from './holiday-calendar.js?v=58';
 import {renderVideoOrders} from './video-admin.js';
 import {moveControls,slotControls} from './reschedule-panel.js';
 
@@ -107,18 +107,29 @@ function appendHolidayRule(rule={}){
  $('holidayRows').append(item);
  return fields.name;
 }
+function sortHolidayRows(){
+ const parent=$('holidayRows'),today=new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Helsinki'}).format(new Date());
+ const mode=$('holidaySort').value,rows=[...parent.children];
+ rows.sort((a,b)=>compareHolidayRules(a.readHoliday(),b.readHoliday(),mode,today));
+ parent.append(...rows);
+}
 function renderHoliday(){
  const parent=$('holidayRows');parent.replaceChildren();
  for(const rule of holidayRules(state.fares))appendHolidayRule(rule);
+ $('holidaySort').value=state.fares.holidaySort||'date';
+ sortHolidayRows();
 }
+$('holidaySort').onchange=sortHolidayRows;
+$('holidaySortApply').onclick=sortHolidayRows;
 $('holidayAdd').onclick=()=>{
  if($('holidayRows').children.length>=60){status('holidayStatus','Можно добавить не более 60 интервалов.',true);return;}
  appendHolidayRule().focus({preventScroll:true});
 };
 $('holidayForm').onsubmit=async event=>{
  event.preventDefault();
- const holidayRules=[...$('holidayRows').children].map(row=>row.readHoliday());
- const fares={...state.fares,holidayRules};
+ sortHolidayRows();
+ const sortedRules=[...$('holidayRows').children].map(row=>row.readHoliday());
+ const fares={...state.fares,holidayRules:sortedRules,holidaySort:$('holidaySort').value};
  if(!validFare(fares)){
    status('holidayStatus','Проверьте название, выбранные даты, часы, надбавку 0–300% и длительность интервала (от 15 минут до 72 часов).',true);
    return;
@@ -126,7 +137,7 @@ $('holidayForm').onsubmit=async event=>{
  try{
   await request('/api/admin/travel-fare','POST',fares);
   state.fares=fares;
-  status('holidayStatus','Сохранено: '+holidayRules.length+' интервалов. Новые тарифы действуют для следующих заявок.');
+  status('holidayStatus','Сохранено: '+sortedRules.length+' интервалов и порядок сортировки. Новые тарифы действуют для следующих заявок.');
  }catch(e){status('holidayStatus',e.message,true);}
 };
 $('fareForm').onsubmit=async event=>{
