@@ -1,4 +1,4 @@
-import {createSleighPlayer} from './sleigh-player.js?v=42';
+import {createSleighPlayer} from './sleigh-player.js?v=43';
 // No audio request until playback is attempted. Owner controls the sequence.
 async function mount(){
  if(location.hostname.endsWith('github.io'))return;

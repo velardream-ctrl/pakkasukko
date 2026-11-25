@@ -13,8 +13,8 @@ export const sleighArt = `<svg viewBox="0 0 300 146" xmlns="http://www.w3.org/20
 </g>
 <g class="pk-reins" fill="none" stroke="#dfb05b" stroke-width="1.7" stroke-linecap="round"><path d="M62 77 Q119 102 180 70"/><path d="M74 83 Q124 118 176 109"/></g>
 <g class="pk-deer-body">
- <g class="pk-leg pk-leg-backfar" fill="none" stroke="#a36b40" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"><path d="M98 89l12 14-5 17"/><path stroke="#603d2c" stroke-width="5" d="M105 120l-4 1"/></g>
- <g class="pk-leg pk-leg-frontfar" fill="none" stroke="#a36b40" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"><path d="M55 87l-1 19-16 13"/><path stroke="#603d2c" stroke-width="5" d="M38 119l-5 0"/></g>
+ <g class="pk-leg pk-leg-backfar" fill="none" stroke="#a36b40" stroke-linecap="round" stroke-linejoin="round"><path class="pk-upper-leg" stroke-width="5.7" d="M98 84L91 95"/><path class="pk-lower-leg" stroke-width="3.7" d="M91 95L102 107L97 120"/><path class="pk-hoof" stroke="#63402b" stroke-width="3.8" d="M98 119l-4 1"/></g>
+ <g class="pk-leg pk-leg-frontfar" fill="none" stroke="#a36b40" stroke-linecap="round" stroke-linejoin="round"><path class="pk-upper-leg" stroke-width="5.5" d="M56 83L57 94"/><path class="pk-lower-leg" stroke-width="3.5" d="M57 94L55 106L55 120"/><path class="pk-hoof" stroke="#63402b" stroke-width="3.8" d="M56 119l-4 1"/></g>
  <path d="M106 73q14-8 16-1-6 9-15 10" fill="#b9753b" stroke="#eac482" stroke-width="1.2"/>
  <path d="M44 70Q62 62 78 69q22-4 33 8 7 9-3 18-18 7-40 0L51 90Q34 82 44 70Z" fill="url(#pk-deer)" stroke="#f3d098" stroke-width="1.3"/>
  <path d="M58 89q17 11 43 2" fill="none" stroke="#ffe6b2" stroke-width="4" opacity=".7"/>
@@ -27,8 +27,8 @@ export const sleighArt = `<svg viewBox="0 0 300 146" xmlns="http://www.w3.org/20
  <g class="pk-antlers" fill="none" stroke="#ffe1a2" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
   <path d="M30 43Q38 32 33 21L28 13M35 30l-10-5-3-7M35 25l6-7 1-10M37 42Q51 32 51 19l-3-9M49 28l10-6 3-10M50 19l7-7"/>
  </g>
- <g class="pk-leg pk-leg-front" fill="none" stroke="#dfab69" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"><path d="M53 86l-15 13-12 18"/><path stroke="#63402b" stroke-width="5" d="M26 117l-5 1"/></g>
- <g class="pk-leg pk-leg-back" fill="none" stroke="#d5a05e" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"><path d="M101 88l-10 17 15 13"/><path stroke="#63402b" stroke-width="5" d="M106 118l5 0"/></g>
+ <g class="pk-leg pk-leg-front" fill="none" stroke="#dfab69" stroke-linecap="round" stroke-linejoin="round"><path class="pk-upper-leg" stroke-width="6.4" d="M53 81L55 92"/><path class="pk-lower-leg" stroke-width="4.4" d="M55 92L53 106L53 120"/><path class="pk-hoof" stroke="#63402b" stroke-width="3.8" d="M54 119l-4 1"/></g>
+ <g class="pk-leg pk-leg-back" fill="none" stroke="#d5a05e" stroke-linecap="round" stroke-linejoin="round"><path class="pk-upper-leg" stroke-width="6.8" d="M101 81L94 93"/><path class="pk-lower-leg" stroke-width="4.8" d="M94 93L105 106L101 120"/><path class="pk-hoof" stroke="#63402b" stroke-width="3.8" d="M102 119l-4 1"/></g>
  <path d="M40 65l12 15M49 73q16 3 25 18" stroke="#892b30" stroke-width="4" fill="none" stroke-linecap="round"/>
  <path d="M40 65l12 15M49 73q16 3 25 18" stroke="#f2bf64" stroke-width="1.1" fill="none"/>
  <circle cx="51" cy="79" r="3.7" fill="url(#pk-gold)" stroke="#8a5b2d" stroke-width=".8"/>
@@ -65,22 +65,57 @@ export const sleighArt = `<svg viewBox="0 0 300 146" xmlns="http://www.w3.org/20
  <g transform="translate(232 103)" stroke="#ffe3a0" stroke-width="1.2" stroke-linecap="round" fill="none"><path d="M-7 0H7M0-7V7M-5-5 5 5M-5 5 5-5M-5-2l2 2-2 2M5-2 3 0l2 2M-2-5 0-3l2-2M-2 5 0 3l2 2"/></g>
 </g>
 </svg>`;
-// Direct SVG transforms avoid WebKit CSS transform-origin/compositing issues.
+// Articulated diagonal trot. The hoof travels backwards in stance, then
+// lifts and returns forwards. Two-bone IK preserves lower segment lengths;
+// the front carpus and rear hock fold in opposite anatomical directions.
+const gaitPeriod=.84,stanceFraction=.59;
+const legs={
+ 'pk-leg-front':{root:[53,81],upper:[55,92],phase:0,hind:false,lengths:[15,16]},
+ 'pk-leg-backfar':{root:[98,84],upper:[91,95],phase:0,hind:true,lengths:[14,16]},
+ 'pk-leg-frontfar':{root:[56,83],upper:[57,94],phase:.5,hind:false,lengths:[14,16]},
+ 'pk-leg-back':{root:[101,81],upper:[94,93],phase:.5,hind:true,lengths:[15,16]}
+};
+const n=x=>Number(x).toFixed(2),smooth=t=>t*t*(3-2*t);
+export function deerLegPose(seconds,key){
+ const leg=legs[key];if(!leg)throw Error('Unknown leg');
+ const phase=((seconds/gaitPeriod+leg.phase)%1+1)%1;
+ const swing=phase>=stanceFraction;
+ const u=swing?(phase-stanceFraction)/(1-stanceFraction):phase/stanceFraction;
+ // x follows the stance direction (towards the sleigh) and returns in flight.
+ const dx=swing?11-22*smooth(u):-11+22*smooth(u);
+ const lift=swing?11*Math.sin(Math.PI*u)**2:0;
+ const [rx,ry]=leg.root,[ux,uy]=leg.upper;
+ const a=[ux+dx*.12,uy-(swing?1.8*Math.sin(Math.PI*u):0)];
+ const [l1,l2]=leg.lengths;
+ // Ground compensation keeps the supporting hoof at almost the same level.
+ const bob=(1-Math.cos(seconds*4*Math.PI/gaitPeriod))/2;
+ const target=[rx+(leg.hind?-2:0)+dx,119+2*bob-lift];
+ let vx=target[0]-a[0],vy=target[1]-a[1],dist=Math.hypot(vx,vy);
+ const d=Math.min(l1+l2-.12,Math.max(Math.abs(l1-l2)+.12,dist));
+ vx/=dist;vy/=dist;
+ const along=(l1*l1-l2*l2+d*d)/(2*d),height=Math.sqrt(Math.max(0,l1*l1-along*along));
+ const side=leg.hind?1:-1;
+ const joint=[a[0]+vx*along+side*vy*height,a[1]+vy*along-side*vx*height];
+ const hoof=[a[0]+vx*d,a[1]+vy*d];
+ return {root:[rx,ry],upper:a,joint,hoof,phase,swing,lengths:[l1,l2]};
+}
+const point=p=>p.map(n).join(' ');
+export function deerLegPaths(seconds,key){
+ const p=deerLegPose(seconds,key),[x,y]=p.hoof;
+ return ['M'+point(p.root)+'L'+point(p.upper),
+  'M'+point(p.upper)+'L'+point(p.joint)+'L'+point(p.hoof),
+  'M'+n(x+1.3)+' '+n(y-.7)+'L'+n(x-2.6)+' '+n(y+.4)];
+}
+// Direct SVG transforms for the body and sleigh; leg paths are independent.
 export function sleighFrame(seconds){
- const stride=Math.sin(seconds*2*Math.PI/0.70),counter=Math.sin(seconds*2*Math.PI/0.70+Math.PI*0.7);
- const bounce=(1-Math.cos(seconds*2*Math.PI/0.35))/2;
- const sway=Math.sin(seconds*2*Math.PI/1.4);
- const n=x=>x.toFixed(2);
+ const stride=Math.sin(seconds*2*Math.PI/gaitPeriod),bounce=(1-Math.cos(seconds*4*Math.PI/gaitPeriod))/2;
+ const sway=Math.sin(seconds*2*Math.PI/(2*gaitPeriod));
  return {
-  'pk-deer-body':'translate(0 '+n(-7*bounce)+') rotate('+n(3*stride)+' 72 78)',
-  'pk-leg-front':'rotate('+n(37*stride)+' 53 86)',
-  'pk-leg-frontfar':'rotate('+n(-37*stride)+' 55 87)',
-  'pk-leg-back':'rotate('+n(37*counter)+' 101 88)',
-  'pk-leg-backfar':'rotate('+n(-37*counter)+' 98 89)',
+  'pk-deer-body':'translate(0 '+n(-2*bounce)+') rotate('+n(.7*stride)+' 72 78)',
   'pk-sleigh':'translate(0 '+n(-3*(1+sway))+') rotate('+n(1.7*sway)+' 220 111)',
   'pk-santa':'rotate('+n(4*sway)+' 218 88)',
-  'pk-santa-head':'rotate('+n(5*Math.sin(seconds*2*Math.PI/1.4+.5))+' 215 54)',
-  'pk-reins':'translate(0 '+n(-2*bounce)+')',
+  'pk-santa-head':'rotate('+n(5*Math.sin(seconds*2*Math.PI/(2*gaitPeriod)+.5))+' 215 54)',
+  'pk-reins':'translate(0 '+n(-.8*bounce)+')',
   'pk-sparks':'translate('+n(3*sway)+' 0)'
  };
 }
@@ -107,9 +142,11 @@ export function createSleighPlayer(box,volume,onPlay,onVolume){
  const make=(tag,cls)=>{const n=document.createElement(tag);n.className=cls;return n;};
  const toggle=make('button','pk-sleigh-toggle');toggle.type='button';toggle.innerHTML=sleighArt;toggle.setAttribute('aria-label','Открыть музыкальный плеер');toggle.setAttribute('aria-expanded','false');
  const svg=toggle.querySelector('svg'),motionNodes=Object.fromEntries(Object.keys(sleighFrame(0)).map(k=>[k,svg.querySelector('.'+k)]));
+ const legNodes=Object.fromEntries(Object.keys(legs).map(k=>[k,[...svg.querySelector('.'+k).querySelectorAll('path')]]));
+ function applyLegs(seconds){for(const [key,nodes] of Object.entries(legNodes)){const paths=deerLegPaths(seconds,key);nodes.forEach((node,i)=>node.setAttribute('d',paths[i]));}}
  const reduced=window.matchMedia?.('(prefers-reduced-motion: reduce)');
  let override=false,requested=true,raf=0,last=-Infinity,startTime=null;
- function resetPose(){for(const node of Object.values(motionNodes))node?.removeAttribute('transform');motionNodes['pk-sparks']?.removeAttribute('opacity');}
+ function resetPose(){for(const node of Object.values(motionNodes))node?.removeAttribute('transform');motionNodes['pk-sparks']?.removeAttribute('opacity');for(const [key,nodes] of Object.entries(legNodes)){const p=deerLegPaths(.18-(legs[key].phase*gaitPeriod),key);nodes.forEach((node,i)=>node.setAttribute('d',p[i]));}}
  function tick(now){
   raf=0;
   if(!requested||document.hidden||(reduced?.matches&&!override))return;
@@ -117,6 +154,7 @@ export function createSleighPlayer(box,volume,onPlay,onVolume){
   if(now-last>=32){
    const seconds=(now-startTime)/1000;
    for(const [name,transform] of Object.entries(sleighFrame(seconds)))motionNodes[name]?.setAttribute('transform',transform);
+   applyLegs(seconds);
    motionNodes['pk-sparks']?.setAttribute('opacity',String(.55+.45*(1+Math.sin(seconds*5))/2));
    last=now;
   }
