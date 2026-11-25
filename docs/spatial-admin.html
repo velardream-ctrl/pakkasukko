@@ -33,6 +33,11 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{ou
 .device{border:1px solid #cddbe0;border-radius:12px;padding:16px;background:#f8fafb}
 .device h3{margin:0 0 12px;color:#193e51}
 .device label+label{margin-top:12px}
+.spatial-tuning{margin-top:16px;padding:13px;border:1px solid #d3dee3;border-radius:10px;background:#fff}
+.spatial-tuning[hidden]{display:none}
+.spatial-tuning label+label{margin-top:14px}
+.spatial-tuning input[type=range]{width:100%}
+.spatial-tuning output{font-variant-numeric:tabular-nums;color:#95672e}
 .scene-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
 .scene-item{background:#f7fafb;padding:14px;border:1px solid #cadce3;border-radius:12px}
 .scene-item h3{margin:0 0 8px}
@@ -48,7 +53,7 @@ kbd{background:#eff4f6;padding:2px 5px;border-radius:4px}
 <div id="manager" hidden>
 <section>
 <h2>Что показывать на сайте</h2>
-<p>Обычные фотографии и их кадрирование остаются без изменений. Пространственная фотография повторяет масштаб, положение и обрезку обычного главного фото отдельно на телефоне, планшете и компьютере. Здесь выбираются и тип фотографии, и способ движения; посетители не увидят переключателей.</p>
+<p>Обычные фотографии и их кадрирование остаются без изменений. Пространственная фотография повторяет масштаб, положение и обрезку обычного главного фото отдельно на телефоне, планшете и компьютере. Здесь выбираются тип фотографии, способ движения и положение объёмного фона; посетители не увидят переключателей.</p>
 <p><small>При выборе «Наклон устройства» на iPhone может потребоваться один раз коснуться фотографии и разрешить доступ к движению телефона.</small></p>
 <label class="check"><input type="checkbox" id="enabled" checked>Разрешить пространственные фотографии на сайте</label>
 <div class="grid" id="profiles"></div>
@@ -57,7 +62,7 @@ kbd{background:#eff4f6;padding:2px 5px;border-radius:4px}
 </section>
 <section>
 <h2>Библиотека пространственных сцен</h2>
-<p>Каждая сцена состоит из прозрачного изображения персонажа и фонового снимка. Во встроенной сцене церковь и снежный двор сохраняют точное расположение с исходной фотографии; расширенная панорама заполняет только пространство за силуэтом Деда Мороза. Для новых сцен снег можно загрузить отдельным слоем.</p>
+<p>Каждая сцена состоит из прозрачного изображения персонажа и фонового снимка. Во встроенной сцене используется цельная широкая панорама без пустоты за персонажем. Её масштаб, положение церкви и уровень неподвижного снега можно отдельно настроить ползунками для каждого устройства. Для новых сцен снег можно загрузить отдельным слоем.</p>
 <div id="scenes" class="scene-list"></div>
 </section>
 <section>
@@ -78,5 +83,5 @@ kbd{background:#eff4f6;padding:2px 5px;border-radius:4px}
 </div>
 <p id="loginHint" hidden>Войди в <a href="./admin.html">админку Pakkasukko</a>, затем открой эту страницу снова.</p>
 </main>
-<script type="module" src="./spatial-admin.js?v=3"></script>
+<script type="module" src="./spatial-admin.js?v=4"></script>
 </body></html>

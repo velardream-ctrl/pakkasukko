@@ -1,4 +1,4 @@
-import {spatialSettings,BUILTIN_SPATIAL,spatialAsset,SPATIAL_DEVICES} from './spatial-gallery.js?v=3';
+import {spatialSettings,BUILTIN_SPATIAL,spatialAsset,SPATIAL_DEVICES} from './spatial-gallery.js?v=4';
 const $=id=>document.getElementById(id);
 const defaults={texts:{},crops:{},pictures:{},seo:{},order:[],hidden:[],cards:[]};
 const names={phone:'Телефон',tablet:'Планшет',desktop:'Компьютер'};
@@ -66,10 +66,30 @@ function render(){
     motion.add(option('manual','Вручную — пальцем или мышью'));
     motion.add(option('tilt','Наклон устройства — двигать телефоном или планшетом'));
     motion.value=settings.motions[device]||'auto';
-    const updateEnabled=()=>{const useSpatial=mode.value==='spatial';sceneSel.disabled=!useSpatial;motion.disabled=!useSpatial;};
-    mode.onchange=updateEnabled;updateEnabled();
+    const sliders=document.createElement('div');sliders.className='spatial-tuning';
+    const sliderInputs=[];
+    for(const [kind,labelText,min,max] of [
+      ['snowLevel','Уровень неподвижного снега',62,85],
+      ['backgroundZoom','Размер церкви и фона',95,135],
+      ['backgroundFocus','Положение церкви',32,54]
+    ]){
+      const label=document.createElement('label');label.textContent=labelText;
+      const range=document.createElement('input');range.type='range';range.min=min;range.max=max;range.step=1;
+      range.dataset.device=device;range.dataset.kind=kind;range.value=String(settings[kind][device]);
+      const output=document.createElement('output');output.textContent=range.value+'%';
+      range.addEventListener('input',()=>{output.textContent=range.value+'%';});
+      label.append(range,output);sliders.append(label);sliderInputs.push(range);
+    }
+    const updateEnabled=()=>{
+      const useSpatial=mode.value==='spatial';
+      sceneSel.disabled=!useSpatial;motion.disabled=!useSpatial;
+      sliders.hidden=!useSpatial;
+      sliderInputs.forEach(el=>{el.disabled=!useSpatial;});
+    };
+    mode.onchange=updateEnabled;
     sceneLabel.append(sceneSel);motionLabel.append(motion);
-    card.append(title,modeLabel,sceneLabel,motionLabel);profiles.append(card);
+    card.append(title,modeLabel,sceneLabel,motionLabel,sliders);profiles.append(card);
+    updateEnabled();
   }
   $('scenes').replaceChildren(...all.map(makePreview));
   for(const suffix of ['foreground','background','ground'])refreshSelect($(suffix+'Existing'));
@@ -77,10 +97,12 @@ function render(){
 function collect(){
   settings.enabled=$('enabled').checked;
   settings.strength=Number($('strength').value);
-  for(const el of $('profiles').querySelectorAll('select')){
-    if(el.dataset.kind==='mode')settings.modes[el.dataset.device]=el.value;
-    else if(el.dataset.kind==='motion')settings.motions[el.dataset.device]=el.value;
-    else settings.selected[el.dataset.device]=el.value;
+  for(const el of $('profiles').querySelectorAll('[data-kind]')){
+    const kind=el.dataset.kind,device=el.dataset.device;
+    if(kind==='mode')settings.modes[device]=el.value;
+    else if(kind==='motion')settings.motions[device]=el.value;
+    else if(kind==='scene')settings.selected[device]=el.value;
+    else if(['snowLevel','backgroundZoom','backgroundFocus'].includes(kind))settings[kind][device]=Number(el.value);
   }
 }
 async function save(){
@@ -135,6 +157,7 @@ $('newScene').onsubmit=async ev=>{
     version=data.id;model={...defaults,...data.model};media=data.media||[];
     const state=spatialSettings(model);
     settings={enabled:state.enabled,strength:state.strength,modes:state.modes,motions:state.motions,selected:state.selected,
+      snowLevel:state.snowLevel,backgroundZoom:state.backgroundZoom,backgroundFocus:state.backgroundFocus,
       scenes:state.scenes.filter(scene=>scene.id!==BUILTIN_SPATIAL.id).map(scene=>({...scene}))};
     $('manager').hidden=false;$('loginHint').hidden=true;render();status('Настройки загружены. Изменения попадут на сайт после нажатия «Сохранить и опубликовать».');
   }catch(e){$('loginHint').hidden=false;status('Нужен вход владельца: '+e.message,true);}

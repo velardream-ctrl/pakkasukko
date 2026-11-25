@@ -19,6 +19,10 @@ export function validSpatialSettings(value){
   for(const device of ['phone','tablet','desktop']){
     if(value.modes?.[device]!==undefined&&!['photo','spatial'].includes(value.modes[device]))return false;
     if(value.motions?.[device]!==undefined&&!['auto','manual','tilt'].includes(value.motions[device]))return false;
+    for(const [field,min,max] of [['snowLevel',62,85],['backgroundZoom',95,135],['backgroundFocus',32,54]]){
+      const n=value[field]?.[device];
+      if(n!==undefined&&(!Number.isInteger(n)||n<min||n>max))return false;
+    }
     if(value.selected?.[device]!==undefined&&value.selected[device]!=='winter-original'&&!ids.has(value.selected[device]))return false;
   }
   return true;

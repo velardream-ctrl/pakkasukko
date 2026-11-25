@@ -1,59 +1,46 @@
-/* Main-site spatial photograph: three visual layers and editor-only mode selection. */
+/* Owner-selected spatial photo: original crop and image remain available, no visitor mode switch. */
 .hero-photo.pk-space-active{pointer-events:auto}
 .hero-photo.pk-space-active>img:not(.pk-space-layer){opacity:0;visibility:hidden}
 .pk-space-scene{position:absolute;inset:0;z-index:1;overflow:hidden;touch-action:pan-y;cursor:grab;user-select:none;-webkit-user-select:none}
-.pk-space-frame{position:absolute;inset:0;transform-origin:center top;will-change:transform}
-/* The reconstruction keeps the church at its original photographic coordinates. */
-.pk-space-panorama{display:none;position:absolute;inset:0;z-index:0;background-size:cover;background-position:42% 50%;transform:scale(1.34);pointer-events:none}
-.pk-space-restored{display:none;position:absolute;inset:0;background-size:cover;background-position:center top;pointer-events:none}
-.pk-space-original-background .pk-space-panorama{display:block}
-.pk-space-original-background .pk-space-restored{
- display:block;
- -webkit-mask-image:linear-gradient(#000,#000),url('./assets/demo-3d-santa.png');
- -webkit-mask-size:100% 100%,cover;
- -webkit-mask-position:center center,center top;
- -webkit-mask-repeat:no-repeat;
- -webkit-mask-composite:xor;
- mask-image:linear-gradient(#000,#000),url('./assets/demo-3d-santa.png');
- mask-size:100% 100%,cover;
- mask-position:center center,center top;
- mask-repeat:no-repeat;
- mask-composite:exclude;
-}
-.pk-space-original-background .pk-space-base{
- transform:none;
- -webkit-mask-image:linear-gradient(to bottom,transparent 0%,transparent 90.9%,#000 91%,#000 100%);
- mask-image:linear-gradient(to bottom,transparent 0%,transparent 90.9%,#000 91%,#000 100%);
-}
-.pk-space-original-background .pk-space-moving{
- transform:translate3d(var(--pk-space-x,0px),var(--pk-space-y,0px),0)
-  perspective(1400px) rotateY(var(--pk-space-bg-yaw,0deg)) rotateX(var(--pk-space-bg-pitch,0deg));
- -webkit-mask-image:linear-gradient(to bottom,#000 0%,#000 91%,#000e 93%,#0007 96%,transparent 98%);
- mask-image:linear-gradient(to bottom,#000 0%,#000 91%,#000e 93%,#0007 96%,transparent 98%);
-}
 .pk-space-scene[hidden]{display:none!important}
+.pk-space-frame{position:absolute;inset:0;transform-origin:center top;will-change:transform}
 .pk-space-bg,.pk-space-figure{position:absolute;inset:0;background-repeat:no-repeat;pointer-events:none;will-change:transform}
 .pk-space-bg{background-size:cover;background-position:42% 50%;transform-origin:50% 95%}
 .pk-space-base{z-index:1;transform:scale(1.34)}
 .pk-space-moving{
  z-index:2;
  transform:translate3d(var(--pk-space-x,0px),var(--pk-space-y,0px),0)
-   perspective(1400px) rotateY(var(--pk-space-bg-yaw,0deg))
-   rotateX(var(--pk-space-bg-pitch,0deg)) scale(1.34);
+  perspective(1400px) rotateY(var(--pk-space-bg-yaw,0deg)) rotateX(var(--pk-space-bg-pitch,0deg)) scale(1.34);
  -webkit-mask-image:linear-gradient(to bottom,#000 0%,#000 84%,#000e 87%,#000a 90%,#0005 93%,transparent 96%);
  mask-image:linear-gradient(to bottom,#000 0%,#000 84%,#000e 87%,#000a 90%,#0005 93%,transparent 96%);
 }
-.pk-space-shadow{position:absolute;z-index:3;left:50%;bottom:2.4%;width:min(36%,260px);height:4%;border-radius:50%;background:#0206148e;filter:blur(15px);transform:translateX(-50%);pointer-events:none}
+/* Seamless panorama: identical upper and ground images, blended across editable snow. */
+.pk-space-lab-scene .pk-space-bg{
+ inset:-5% -12%;
+ background-size:auto var(--pk-space-bg-size,100%);
+ background-position:var(--pk-space-bg-focus,42%) top;
+}
+.pk-space-lab-scene .pk-space-base{transform:none}
+.pk-space-lab-scene .pk-space-moving{
+ transform:translate3d(var(--pk-space-x,0px),var(--pk-space-y,0px),0)
+  perspective(1400px) rotateY(var(--pk-space-bg-yaw,0deg)) rotateX(var(--pk-space-bg-pitch,0deg));
+}
+.pk-space-shadow{
+ position:absolute;z-index:3;left:50%;bottom:1.8%;width:min(31%,250px);height:3.7%;
+ border-radius:50%;background:#050b1880;filter:blur(10px);transform:translateX(-50%);pointer-events:none;
+}
 .pk-space-figure{
  z-index:4;background-size:cover;background-position:center top;
- /* The character never tilts, sways or rotates; the world moves behind him. */
- transform:none;
- filter:drop-shadow(0 8px 14px #050a1780);
+ transform:none;filter:drop-shadow(0 6px 10px #020b1880);
 }
+.pk-space-tilt-hint{
+ position:absolute;z-index:6;left:50%;bottom:15%;transform:translateX(-50%);
+ padding:8px 12px;max-width:92%;text-align:center;border-radius:28px;
+ border:1px solid #d6e7ef77;background:#071927d9;color:#fff;font:600 12px/1.4 system-ui,sans-serif;
+ pointer-events:none;box-shadow:0 3px 17px #0007;
+}
+.pk-space-tilt-hint[hidden]{display:none!important}
 @media(max-width:1100px){.pk-space-bg{background-position:43% 48%}}
-@media(max-width:600px){
- .pk-space-bg{background-position:45% 48%}
- .pk-space-shadow{width:42%;filter:blur(10px)}
-}
+@media(max-width:600px){.pk-space-bg{background-position:45% 48%}.pk-space-shadow{filter:blur(8px)}}
 @supports not ((-webkit-mask-image:linear-gradient(to bottom,#000,transparent)) or (mask-image:linear-gradient(to bottom,#000,transparent))){.pk-space-moving{display:none}}
 @media(prefers-reduced-motion:reduce){.pk-space-scene,.pk-space-bg,.pk-space-figure{transition:none!important}}
