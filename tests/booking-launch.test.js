@@ -173,3 +173,28 @@ test('Santa mail uses protected existing inbox and never exposes owner email',as
  const original=globalThis.fetch;try{globalThis.fetch=async()=>Response.json({success:true});const result=await request('messages',{name:'Test',contact:'client@example.test',topic:'Сотрудничество',message:'Testing Santa mail',turnstileToken:'test'});assert.equal(result.status,201);const saved=sqlite.prepare('SELECT * FROM messages').get();assert.match(saved.message,/Сотрудничество/);assert.equal(saved.contact,'client@example.test');assert.equal(saved.status,'unread');assert.equal((await request('admin/dashboard')).status,401);await login();const dashboard=await (await request('admin/dashboard')).json();assert.equal(dashboard.messages.length,1);assert.doesNotMatch(JSON.stringify(await (await request('public-config')).json()),/owner@example.test/);}finally{globalThis.fetch=original;}
  const html=readFileSync(new URL('../docs/contact.html',import.meta.url),'utf8');assert.match(html,/letterForm/);assert.match(html,/privacy\.html/);assert.doesNotMatch(html,/@gmail\.com/);
 });
+
+test('RUN-037: video delivery requires seven days and never reserves a visit slot',async()=>{
+ const {request,env,sqlite,login}=fixture();const {earliestDelivery,helsinkiDay}=await import('../docs/video-service.js');
+ Object.assign(env,{TURNSTILE_SITE_KEY:'site',TURNSTILE_SECRET:'secret',OWNER_EMAIL:'owner@example.test',FROM_EMAIL:'from@example.test',RESEND_API_KEY:'test'});
+ for(const key of ['enabled','mail_test','mail_received','privacy_confirmed'])sqlite.prepare('INSERT INTO booking_settings VALUES(?,?)').run(key,'true');
+ sqlite.prepare('INSERT INTO site_revisions(body,published,created_at) VALUES(?,1,?)').run(JSON.stringify({cards:[{id:'video-test',title:'Видео поздравление Деда Мороза',price:'50 €'}]}),'test');
+ const original=globalThis.fetch;
+ try{
+ globalThis.fetch=async()=>Response.json({success:true});
+ const payload={service:'video-test',name:'Test',email:'client@example.test',message:'Greeting',turnstileToken:'test',submissionKey:crypto.randomUUID()};
+ assert.equal((await request('video-orders',{...payload,deliveryDate:helsinkiDay()})).status,400);
+ const data={...payload,deliveryDate:earliestDelivery(helsinkiDay())};
+ const a=await request('video-orders',data);assert.equal(a.status,201);const {id}=await a.json();
+ assert.equal((await request('video-orders',data)).status,201);
+ assert.equal((await request('video-orders',{...data,submissionKey:crypto.randomUUID()})).status,201);
+ assert.equal(sqlite.prepare('SELECT COUNT(*) n FROM video_orders').get().n,2);
+ assert.equal(sqlite.prepare('SELECT COUNT(*) n FROM slots').get().n,0);
+ assert.equal((await request('bookings',data)).status,400);
+ assert.equal((await request('admin/video-orders')).status,401);await login();
+ assert.equal((await request('admin/video-orders/update',{id,deliveryDate:data.deliveryDate,status:'confirmed'})).status,200);
+ assert.equal((await request('admin/video-orders/delete',{id})).status,409);
+ assert.equal((await request('admin/video-orders/update',{id,deliveryDate:data.deliveryDate,status:'cancelled'})).status,200);
+ assert.equal((await request('admin/video-orders/delete',{id})).status,200);
+ }finally{globalThis.fetch=original;}
+});

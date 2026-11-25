@@ -1,3 +1,4 @@
+import {isVideoGreeting,videoNotice} from './video-service.js';
 export const devices = {desktop:[1440,900],tablet:[820,1180],phone:[390,844]};
 export const portrait = './assets/pakkasukko-ded-moroz.webp';
 export const baseCrop = () => ({x:0,y:0,zoom:100,image:''});
@@ -253,6 +254,7 @@ export function renderPage(doc,model,fields,device,editing=false){
     }
     box.append(title);
     const description=doc.createElement('p');description.className='card-description';description.textContent=card.description||'';box.append(description);
+    if(isVideoGreeting(card)){const notice=doc.createElement('p');notice.className='program-duration';notice.textContent=videoNotice;box.append(notice);}
     if(card.duration){
       const duration=doc.createElement('p');duration.className='program-duration';
       duration.textContent=card.duration;box.append(duration);
@@ -261,8 +263,8 @@ export function renderPage(doc,model,fields,device,editing=false){
     const price=doc.createElement('strong');price.textContent=card.price||'По запросу';foot.append(price);
     if(card.id){
       const option=doc.createElement('option');option.className='extra-option';option.value=card.id;option.textContent=card.title+' · '+card.price;doc.querySelector('#service').append(option);
-      const link=doc.createElement('a');link.href='#booking';link.textContent=pageText(model,'programButton')+' ↗';
-      link.onclick=()=>{doc.querySelector('#service').value=card.id;doc.querySelector('#service').dispatchEvent(new Event('change'));};foot.append(link);
+      const link=doc.createElement('a');link.href=isVideoGreeting(card)?'./video.html?service='+encodeURIComponent(card.id):'#booking';link.textContent=(isVideoGreeting(card)?'Заказать видео':pageText(model,'programButton'))+' ↗';
+      if(!isVideoGreeting(card))link.onclick=()=>{doc.querySelector('#service').value=card.id;doc.querySelector('#service').dispatchEvent(new Event('change'));};foot.append(link);
     }
     box.append(foot);
     programGrid.append(box);

@@ -128,3 +128,15 @@ BEGIN
  DELETE FROM booking_details WHERE booking_id=OLD.id;
  UPDATE slots SET status='open',booking_id=NULL WHERE booking_id=OLD.id AND status='reserved';
 END;
+
+-- RUN-037: delivery requests are independent of visit slots.
+CREATE TABLE IF NOT EXISTS video_orders (
+ id TEXT PRIMARY KEY, service_id TEXT NOT NULL, service TEXT NOT NULL,
+ delivery_date TEXT NOT NULL, name TEXT NOT NULL, email TEXT NOT NULL,
+ phone TEXT NOT NULL DEFAULT '', message TEXT NOT NULL DEFAULT '',
+ price_label TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending'
+ CHECK(status IN('pending','confirmed','completed','cancelled','declined')),
+ notes TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL,
+ submission_key TEXT UNIQUE, fingerprint TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS video_orders_delivery_idx ON video_orders(delivery_date,status);

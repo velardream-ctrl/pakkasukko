@@ -1,3 +1,4 @@
+import {isVideoGreeting} from './video-service.js';
 import {mountFares} from './fare-form.js';
 import {fitTagline} from './tagline.js';
 import {pageText,initial,bindPage,renderPage,deviceFor} from './site.js';
@@ -22,6 +23,7 @@ async function activate(){
       if(config.content&&typeof config.content[key]==='string'&&config.content[key])document.getElementById(id).textContent=config.content[key];
     }
     const model=Object.assign(initial(),config.site);
+    $('#service').addEventListener('change',()=>{const card=model.cards.find(c=>c.id===$('#service').value);if(isVideoGreeting(card))location.assign('./video.html?service='+encodeURIComponent(card.id));});
     const currentDevice=()=>deviceFor(innerWidth,innerHeight);
     const boundFields=bindPage(document);
     let ownerPreview=false;
