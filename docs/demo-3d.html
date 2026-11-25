@@ -22,8 +22,9 @@ h1{font:400 clamp(27px,5vw,44px)/1.14 Georgia,serif;letter-spacing:-.018em;margi
 .composition{position:absolute;inset:0;width:100%;height:100%;overflow:hidden;background:#08101c;box-shadow:0 12px 55px #000a;will-change:transform}
 .composition img{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;display:block;pointer-events:none;-webkit-user-drag:none}
 .background{z-index:1;left:50%!important;right:auto!important;top:0!important;bottom:auto!important;width:auto!important;max-width:none!important;height:100%;object-fit:cover;transform:translate3d(calc(-50% + var(--bg-focus,0px)),0,0) scale(var(--bg-scale,1.34));transform-origin:center;will-change:transform}
-.background-upper{z-index:2;transform-origin:50% 95%;transform:translate3d(calc(-50% + var(--bg-focus,0px) + var(--bg-x,0px)),var(--bg-y,0px),0) perspective(1400px) rotateY(var(--world-yaw,0deg)) rotateX(var(--world-pitch,0deg)) scale(var(--bg-scale,1.34));-webkit-mask-image:linear-gradient(to bottom,#000 0%,#000 34%,#000d 48%,#0008 65%,transparent 87%);mask-image:linear-gradient(to bottom,#000 0%,#000 34%,#000d 48%,#0008 65%,transparent 87%)}
-@supports not ((-webkit-mask-image:linear-gradient(to bottom,#000,transparent)) or (mask-image:linear-gradient(to bottom,#000,transparent))){.background-upper{display:none}}
+.background-upper{z-index:1;transform-origin:50% 95%;transform:translate3d(calc(-50% + var(--bg-focus,0px) + var(--bg-x,0px)),var(--bg-y,0px),0) perspective(1400px) rotateY(var(--world-yaw,0deg)) rotateX(var(--world-pitch,0deg)) scale(var(--bg-scale,1.34))}
+.foot-zone{position:absolute;inset:0;z-index:2;pointer-events:none;overflow:hidden;-webkit-mask-image:radial-gradient(ellipse var(--foot-rx,112px) var(--foot-ry,76px) at 50% 96%,#000 0%,#000f 25%,#000c 48%,#0004 76%,transparent 100%);mask-image:radial-gradient(ellipse var(--foot-rx,112px) var(--foot-ry,76px) at 50% 96%,#000 0%,#000f 25%,#000c 48%,#0004 76%,transparent 100%)}
+@supports not ((-webkit-mask-image:linear-gradient(to bottom,#000,transparent)) or (mask-image:linear-gradient(to bottom,#000,transparent))){.foot-zone{display:none}.background-upper{transform:translate3d(calc(-50% + var(--bg-focus,0px)),0,0) scale(var(--bg-scale,1.34))}}
 .contact-shadow{z-index:3;position:absolute;left:50%;width:min(35%,280px);height:4%;bottom:2.3%;border-radius:50%;background:#080c1c73;filter:blur(14px);transform:translate3d(calc(-50% + var(--shadow-x,0px)),4px,0);pointer-events:none}
 .figure{z-index:4;left:50%!important;right:auto!important;top:0!important;bottom:auto!important;width:auto!important;max-width:none!important;height:100%;object-fit:contain;transform-origin:50% 95%;transform:translate3d(-50%,0,0) perspective(1100px) rotateY(var(--figure-yaw,0deg)) rotateX(var(--figure-pitch,0deg)) rotateZ(var(--figure-lean,0deg));filter:drop-shadow(0px 9px 13px #02091770);will-change:transform}
 .original{z-index:6;opacity:0;object-fit:contain!important;transition:opacity .24s}
@@ -58,20 +59,20 @@ button:focus-visible,input:focus-visible{outline:3px solid #ffdba5;outline-offse
 <header>
 <div class="kicker">PAKKASUKKO · ТЕСТ 3D</div>
 <h1>Внутри зимней сказки</h1>
-<p class="subtitle">Дед Мороз словно поворачивается вокруг точки под сапогами: ноги устойчивы, а голова, плечи и зимний лес меняют ракурс при движении.</p>
+<p class="subtitle">Небольшая площадка снега под сапогами неподвижна; остальной зимний лес поворачивается вокруг Деда Мороза. Края снега плавно растворяются в фоне.</p>
 </header>
 <section class="demo" aria-label="Интерактивная фотография Деда Мороза">
 <div class="scene" id="scene" aria-label="Проведите пальцем или мышью, чтобы увидеть глубину">
 <div class="ambient" aria-hidden="true"></div>
 <div class="composition" id="composition">
-<img class="background" id="background" src="./assets/demo-3d-panorama.png" alt="">
 <img class="background background-upper" id="backgroundUpper" src="./assets/demo-3d-panorama.png" alt="">
+<div class="foot-zone" id="footZone" aria-hidden="true"><img class="background" id="background" src="./assets/demo-3d-panorama.png" alt=""></div>
 <div class="contact-shadow" aria-hidden="true"></div>
 <img class="figure" id="figure" src="./assets/demo-3d-santa.png" alt="Дед Мороз в красно-золотом костюме с волшебным светящимся посохом">
 <div class="snow" id="snow" aria-hidden="true"></div>
 <img class="original" id="original" src="./assets/pakkasukko-ded-moroz.webp" alt="Оригинальная фотография Деда Мороза у заснеженной церкви">
 </div>
-<div class="scene-overlay" id="hint">Проведите пальцем — ноги на месте</div>
+<div class="scene-overlay" id="hint">Ноги на снегу · фон в движении</div>
 </div>
 <div class="controls">
 <button type="button" id="depthBtn" aria-pressed="true">✦ Объёмное фото</button>
@@ -79,12 +80,14 @@ button:focus-visible,input:focus-visible{outline:3px solid #ffdba5;outline-offse
 <button type="button" id="motionBtn" aria-pressed="false">Движение iPhone</button>
 <button type="button" id="autoBtn" aria-pressed="false">Автопоказ</button>
 <button type="button" id="resetBtn">Сброс</button>
+<button type="button" id="shapeBtn" aria-pressed="false">◯ Круглая опора</button>
 <label class="slider-row" for="strength">Глубина <input id="strength" type="range" min="0" max="100" step="1" value="75"><output id="strengthText">75%</output></label>
+<label class="slider-row" for="groundSize">Снег у ног <input id="groundSize" type="range" min="25" max="100" step="1" value="50"><output id="groundSizeText">50%</output></label>
 </div>
 <div class="status" id="status" role="status" aria-live="polite">Загружаем Деда Мороза и зимний фон…</div>
 </section>
 <p class="instructions">Проведите по фотографии пальцем или мышью. Для эффекта от наклона телефона нажмите «Движение iPhone» и разрешите доступ к датчику. Кнопка «Автопоказ» показывает движение без датчика.</p>
-<div class="details"><strong>Как устроено:</strong> персонаж с посохом вырезан из фотографии; пространство за ним восстановлено, чтобы при движении фон оставался цельным. Точка опоры закреплена под сапогами. Персонаж поворачивается как цельная фигура, а задний план меняет перспективу; движение фона постепенно исчезает у земли. Это тестовый эффект глубины, а не полноценная 3D-модель или технология Apple. Основной сайт не изменён.</div>
+<div class="details"><strong>Как устроено:</strong> персонаж с посохом вырезан из фотографии; пространство за ним восстановлено, чтобы при движении фон оставался цельным. Под сапогами оставлен небольшой островок неподвижного снега с прозрачными, растушёванными краями. Лес и церковь движутся позади; линия склейки теперь овальная и расположена близко к ногам. Кнопкой «Круглая опора» можно сравнить круглую и овальную формы. Это тестовый эффект глубины, а не полноценная 3D-модель или технология Apple. Основной сайт не изменён.</div>
 </main>
 <script>
 (function(){
@@ -92,12 +95,17 @@ button:focus-visible,input:focus-visible{outline:3px solid #ffdba5;outline-offse
 var scene=document.getElementById("scene");
 var comp=document.getElementById("composition");
 var bg=document.getElementById("background");
+var footZone=document.getElementById("footZone");
 var bgUpper=document.getElementById("backgroundUpper");
 var figure=document.getElementById("figure");
 var status=document.getElementById("status");
 var hint=document.getElementById("hint");
 var strength=document.getElementById("strength");
 var strengthText=document.getElementById("strengthText");
+var groundSize=document.getElementById("groundSize");
+var groundSizeText=document.getElementById("groundSizeText");
+var shapeBtn=document.getElementById("shapeBtn");
+var circle=false;
 var depthBtn=document.getElementById("depthBtn");
 var flatBtn=document.getElementById("flatBtn");
 var autoBtn=document.getElementById("autoBtn");
@@ -114,7 +122,7 @@ function updateMode(){
  comp.classList.toggle("flat",flat);
  setPressed(depthBtn,!flat);setPressed(flatBtn,flat);
  hint.textContent=flat?"Это оригинальное фото":"Проведите пальцем — фон шире";
- if(!broken)message(flat?"Оригинальная фотография без эффекта глубины.":"Теперь сапоги и земля стоят на месте. Двигайте фото — лес и верхняя часть фигуры плавно меняют положение.");
+ if(!broken)message(flat?"Оригинальная фотография без эффекта глубины.":"Сапоги стоят на мягком островке снега. Уменьшите «Снег у ног», чтобы лес двигался ближе к сапогам.");
 }
 depthBtn.addEventListener("click",function(){if(broken){message("Объёмное фото пока недоступно: не загрузился один из слоёв.");return;}flat=false;updateMode();});
 flatBtn.addEventListener("click",function(){flat=true;stopAuto();stopSensor();updateMode();});
@@ -149,6 +157,8 @@ document.getElementById("resetBtn").addEventListener("click",function(){
  message("Положение сброшено. Проведите по фотографии пальцем или мышью.");
 });
 strength.addEventListener("input",function(){strengthText.textContent=strength.value+"%";});
+groundSize.addEventListener("input",function(){groundSizeText.textContent=groundSize.value+"%";});
+shapeBtn.addEventListener("click",function(){circle=!circle;setPressed(shapeBtn,circle);message(circle?"Круглая площадка у сапог: проверьте плавность перехода.":"Мягкий овальный снег у ног: переход растворяется в окружающем пейзаже.");});
 function distance(a,b){return Math.hypot(a.x-b.x,a.y-b.y);}
 scene.addEventListener("pointerdown",function(ev){
  if(broken||flat)return;
@@ -193,6 +203,12 @@ function tick(now){
  var safeX=Math.max(0,(widthAtHeight*bgScale-scene.clientWidth)/2-6);
  var px=Math.min(scene.clientWidth*.17,125,safeX)*intensity;
  var py=Math.min(scene.clientHeight*.055,36)*intensity;
+ var footSize=Number(groundSize.value)/100;
+ var figureW=scene.clientHeight*2/3;
+ var footRx=Math.min(scene.clientWidth*.44,figureW*(.21+footSize*.17));
+ var footRy=circle?footRx:scene.clientHeight*(.065+footSize*.10);
+ footZone.style.setProperty("--foot-rx",footRx.toFixed(1)+"px");
+ footZone.style.setProperty("--foot-ry",footRy.toFixed(1)+"px");
  comp.style.setProperty("--bg-scale",bgScale.toFixed(4));
  comp.style.setProperty("--bg-focus",(Math.max(0,(640-scene.clientWidth)*.4)).toFixed(1)+"px");
  bgUpper.style.setProperty("--bg-x",(-x*px).toFixed(2)+"px");
@@ -209,7 +225,7 @@ requestAnimationFrame(tick);
 var loaded=0;
 function assetReady(){
  loaded++;
- if(loaded===3&&!broken){ready=true;message("Готово! Снег у ног неподвижен, а панорама движется выше уровня земли. Попробуйте провести пальцем в стороны.");}
+ if(loaded===3&&!broken){ready=true;message("Готово! Круглая или овальная опора под ногами — настройте размер и проверьте движение леса вокруг.");}
 }
 function assetError(){
  if(broken)return;
