@@ -19,6 +19,7 @@ h1{font:400 clamp(27px,4.5vw,47px)/1.14 Georgia,"Times New Roman",serif;color:#f
 .preview{border-radius:18px;overflow:hidden;background:#102936;box-shadow:0 22px 80px #0008}
 .viewport{position:relative;width:100%;height:min(72svh,820px);min-height:440px;overflow:hidden;touch-action:none;cursor:grab;background:radial-gradient(ellipse,#345065,#111d30 65%,#07111d)}
 .viewport:active{cursor:grabbing}
+.backdrop{position:absolute;inset:-7%;background:url("./assets/pakkasukko-ded-moroz.webp") center/cover;filter:blur(18px) brightness(.48) saturate(.75);transform:scale(1.09);pointer-events:none;will-change:transform}
 .frame{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);transform-origin:50% 50%;will-change:transform}
 .frame img{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;pointer-events:none;user-select:none}
 #original{z-index:1;display:block}
@@ -41,7 +42,7 @@ button[aria-pressed=true]{background:#bd9356;border-color:#e6c587;color:#13232b;
 .small{max-width:720px;color:#b8cbd1;text-align:center;font-size:14px;line-height:1.6;margin:17px auto}
 .warning{display:none;position:absolute;z-index:10;inset:18px;align-items:center;justify-content:center;text-align:center;padding:30px;background:#101f2dec;color:#ffe5af;line-height:1.5}
 .footer{text-align:center;font-size:12px;color:#86a4af;padding:18px}
-@media(max-width:600px){.viewport{height:min(69svh,650px);min-height:400px}.page{padding:8px}.preview{border-radius:12px}header{padding-top:20px}.eyebrow{font-size:11px}.tip{font-size:12px;max-width:94%;overflow:hidden;text-overflow:ellipsis}.controls{gap:8px;padding:14px}button{font-size:13px;padding:10px 12px}}
+@media(max-width:600px){.viewport{height:min(56svh,560px);min-height:350px}.page{padding:8px}.preview{border-radius:12px}header{padding-top:20px}.eyebrow{font-size:11px}.tip{font-size:12px;max-width:94%;overflow:hidden;text-overflow:ellipsis}.controls{gap:8px;padding:14px}button{font-size:13px;padding:10px 12px}}
 @media(prefers-reduced-motion:reduce){.flake{animation:none}}
 </style>
 </head>
@@ -50,11 +51,12 @@ button[aria-pressed=true]{background:#bd9356;border-color:#e6c587;color:#13232b;
 <header>
 <div class="eyebrow">PAKKASUKKO · ЭКСПЕРИМЕНТ</div>
 <h1>Внутри зимней сказки</h1>
-<p class="description">Пробный объёмный просмотр по настоящей фотографии Деда Мороза — с церковью и заснеженными деревьями позади.</p>
+<p class="description">Аккуратный просмотр настоящей фотографии — без вырезания фигуры, резких границ и двойного изображения.</p>
 <span class="badge">Отдельная тестовая страница · Главный сайт без изменений</span>
 </header>
 <main class="preview">
 <div class="viewport" id="viewport" aria-label="Интерактивная зимняя фотография Деда Мороза">
+<div id="backdrop" class="backdrop" aria-hidden="true"></div>
 <div id="frame" class="frame">
 <img id="original" src="./assets/pakkasukko-ded-moroz.webp" alt="Дед Мороз в красно-золотом костюме и светящимся посохом на фоне зимней церкви" draggable="false">
 <div class="layers" id="layers" hidden>
@@ -78,8 +80,8 @@ button[aria-pressed=true]{background:#bd9356;border-color:#e6c587;color:#13232b;
 <button id="reset">Сброс</button>
 </div>
 </main>
-<p class="small">Один палец или мышь — небольшой поворот · Два пальца или колёсико — приближение. Деревья всегда остаются на заднем плане.</p>
-<p class="small">Это фотореалистичный эффект глубины (2.5D), а не готовая модель на 360°. Полный оборот без искажений потребует отдельной трёхмерной реконструкции.</p>
+<p class="small">Один палец или мышь — небольшой поворот · Два пальца или колёсико — приближение. Фотография остаётся цельной.</p>
+<p class="small">Это чистый эффект наклона и глубины (2.5D), без вырезанных частей фигуры. Полный обзор на 360° потребует отдельной 3D-модели.</p>
 <div class="footer">PAKKASUKKO · Тест. Бронирование и административные функции не затронуты.</div>
 </div>
 <script>
@@ -103,23 +105,15 @@ frame.style.width=w+"px";frame.style.height=h+"px";
 draw();
 }
 function draw(){
-frame.style.transform="translate(-50%,-50%) scale("+scale+")";
 if(!loadOk)return;
-var visible=mode==="depth";
-layers.hidden=!visible;
-photo.style.display=visible?"none":"block";
-var objects={
-base:[-angle*.18,-pitch*.2,0,0],
-church:[-angle*.65,-pitch*.3,0,0],
-trees:[-angle*.95,-pitch*.45,0,0],
-person:[angle*.58,-pitch*.5,angle*.35,-pitch*.22],
-staff:[angle*.58,-pitch*.5,angle*.35,-pitch*.22]
-};
-Object.keys(objects).forEach(function(key){
-var q=objects[key];
-var el=layers.querySelector("."+key);
-el.style.transform="translate("+q[0]+"px,"+q[1]+"px) rotateY("+q[2]+"deg) rotateX("+q[3]+"deg)";
-});
+layers.hidden=true;
+photo.style.display="block";
+var a=mode==="depth"?angle:0;
+var p=mode==="depth"?pitch:0;
+frame.style.transform="translate(-50%,-50%) perspective(900px) rotateY("+a+"deg) rotateX("+p+"deg) scale("+scale+")";
+frame.style.filter=mode==="depth"?"drop-shadow(0 14px 24px #0008)":"none";
+var backdrop=document.getElementById("backdrop");
+if(backdrop)backdrop.style.transform="scale(1.09) translateX("+(-a*.85)+"px) translateY("+(p*.25)+"px)";
 }
 function setMode(next){
 mode=next;
