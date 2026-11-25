@@ -2,6 +2,7 @@ import {billing} from './billing.js';
 import {defaultFare,validFare,prices,quote,describe,visitQuote,euros} from '../docs/fares.js';
 import {mediaAPI} from './media.js';
 import {musicAPI} from './music.js';
+import {reschedule} from './reschedule.js';
 import {published,editorAPI} from './editor.js';
 import {DEFAULT_CONTENT,clean,normalizeContent,validStamp,addMinutes,validateBooking,csvCell} from './validation.js';
 const headers={'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'};
@@ -200,6 +201,11 @@ async function api(req,env,ctx,url){
    const id=crypto.randomUUID();await env.DB.prepare('INSERT INTO slots(id,start_at,end_at,status,note,created_at) VALUES(?,?,?,?,?,?)').bind(id,start,end,status,clean(b.note,180),now()).run();
    return reply({ok:true,id},201);
  }
+ if((path==='/api/admin/bookings/move'||path==='/api/admin/slots/edit')&&method==='POST')return reschedule(req,env,reply,fiNow,now,async(row,start,end)=>{
+   if(!env.RESEND_API_KEY||!env.FROM_EMAIL)throw Error('Mail unavailable');
+   const r=await fetch('https://api.resend.com/emails',{method:'POST',headers:{Authorization:'Bearer '+env.RESEND_API_KEY,'Content-Type':'application/json'},body:JSON.stringify({from:env.FROM_EMAIL,to:[row.email],subject:'Pakkasukko · Изменение времени визита',text:'Здравствуйте! Новое согласованное время визита: '+start.replace('T',' ')+' – '+end.replace('T',' ')+', по времени Финляндии. Прежнее время: '+row.start_at.replace('T',' ')+'. Номер заявки: '+row.id})});if(!r.ok)throw Error('Mail not accepted');
+ });
+ if(path==='/api/admin/bookings/move-history'&&method==='GET'){const id=clean(url.searchParams.get('id'),80);const r=await env.DB.prepare('SELECT old_start,old_end,new_start,new_end,created_at FROM booking_moves WHERE booking_id=? ORDER BY created_at DESC').bind(id).all();return reply({moves:r.results});}
  if(path==='/api/admin/slots/delete'&&method==='POST'){
    const b=await parse(req);const r=await env.DB.prepare("DELETE FROM slots WHERE id=? AND status!='reserved' AND NOT EXISTS(SELECT 1 FROM bookings WHERE slot_id=slots.id)").bind(clean(b.id,80)).run();
    return r.meta.changes?reply({ok:true}):fail('Нельзя удалить занятый интервал или время с заявками.',409);

@@ -1,6 +1,7 @@
 import {sellerForm,invoiceControls} from './billing-panel.js';
 import {applyBrand} from './site.js';
 import {musicAdmin} from './music-admin.js';
+import {moveControls,slotControls} from './reschedule-panel.js';
 
 const $=id=>document.getElementById(id);
 let state=null;
@@ -122,6 +123,7 @@ function render(){
   textBlock(item,'span',({open:'Свободно',blocked:'Заблокировано',reserved:'Подтверждено'}[slot.status]||slot.status),'pill');
   if(slot.note)textBlock(item,'p',slot.note);
   if(slot.status!=='reserved')button(item,'Удалить интервал',async()=>{if(!confirm('Удалить выбранное время?'))return;try{await request('/api/admin/slots/delete','POST',{id:slot.id});await reload();}catch(e){alert(e.message);}});
+  slotControls(item,slot,request,reload);
   s.append(item);
  }
  if(!state.bookings.length)textBlock(b,'p','Заявок пока нет.','muted');
@@ -147,6 +149,7 @@ function render(){
    }
    button(item,'Сохранить детали',async()=>{try{await request('/api/admin/bookings/details','POST',{id:v.id,...Object.fromEntries(Object.entries(values).map(([k,i])=>[k,i.value]))});await reload();}catch(e){alert(e.message);}});
   }
+  moveControls(item,v,state.slots,request,reload);
   invoiceControls(item,v,request,reload);
   b.append(item);
  }

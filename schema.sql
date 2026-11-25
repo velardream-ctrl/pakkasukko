@@ -76,3 +76,42 @@ CREATE TABLE IF NOT EXISTS invoices (
 CREATE TABLE IF NOT EXISTS booking_submissions (
  token TEXT PRIMARY KEY, fingerprint TEXT NOT NULL, result TEXT NOT NULL
 );
+
+-- RUN-034: an inserted audit row is an atomic reschedule command.
+CREATE TABLE IF NOT EXISTS booking_moves (
+ id TEXT PRIMARY KEY, booking_id TEXT NOT NULL REFERENCES bookings(id),
+ old_slot TEXT NOT NULL REFERENCES slots(id), new_slot TEXT NOT NULL,
+ old_start TEXT NOT NULL, old_end TEXT NOT NULL, new_start TEXT NOT NULL, new_end TEXT NOT NULL,
+ release_old INTEGER NOT NULL CHECK(release_old IN(0,1)), created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS booking_moves_booking_idx ON booking_moves(booking_id,created_at);
+CREATE TRIGGER IF NOT EXISTS booking_move_validate BEFORE INSERT ON booking_moves
+BEGIN
+ SELECT CASE WHEN NOT EXISTS(
+   SELECT 1 FROM bookings b JOIN slots s ON s.id=b.slot_id LEFT JOIN booking_details d ON d.booking_id=b.id
+   WHERE b.id=NEW.booking_id AND b.slot_id=NEW.old_slot AND s.start_at=NEW.old_start AND s.end_at=NEW.old_end
+   AND b.status IN('pending','confirmed') AND d.final_status IS NULL
+   AND (b.status='pending' OR (s.status='reserved' AND s.booking_id=b.id))
+ ) THEN RAISE(ABORT,'stale booking') END;
+ SELECT CASE WHEN EXISTS(SELECT 1 FROM invoices WHERE booking_id=NEW.booking_id)
+   OR EXISTS(SELECT 1 FROM trip_shares WHERE booking_id=NEW.booking_id) THEN RAISE(ABORT,'locked booking') END;
+ SELECT CASE WHEN substr(NEW.old_start,1,10)<>substr(NEW.new_start,1,10)
+ AND EXISTS(SELECT 1 FROM booking_quotes WHERE booking_id=NEW.booking_id AND coalesce(json_extract(snapshot,'$.groupSize'),1)>1)
+ THEN RAISE(ABORT,'group date locked') END;
+ SELECT CASE WHEN NEW.old_slot=NEW.new_slot OR NEW.new_end<=NEW.new_start
+ OR EXISTS(SELECT 1 FROM slots WHERE id<>NEW.new_slot AND start_at<NEW.new_end AND end_at>NEW.new_start)
+ OR EXISTS(SELECT 1 FROM slots WHERE id=NEW.new_slot AND (status<>'open' OR start_at<>NEW.new_start OR end_at<>NEW.new_end))
+ OR EXISTS(SELECT 1 FROM bookings b LEFT JOIN booking_details d ON d.booking_id=b.id WHERE b.slot_id=NEW.new_slot AND b.status IN('pending','confirmed') AND d.final_status IS NULL)
+ THEN RAISE(ABORT,'slot unavailable') END;
+END;
+CREATE TRIGGER IF NOT EXISTS booking_move_apply AFTER INSERT ON booking_moves
+BEGIN
+ INSERT INTO slots(id,start_at,end_at,status,note,created_at)
+ SELECT NEW.new_slot,NEW.new_start,NEW.new_end,'open','',NEW.created_at
+ WHERE NOT EXISTS(SELECT 1 FROM slots WHERE id=NEW.new_slot);
+ UPDATE bookings SET slot_id=NEW.new_slot WHERE id=NEW.booking_id;
+ UPDATE slots SET status=CASE WHEN NEW.release_old=1 THEN 'open' ELSE 'blocked' END,booking_id=NULL
+ WHERE id=NEW.old_slot AND booking_id=NEW.booking_id;
+ UPDATE slots SET status='reserved',booking_id=NEW.booking_id
+ WHERE id=NEW.new_slot AND EXISTS(SELECT 1 FROM bookings WHERE id=NEW.booking_id AND status='confirmed');
+END;

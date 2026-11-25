@@ -70,3 +70,23 @@ test('RUN-031: long stock privacy text migrates to short homepage copy',()=>{
 });
 
 test('music config is public only when enabled and admin is protected',async()=>{const {request,login}=fixture();assert.equal((await request('admin/music/config')).status,401);const config=await (await request('music/config')).json();assert.equal(config.volume,15);assert.equal(config.autoplay,true);assert.deepEqual(config.tracks,[]);await login();assert.equal((await request('admin/music/config')).status,200);assert.equal((await request('admin/music/config',{enabled:true,autoplay:true,volume:15,tracks:[]})).status,503);});
+
+test('RUN-034: reschedule is atomic, preserves identity and prevents overlap',async()=>{
+ const {request,sqlite,login}=fixture();await login();
+ const create=async(startAt,status='open')=>(await (await request('admin/slots',{startAt,minutes:30,status})).json()).id;
+ const a=await create('2099-12-20T10:00'),b=await create('2099-12-20T11:00'),c=await create('2099-12-20T12:00','blocked');
+ for(const [id,slot] of [['move-one',a],['move-two',b]]){sqlite.prepare("INSERT INTO bookings(id,slot_id,service,name,phone,city,address,status,created_at) VALUES(?,?,'gift','test','test','test','test','pending','test')").run(id,slot);assert.equal((await request('admin/bookings/status',{id,status:'confirmed'})).status,200);}
+ const move=(startAt,extra={})=>request('admin/bookings/move',{id:'move-one',oldStart:'2099-12-20T10:00',oldEnd:'2099-12-20T10:30',startAt,minutes:30,releaseOld:true,...extra});
+ assert.equal((await move('2099-12-20T11:00')).status,409);
+ assert.equal((await move('2099-12-20T12:00')).status,409);
+ assert.equal(sqlite.prepare("SELECT slot_id FROM bookings WHERE id='move-one'").get().slot_id,a);
+ assert.equal(sqlite.prepare('SELECT COUNT(*) n FROM booking_moves').get().n,0);
+ assert.equal((await move('2099-12-21T13:00')).status,200);
+ const moved=sqlite.prepare("SELECT b.id,b.status,s.start_at,s.status AS slot_status FROM bookings b JOIN slots s ON s.id=b.slot_id WHERE b.id='move-one'").get();
+ assert.equal(moved.id,'move-one');assert.equal(moved.status,'confirmed');assert.equal(moved.slot_status,'reserved');assert.equal(moved.start_at,'2099-12-21T13:00');
+ assert.equal(sqlite.prepare('SELECT status FROM slots WHERE id=?').get(a).status,'open');
+ assert.equal((await (await request('admin/bookings/move-history?id=move-one')).json()).moves.length,1);
+ assert.equal((await move('2099-12-22T10:00')).status,409);
+ assert.equal((await request('admin/slots/edit',{id:a,startAt:'2099-12-20T11:00',minutes:30,status:'open'})).status,409);
+ assert.equal((await request('admin/slots/edit',{id:a,startAt:'2099-12-20T09:00',minutes:30,status:'open'})).status,200);
+});
