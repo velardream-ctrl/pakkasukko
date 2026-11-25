@@ -317,3 +317,11 @@ main > section:not(.intro) > .section-media-frame,
   top:auto;bottom:118px;left:7px;right:7px;width:auto;max-height:35vh;max-height:35dvh;
  }
 }
+
+/* Artist and duration choices: full-width on narrow phones. */
+.booking-form .performer-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px;margin:6px 0 9px}
+.booking-form .performer-options[hidden]{display:none}
+.booking-form .performer-options label{min-width:0;font-size:14px}
+.booking-form .performer-options select{width:100%;min-width:0;font-size:15px}
+@media(max-width:620px){.booking-form .performer-options{grid-template-columns:1fr}}
+.booking-form .performer-hint{grid-column:1/-1;font-size:13px;line-height:1.5;font-weight:500;color:#627780;margin:0}

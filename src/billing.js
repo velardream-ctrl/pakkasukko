@@ -72,7 +72,7 @@ export async function billing(req,env,path,reply){
    if(base==null||travel==null)return fail('Укажите согласованные суммы в евро.');
    const buyer=String(input.buyer||b.name).trim().slice(0,200),address=String(input.address||b.address+', '+b.city).trim().slice(0,350);
    const issued=preview&&day()<b.start_at.slice(0,10)?b.start_at.slice(0,10):day(),due=new Date(issued+'T12:00:00Z');due.setUTCDate(due.getUTCDate()+Number(p.terms));
-   const defaults=invoiceService(b.service,q.remote);
+   const defaults=invoiceService(b.service,q.remote,q);
    const description=(value,fallback)=>value===undefined?fallback:typeof value==='string'?value.trim():null;
    const serviceFi=description(input.serviceFi,defaults.fi),serviceRu=description(input.serviceRu,defaults.ru);
    if(!serviceFi||serviceFi.length>220||serviceRu===null||serviceRu.length>220)return fail('Проверьте наименование услуги (до 220 символов).');

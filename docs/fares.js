@@ -26,12 +26,44 @@ export function validHolidayRule(rule){
    &&Number.isInteger(rule.percent)&&rule.percent>=0&&rule.percent<=300;
 }
 export const defaultFare={fuel:2.20,consumption:10,holidayPercent:50,km:{Kitee:0,Puhos:15,'Tohmajärvi':20,Joensuu:67},routes:{}};
+// Rates are stored in integer cents. An empty price means that artist combination
+// cannot be booked for that duration. Older tariffs continue to work unchanged.
+export function validPerformanceConfig(value){
+ if(value===undefined)return true;
+ if(!value||typeof value!=='object'||Array.isArray(value)||typeof value.enabled!=='boolean'
+   ||!value.rates||typeof value.rates!=='object'||Array.isArray(value.rates))return false;
+ const services=Object.entries(value.rates);
+ if(services.length>60)return false;
+ for(const [id,rows] of services){
+  if(!/^[a-z0-9_-]{1,80}$/i.test(id)||['__proto__','prototype','constructor'].includes(id.toLowerCase())
+    ||!Array.isArray(rows)||rows.length>25)return false;
+  const seen=new Set();
+  for(const row of rows){
+   if(!row||!Number.isInteger(row.minutes)||row.minutes<15||row.minutes>480||seen.has(row.minutes))return false;
+   seen.add(row.minutes);
+   if(!['solo','duo'].every(key=>row[key]===null||Number.isInteger(row[key])&&row[key]>=0&&row[key]<=10000000))return false;
+   if(row.solo===null&&row.duo===null)return false;
+  }
+ }
+ return true;
+}
+export function performanceRows(fare,service){
+ if(fare?.performance?.enabled!==true)return [];
+ const rows=fare.performance.rates?.[service];
+ return Array.isArray(rows)?rows:[];
+}
+export function performanceChoice(fare,service,minutes,cast){
+ if(!['solo','duo'].includes(cast)||!Number.isInteger(minutes))return null;
+ const row=performanceRows(fare,service).find(r=>r.minutes===minutes);
+ return row&&Number.isInteger(row[cast])?{minutes,cast,amount:row[cast]}:null;
+}
 export function validFare(f){
   const number=(n,min,max)=>typeof n==='number'&&Number.isFinite(n)&&n>=min&&n<=max;
   if(!number(f?.fuel,0.001,20)||!number(f?.consumption,0.1,100)||f.km?.Kitee!==0)return false;
   if(f.holidayPercent!==undefined&&(!Number.isInteger(f.holidayPercent)||!number(f.holidayPercent,0,300)))return false;
   if(f.holidayRules!==undefined&&(!Array.isArray(f.holidayRules)||f.holidayRules.length>60||!f.holidayRules.every(validHolidayRule)))return false;
   if(f.holidaySort!==undefined&&!['date','percent_desc','percent_asc','name'].includes(f.holidaySort))return false;
+  if(!validPerformanceConfig(f.performance))return false;
   const cities=Object.keys(f.km),seen=new Set();
   if(cities.length>100 || !f.routes || typeof f.routes!=='object' || Array.isArray(f.routes))return false;
   if(Object.keys(f.routes).some(city=>!Object.hasOwn(f.km,city)))return false;
@@ -79,9 +111,9 @@ export function holidayInfo(startAt,fare=defaultFare){
  return best?.percent>0?best:null;
 }
 export const holidayNight=(startAt,fare=defaultFare)=>holidayInfo(startAt,fare)?.name||null;
-export function quote(fare,item,city,group=false,visitTimes=[]){
+export function quote(fare,item,city,group=false,visitTimes=[],performance=null){
   const match=String(item.label).trim().match(/^(?:от\s*)?(\d+(?:[.,]\d{1,2})?)\s*(?:€|евро)?$/iu);
-  const base=match?Math.round(Number(match[1].replace(',','.'))*100):null;
+  const base=performance?performance.amount:match?Math.round(Number(match[1].replace(',','.'))*100):null;
   const known=Object.hasOwn(fare.km,city),local=item.remote||city==='Kitee';
   const route=known&&!local?fare.routes?.[city]:null;
   const rail=route?.mode==='rail';
@@ -93,7 +125,8 @@ export function quote(fare,item,city,group=false,visitTimes=[]){
   return {city,group,remote:item.remote,label:item.label,base,mode:rail?'rail':'car',km,fuel:fare.fuel,consumption:fare.consumption,
     transport,nights,nightly,hotel,meals,travel,total:base===null||travel===null?null:base+travel,
     holidayPercent:holidayRate(fare),visitTimes:[...visitTimes].sort(),
-    holidayVisits:[...visitTimes].sort().map(time=>holidayInfo(time,fare))};
+    holidayVisits:[...visitTimes].sort().map(time=>holidayInfo(time,fare)),
+    ...(performance?{durationMinutes:performance.minutes,performerCast:performance.cast}: {})};
 }
 export function describe(q){
   let ride;
@@ -102,7 +135,7 @@ export function describe(q){
   else if(q.city==='Kitee')ride='Выезд по Kitee без доплаты';
   else if(q.mode==='rail')ride='Поезд, билеты туда и обратно '+euros(q.transport);
   else ride='Автомобиль, туда и обратно '+q.km+' км · '+euros(q.transport);
-  const parts=['Программа '+(q.base===null?'по согласованию':euros(q.base)),ride];
+  const parts=[...(q.durationMinutes?[(q.performerCast==='duo'?'Дед Мороз и Снегурочка':'Дед Мороз')+' · '+q.durationMinutes+' минут']:[]),'Программа '+(q.base===null?'по согласованию':euros(q.base)),ride];
   if(q.holidayName)parts.push(q.holidayName+' · +'+q.holidayPercent+'% к программе'+(q.holidayExtra===null?' (стоимость по согласованию)':' ('+euros(q.holidayExtra)+')'));
   if(q.hotel)parts.push('Гостиница ('+q.nights+' ноч.) '+euros(q.hotel));
   if(q.meals)parts.push('Питание '+euros(q.meals));

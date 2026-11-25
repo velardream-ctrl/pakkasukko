@@ -45,7 +45,7 @@ export function invoiceControls(box,b,request,reload){
  if(!b.invoice_number){
    const panel=document.createElement('details'),title=document.createElement('summary');title.textContent='Подготовить счёт';panel.append(title);box.append(panel);
    const buyer=input(panel,'Получатель',b.name),address=input(panel,'Платёжный адрес',b.address+', '+b.city);
-   const defaults=invoiceService(b.service,q.remote);
+   const defaults=invoiceService(b.service,q.remote,q);
    const serviceFi=input(panel,'Наименование услуги по-фински (Palvelun kuvaus)',defaults.fi);
    const serviceRu=input(panel,'Наименование услуги по-русски',defaults.ru);
    serviceFi.maxLength=220;serviceRu.maxLength=220;serviceFi.required=true;

@@ -1,6 +1,6 @@
 import {deliveryConfig,deliveryLink} from './video-service.js';
-import {mountFares} from './fare-form.js?v=56';
-import {holidayInfo} from './fares.js?v=55';
+import {mountFares} from './fare-form.js?v=60';
+import {holidayInfo} from './fares.js?v=60';
 import {fitTagline} from './tagline.js';
 import {pageText,initial,bindPage,renderPage,deviceFor} from './site.js?v=45';
 import {mountSpatialPhoto} from './spatial-gallery.js?v=8';
@@ -92,11 +92,14 @@ async function activate(){
       $('#slotId').value=list[0]?.id||'';fare.setSlots(list);
       submit.disabled=!list.length;submit.textContent=list.length?pageText(model,'send'):pageText(model,'chooseTime');
     }
+    const slotMinutes=slot=>(Date.parse(slot.end_at+':00Z')-Date.parse(slot.start_at+':00Z'))/60000;
     function fill(){
       chosen.clear();addressInputs.clear();addressList.replaceChildren();addressLabel.hidden=false;originalAddress.required=true;fare.setSlots([]);
       area.replaceChildren();$('#slotId').value='';submit.disabled=true;
       submit.textContent=selectable?pageText(model,'chooseTime'):'Приём заявок пока закрыт';
-      for(const slot of slots.filter(s=>s.start_at.startsWith(select.value))){
+      const matching=slots.filter(s=>s.start_at.startsWith(select.value)&&slotMinutes(s)>=fare.durationMinutes());
+      if(!matching.length)area.textContent='На выбранную продолжительность свободных интервалов нет. Выберите другой день или продолжительность.';
+      for(const slot of matching){
         const element=document.createElement(selectable?'button':'span');
         element.className=selectable?'slot':'slot slot-readonly';
         element.textContent=slot.start_at.slice(11,16)+'–'+slot.end_at.slice(11,16);
@@ -113,6 +116,7 @@ async function activate(){
         area.append(element);
       }
     }
+    fare.onSelectionChange(fill);
     select.addEventListener('change',fill);fill();
     $('#bookingMode').textContent=selectable?pageText(model,'pending'):
       'Свободные даты уже видны. Отправка заявок пока закрыта — можно ознакомиться с расписанием.';

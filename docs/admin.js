@@ -1,13 +1,13 @@
 import {sellerForm,invoiceControls} from './billing-panel.js';
 import {applyBrand} from './site.js';
 import {musicAdmin} from './music-admin.js';
-import {holidayRules,validFare,validHolidayRule} from './fares.js?v=58';
+import {holidayRules,validFare,validHolidayRule} from './fares.js?v=60';
 import {nextAnnualISO,endAnnualISO,isoToAnnual,compareHolidayRules,shiftEndForNewStart} from './holiday-calendar.js?v=59';
 import {renderVideoOrders} from './video-admin.js';
 import {moveControls,slotControls} from './reschedule-panel.js';
 
 const $=id=>document.getElementById(id);
-let state=null;
+let state=null,publicServices={};
 const preview=location.hostname.endsWith('github.io')||location.hostname.endsWith('githack.com');
 if(!preview)request('/api/public-config').then(config=>applyBrand(document,config.site?.logo)).catch(()=>{});
 if(preview){$('previewNotice').classList.remove('hidden');$('loginForm').querySelector('button').disabled=true;}
@@ -22,7 +22,7 @@ function textBlock(parent,tag,text,cls){const child=el(tag,text,cls);parent.appe
 function button(parent,label,cb,cls){const b=el('button',label,cls);b.type='button';b.addEventListener('click',cb);parent.append(b);return b;}
 function format(stamp){return (stamp||'').replace('T',' ');}
 async function reload(){
- try{state=await request('/api/admin/dashboard');$('loginBox').classList.add('hidden');$('dashboard').classList.remove('hidden');$('logout').classList.remove('hidden');render();renderFare();await reloadInvoices();await reloadBookingState();await renderVideoOrders($('videoOrderList'),request);}
+ try{state=await request('/api/admin/dashboard');try{publicServices=(await request('/api/public-config')).services||{};}catch{publicServices={};}$('loginBox').classList.add('hidden');$('dashboard').classList.remove('hidden');$('logout').classList.remove('hidden');render();renderFare();renderPerformance();await reloadInvoices();await reloadBookingState();await renderVideoOrders($('videoOrderList'),request);}
  catch(e){$('dashboard').classList.add('hidden');$('loginBox').classList.remove('hidden');$('logout').classList.add('hidden');}
 }
 async function reloadInvoices(){
@@ -65,6 +65,74 @@ function renderFare(){
  fareNumber(box,'Расход, л/100 км',f.consumption,100,'0.1').id='fareConsumption';
  for(const [city,km] of Object.entries(f.km))if(city!=='Kitee')addFareCity(city,km,f.routes?.[city]);
 }
+// Each duration has two independent prices. Stored values are integer euro cents.
+function performanceRow(parent,rate={minutes:30,solo:null,duo:null}){
+ const row=el('fieldset',undefined,'record performance-rate'),grid=el('div',undefined,'admin-grid');
+ const minutes=fareNumber(grid,'Длительность, минуты',rate.minutes,480,'5');
+ minutes.min='15';minutes.step='5';
+ const solo=fareNumber(grid,'Дед Мороз, €',rate.solo===null?'':(rate.solo/100).toFixed(2),100000);
+ const duo=fareNumber(grid,'Дед Мороз + Снегурочка, €',rate.duo===null?'':(rate.duo/100).toFixed(2),100000);
+ solo.required=false;duo.required=false;
+ row.append(grid);
+ button(row,'Удалить продолжительность',()=>{row.remove();status('performanceStatus','Есть несохранённые изменения.');});
+ row.readRate=()=>{
+  const convert=input=>{
+   if(input.value.trim()==='')return null;
+   if(!input.validity.valid||!/^[0-9]+(?:\.[0-9]{1,2})?$/.test(input.value))throw Error('Стоимость должна быть числом с точностью до цента.');
+   return Math.round(Number(input.value)*100);
+  };
+  return {minutes:minutes.valueAsNumber,solo:convert(solo),duo:convert(duo)};
+ };
+ parent.append(row);
+ return row;
+}
+function renderPerformance(){
+ const enabled=state.fares.performance?.enabled===true,rates=state.fares.performance?.rates||{};
+ $('performanceEnabled').checked=enabled;
+ const root=$('performancePrograms');root.replaceChildren();
+ const services=Object.keys(publicServices).length?Object.entries(publicServices).filter(([,item])=>!item.remote):[['gift',{label:'от 50 €'}],['home',{label:'от 100 €'}],['event',{label:'По запросу'}]];
+ const labels=new Map(services.map(([id,item])=>[id,item.label||id]));
+ for(const id of Object.keys(rates))if(!labels.has(id))labels.set(id,id+' (сохранённая программа)');
+ for(const [id,label] of labels){
+  const section=el('fieldset',undefined,'record performance-service');section.dataset.service=id;
+  const name=el('h3',id==='gift'?'Короткое поздравление':id==='home'?'Домашняя программа':id==='event'?'Мероприятие':id);
+  const help=el('p','Исходная цена карточки: '+label,'muted');
+  const rows=el('div',undefined,'records');
+  const match=String(label).match(/^(?:от\s*)?(\d+(?:[.,]\d{1,2})?)\s*€?$/i);
+  const original=match?Math.round(Number(match[1].replace(',','.'))*100):null;
+  for(const rate of rates[id]||[{minutes:30,solo:original,duo:null}])performanceRow(rows,rate);
+  button(section,'＋ Добавить продолжительность',()=>{
+   const current=[...rows.children].map(x=>x.readRate().minutes);
+   const n=[20,30,45,60,90,120].find(n=>!current.includes(n))||Math.max(...current,0)+15;
+   if(rows.children.length>=25||n>480){status('performanceStatus','Не более 25 продолжительностей для одной программы.',true);return;}
+   performanceRow(rows,{minutes:n,solo:null,duo:null});
+   status('performanceStatus','Есть несохранённые изменения.');
+  });
+  section.prepend(name,help,rows);section.readRates=()=>[...rows.children].map(x=>x.readRate()).filter(x=>x.solo!==null||x.duo!==null);
+  root.append(section);
+ }
+ status('performanceStatus',enabled?'Выбор артистов включён. Изменяйте цены и сохраняйте настройки.':'Пока выключено: прежняя форма бронирования работает как раньше.');
+}
+$('performanceForm').addEventListener('input',()=>status('performanceStatus','Есть несохранённые изменения. Нажмите «Сохранить программы и цены».'));
+$('performanceForm').onsubmit=async event=>{
+ event.preventDefault();
+ const submit=$('performanceForm').querySelector('button[type="submit"]');
+ if(submit.disabled)return;
+ try{
+  const rates=Object.create(null);
+  for(const section of $('performancePrograms').children)rates[section.dataset.service]=section.readRates();
+  const performance={enabled:$('performanceEnabled').checked,rates};
+  const fares={...state.fares,performance};
+  if(!validFare(fares))throw Error('Проверьте длительности (15–480 минут, без повторов) и цены (от 0 до 100 000 €).');
+  submit.disabled=true;status('performanceStatus','Сохраняем и проверяем настройки…');
+  await request('/api/admin/travel-fare','POST',fares);
+  const verified=(await request('/api/public-config')).fares;
+  if(JSON.stringify(verified?.performance)!==JSON.stringify(performance))throw Error('Сервер не подтвердил сохранение. Не обновляйте страницу, попробуйте ещё раз.');
+  state.fares=verified;status('performanceStatus','Сохранено. Посетители увидят только настроенные сочетания артистов и длительности.');
+ }catch(e){status('performanceStatus','Не сохранено: '+e.message,true);}
+ finally{submit.disabled=false;}
+};
+
 $('addFareCity').onclick=()=>addFareCity().focus();
 function appendHolidayRule(rule={}){
  const item=el('div',undefined,'record holiday-rule'),grid=el('div',undefined,'holiday-grid');

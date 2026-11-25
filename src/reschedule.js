@@ -27,6 +27,7 @@ export async function reschedule(req,env,reply,fiNow,now,notify){
  if(row.invoice_number!=null||row.trip_id)return fail('Счёт уже выписан или поездка зафиксирована. Перенос заблокирован для защиты расчётов.',409);
  if(row.start_at!==body.oldStart||row.end_at!==body.oldEnd)return fail('Заявка уже изменилась. Обновите админку.',409);
  const quote=JSON.parse(row.snapshot||'{}');
+ if(quote.durationMinutes&&minutes<quote.durationMinutes)return fail('Новый интервал короче выбранного выступления ('+quote.durationMinutes+' минут).',409);
  if(quote.groupSize>1&&start.slice(0,10)!==row.start_at.slice(0,10))return fail('Коллективный заказ нельзя переносить по одному адресу на другой день: сначала согласуйте новый расчёт всей поездки.',409);
  if(start===row.start_at&&end===row.end_at)return fail('Выберите другое время.');
  const conflicts=(await db.prepare('SELECT id,start_at,end_at,status FROM slots WHERE start_at<? AND end_at>? ORDER BY start_at').bind(end,start).all()).results;

@@ -244,3 +244,38 @@ test('holiday tariff edits persist across separate admin dashboard reads, and in
  const afterError=(await (await request('admin/dashboard')).json()).fares;
  assert.deepEqual(afterError.holidayRules,rules,'invalid form must not wipe previously saved intervals');
 });
+
+test('owner-set performer rates persist; quotes are server-priced and require a long enough slot',async()=>{
+ const {request,login,sqlite,env}=fixture();
+ const {quote,performanceChoice}=await import('../docs/fares.js');
+ env.DB.batch=async statements=>{sqlite.exec('BEGIN');try{for(const step of statements)step.run();sqlite.exec('COMMIT');}catch(e){sqlite.exec('ROLLBACK');throw e;}};
+ Object.assign(env,{TURNSTILE_SITE_KEY:'site',TURNSTILE_SECRET:'secret',OWNER_EMAIL:'owner@example.test',FROM_EMAIL:'from@example.test',RESEND_API_KEY:'test'});
+ for(const key of ['enabled','mail_test','mail_received','privacy_confirmed'])sqlite.prepare('INSERT INTO booking_settings VALUES(?,?)').run(key,'true');
+ await login();
+ const base=(await (await request('admin/dashboard')).json()).fares;
+ const performance={enabled:true,rates:{home:[{minutes:30,solo:10000,duo:15000},{minutes:60,solo:16000,duo:25000}]}};
+ assert.equal((await request('admin/travel-fare',{...base,performance})).status,200);
+ const config=await (await request('public-config')).json();
+ assert.deepEqual(config.fares.performance,performance);
+ assert.equal((await request('admin/slots',{startAt:'2099-12-26T10:00',minutes:30})).status,201);
+ assert.equal((await request('admin/slots',{startAt:'2099-12-26T11:00',minutes:60})).status,201);
+ const [short,long]=sqlite.prepare('SELECT id,start_at FROM slots ORDER BY start_at').all();
+ const choice=performanceChoice(config.fares,'home',60,'duo');
+ const baseBody={service:'home',city:'Kitee',name:'Test',address:'Road 1',phone:'123456',turnstileToken:'test',
+  performanceMinutes:60,performerCast:'duo'};
+ const token=(slot,performance=choice)=>JSON.stringify(quote(config.fares,config.services.home,'Kitee',false,[slot.start_at],performance));
+ const original=globalThis.fetch;
+ try{
+  globalThis.fetch=async()=>Response.json({success:true});
+  assert.equal((await request('bookings',{...baseBody,slotId:short.id,quoteToken:token(short)})).status,409,'cannot fit a 60-minute visit in a 30-minute slot');
+  assert.equal((await request('bookings',{...baseBody,slotId:long.id,quoteToken:token(long,{...choice,amount:1})})).status,409,'client cannot invent a lower amount');
+  const accepted=await request('bookings',{...baseBody,slotId:long.id,quoteToken:token(long)});
+  assert.equal(accepted.status,201);
+  const {id,summary}=await accepted.json();
+  assert.match(summary,/Снегурочка/);
+  const snapshot=JSON.parse(sqlite.prepare('SELECT snapshot FROM booking_quotes WHERE booking_id=?').get(id).snapshot);
+  assert.equal(snapshot.base,25000);
+  assert.equal(snapshot.durationMinutes,60);
+  assert.equal(snapshot.performerCast,'duo');
+ }finally{globalThis.fetch=original;}
+});

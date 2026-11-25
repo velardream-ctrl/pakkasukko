@@ -9,12 +9,24 @@ body{background:#f2f4f5;color:#243747}.admin-top{background:#0a1b2a;color:#fff;p
 .holiday-grid{display:grid;grid-template-columns:minmax(140px,1.6fr) repeat(4,minmax(105px,1fr)) minmax(85px,.7fr);gap:10px}.holiday-rule{margin:0}.holiday-rule .admin-actions{margin-top:10px}.holiday-rule label{font-size:13px}.holiday-rule input{min-width:0}@media(max-width:1000px){.holiday-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(max-width:650px){.holiday-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.holiday-grid label:first-child{grid-column:1/-1}}
 .holiday-sort-actions{margin:12px 0 18px}.holiday-sort-actions label{min-width:260px;max-width:440px;flex:1}
 .holiday-invalid{border-color:#bf4b4b!important;background:#fff5f5!important}.holiday-row-error{color:#a32631!important;font-weight:700;font-size:14px!important}.holiday-row-error[hidden]{display:none!important}#holidayStatusTop:not(:empty){padding:12px 14px;border-radius:8px;background:#eff7f4;margin:12px 0}#holidayStatusTop.error{background:#ffeaea;color:#a32631}
+.performance-toggle{display:flex!important;flex-direction:row!important;align-items:center;gap:10px;font-size:15px!important;margin:18px 0!important}.performance-rate .admin-grid{grid-template-columns:repeat(3,minmax(0,1fr))}@media(max-width:700px){.performance-rate .admin-grid{grid-template-columns:1fr}}
 </style><link rel="stylesheet" href="./form-fit.css?v=39"></head><body>
 <header class="admin-top"><div class="container"><a class="brand" href="./index.html"><img class="owner-logo" src="./assets/pakkasukko-medallion.png" width="40" height="40" alt=""><span class="brand-flake" hidden aria-hidden="true">✧</span> PAKKASUKKO</a><div><a href="./index.html">На сайт ↗</a> <button id="logout" class="hidden">Выйти</button></div></div></header>
 <main class="admin-main container"><p class="section-kicker" style="color:#97703f">УПРАВЛЕНИЕ ПРАЗДНИКАМИ</p><h1>Мастерская <em>Деда Мороза</em></h1>
 <section class="admin-box admin-login" id="loginBox"><h2>Вход владельца</h2><p>Закрытая административная часть. Пароль хранится только в секретах отдельного Cloudflare Worker Pakkasukko.</p><div id="previewNotice" class="preview-warning hidden">Здесь опубликован только визуальный макет GitHub Pages. Для настоящей админки подключите собственный Cloudflare Worker и D1-базу проекта Pakkasukko.</div><form id="loginForm"><label>Пароль<input type="password" name="password" required autocomplete="current-password"></label><button class="btn btn-dark" type="submit">Войти ↗</button><p id="loginStatus" class="status" role="status"></p></form></section>
 <div id="dashboard" class="hidden"><details class="admin-box" id="musicSettings"><summary>Музыка зимней сказки</summary><div id="musicForm"></div></details><details class="admin-box" id="billingSettings"><summary>Реквизиты для счетов и PDF</summary><div id="sellerForm"></div></details>
 <details class="admin-box" id="travelSettings"><summary>Стоимость поездки</summary><p>Kitee — точка выезда. Для автомобиля укажите расстояние в одну сторону, для поезда — общую цену билетов туда и обратно. Изменения действуют для новых заявок.</p><form id="fareForm"><div id="fareInputs" class="admin-grid"></div><div id="fareCities"></div><button type="button" id="addFareCity">Добавить город</button> <button class="btn btn-dark">Сохранить тариф</button><p id="fareStatus" role="status"></p></form></details>
+<details class="admin-box" id="performanceSettings">
+<summary>Артисты и длительность выступлений</summary>
+<p>Задайте стоимость Деда Мороза и дуэта со Снегурочкой для каждой программы и продолжительности. Пустая цена означает, что этот вариант нельзя выбрать. Чтобы предлагать дуэт посетителям, заполните его стоимость и включите переключатель.</p>
+<p class="preview-warning">Важно: 30-минутные интервалы календаря остаются на месте. Выступление на 45–60 минут можно заказать только внутри открытого интервала не короче этого времени. Для более длинной программы создайте подходящее свободное окно в разделе «Календарь и переезды». Соседние 30-минутные интервалы автоматически не объединяются.</p>
+<form id="performanceForm" novalidate>
+<label class="performance-toggle"><input type="checkbox" id="performanceEnabled"> Показывать выбор длительности и состава артистов посетителям</label>
+<div id="performancePrograms" class="records"></div>
+<div class="admin-actions"><button type="submit" class="btn btn-dark">Сохранить программы и цены</button></div>
+<p id="performanceStatus" class="status" role="status"></p>
+</form>
+</details>
 <details class="admin-box" id="holidaySettings">
 <summary>Праздничные тарифы и интервалы времени</summary>
 <p>Выбирайте даты начала и окончания прямо из раскрывающегося календаря, а часы — из поля времени. Год в календаре нужен только для выбора: сохранённые интервалы повторяются каждый год. При переносе даты начала дата окончания сдвигается вместе с ней. У каждого периода своя надбавка в процентах. Периоды могут переходить через полночь или Новый год. Все часы — по Финляндии. Если интервалы пересекаются, применяется большая надбавка. Изменения действуют только для новых заявок; дорога, гостиница и питание не дорожают.</p>
@@ -52,4 +64,4 @@ body{background:#f2f4f5;color:#243747}.admin-top{background:#0a1b2a;color:#fff;p
 <section class="admin-box"><h2>Заказы по дате получения</h2><p>Видеопоздравления и другие услуги без бронирования часов. Дата — желаемый день получения.</p><div id="videoOrderList" class="records"></div></section><section class="admin-box"><h2>Сообщения</h2><div class="admin-actions"><a href="/api/admin/export-messages">Выгрузить сообщения CSV ↓</a></div><div id="messageList" class="records"></div></section>
 
 </div>
-</main><script type="module" src="./admin.js?v=59"></script></body></html>
+</main><script type="module" src="./admin.js?v=60"></script></body></html>
