@@ -1,0 +1,59 @@
+/* RUN-039: prevent native iOS date controls from expanding their grid/flex parents. */
+.letter,.letter form,.letter fieldset,
+.booking-panel,.booking-form,.booking-form fieldset,
+.admin-box,.admin-box form,.admin-box fieldset,.admin-box .record,
+.pk-field,.program-edit-fields{
+  min-width:0;
+  max-width:100%;
+}
+.letter label,.booking-form label,.admin-box label,.program-edit-fields label{
+  min-width:0;
+  max-width:100%;
+}
+.letter label:not(.consent){
+  grid-template-columns:minmax(0,1fr);
+}
+.letter input:not([type="checkbox"]):not([type="radio"]),
+.letter select,.letter textarea,
+.booking input:not([type="checkbox"]):not([type="radio"]),
+.booking select,.booking textarea,
+.admin-box input:not([type="checkbox"]):not([type="radio"]),
+.admin-box select,.admin-box textarea{
+  box-sizing:border-box;
+  width:100%;
+  min-width:0;
+  max-width:100%;
+}
+input[type="date"],input[type="time"],input[type="datetime-local"]{
+  display:block;
+  box-sizing:border-box;
+  width:100%;
+  min-width:0;
+  max-width:100%;
+  inline-size:100%;
+  min-inline-size:0;
+  max-inline-size:100%;
+  margin-inline:0;
+  align-self:stretch;
+  -webkit-appearance:none;
+  appearance:none;
+}
+input[type="date"]::-webkit-date-and-time-value,
+input[type="time"]::-webkit-date-and-time-value,
+input[type="datetime-local"]::-webkit-date-and-time-value{
+  min-width:0;
+  max-width:100%;
+  text-align:start;
+}
+input[type="date"]::-webkit-datetime-edit,
+input[type="time"]::-webkit-datetime-edit,
+input[type="datetime-local"]::-webkit-datetime-edit{
+  min-width:0;
+  max-width:100%;
+}
+.booking-grid{grid-template-columns:minmax(0,.83fr) minmax(0,1.17fr)}
+.form-row,.admin-grid,.content-fields{grid-template-columns:repeat(2,minmax(0,1fr))}
+.booking-form,.records{grid-template-columns:minmax(0,1fr)}
+@media(max-width:760px){.booking-grid{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:700px){.admin-grid,.content-fields{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:430px){.form-row{grid-template-columns:minmax(0,1fr)}}
