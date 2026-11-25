@@ -22,10 +22,10 @@ h1{font:400 clamp(27px,5vw,44px)/1.14 Georgia,serif;letter-spacing:-.018em;margi
 .composition{position:absolute;inset:0;width:100%;height:100%;overflow:hidden;background:#08101c;box-shadow:0 12px 55px #000a;will-change:transform}
 .composition img{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;display:block;pointer-events:none;-webkit-user-drag:none}
 .background{z-index:1;left:50%!important;right:auto!important;top:0!important;bottom:auto!important;width:auto!important;max-width:none!important;height:100%;object-fit:cover;transform:translate3d(calc(-50% + var(--bg-focus,0px)),0,0) scale(var(--bg-scale,1.34));transform-origin:center;will-change:transform}
-.background-upper{z-index:2;transform:translate3d(calc(-50% + var(--bg-focus,0px) + var(--bg-x,0px)),var(--bg-y,0px),0) scale(var(--bg-scale,1.34));-webkit-mask-image:linear-gradient(to bottom,#000 0%,#000 34%,#000d 48%,#0008 65%,transparent 87%);mask-image:linear-gradient(to bottom,#000 0%,#000 34%,#000d 48%,#0008 65%,transparent 87%)}
+.background-upper{z-index:2;transform-origin:50% 95%;transform:translate3d(calc(-50% + var(--bg-focus,0px) + var(--bg-x,0px)),var(--bg-y,0px),0) perspective(1400px) rotateY(var(--world-yaw,0deg)) rotateX(var(--world-pitch,0deg)) scale(var(--bg-scale,1.34));-webkit-mask-image:linear-gradient(to bottom,#000 0%,#000 34%,#000d 48%,#0008 65%,transparent 87%);mask-image:linear-gradient(to bottom,#000 0%,#000 34%,#000d 48%,#0008 65%,transparent 87%)}
 @supports not ((-webkit-mask-image:linear-gradient(to bottom,#000,transparent)) or (mask-image:linear-gradient(to bottom,#000,transparent))){.background-upper{display:none}}
 .contact-shadow{z-index:3;position:absolute;left:50%;width:min(35%,280px);height:4%;bottom:2.3%;border-radius:50%;background:#080c1c73;filter:blur(14px);transform:translate3d(calc(-50% + var(--shadow-x,0px)),4px,0);pointer-events:none}
-.figure{z-index:4;left:50%!important;right:auto!important;top:0!important;bottom:auto!important;width:auto!important;max-width:none!important;height:100%;object-fit:contain;transform-origin:50% 95%;transform:translate3d(-50%,0,0) perspective(1100px) rotateY(var(--figure-yaw,0deg)) skewX(var(--figure-lean,0deg));filter:drop-shadow(0px 9px 13px #02091770);will-change:transform}
+.figure{z-index:4;left:50%!important;right:auto!important;top:0!important;bottom:auto!important;width:auto!important;max-width:none!important;height:100%;object-fit:contain;transform-origin:50% 95%;transform:translate3d(-50%,0,0) perspective(1100px) rotateY(var(--figure-yaw,0deg)) rotateX(var(--figure-pitch,0deg)) rotateZ(var(--figure-lean,0deg));filter:drop-shadow(0px 9px 13px #02091770);will-change:transform}
 .original{z-index:6;opacity:0;object-fit:contain!important;transition:opacity .24s}
 .composition.flat .original,.composition.broken .original{opacity:1}
 .composition.flat .figure,.composition.broken .figure,.composition.flat .contact-shadow,.composition.broken .contact-shadow{opacity:0}
@@ -58,7 +58,7 @@ button:focus-visible,input:focus-visible{outline:3px solid #ffdba5;outline-offse
 <header>
 <div class="kicker">PAKKASUKKO · ТЕСТ 3D</div>
 <h1>Внутри зимней сказки</h1>
-<p class="subtitle">Ноги Деда Мороза стоят на неподвижном снегу, а верхняя часть фигуры и далёкий лес создают ощущение глубины. Проведите пальцем по сцене.</p>
+<p class="subtitle">Дед Мороз словно поворачивается вокруг точки под сапогами: ноги устойчивы, а голова, плечи и зимний лес меняют ракурс при движении.</p>
 </header>
 <section class="demo" aria-label="Интерактивная фотография Деда Мороза">
 <div class="scene" id="scene" aria-label="Проведите пальцем или мышью, чтобы увидеть глубину">
@@ -84,7 +84,7 @@ button:focus-visible,input:focus-visible{outline:3px solid #ffdba5;outline-offse
 <div class="status" id="status" role="status" aria-live="polite">Загружаем Деда Мороза и зимний фон…</div>
 </section>
 <p class="instructions">Проведите по фотографии пальцем или мышью. Для эффекта от наклона телефона нажмите «Движение iPhone» и разрешите доступ к датчику. Кнопка «Автопоказ» показывает движение без датчика.</p>
-<div class="details"><strong>Как устроено:</strong> персонаж с посохом вырезан из фотографии; пространство за ним восстановлено, чтобы при движении фон оставался цельным. Земля под сапогами зафиксирована, а движение фона постепенно исчезает к нижнему краю. Это тестовый эффект глубины, а не полноценная 3D-модель или технология Apple. Основной сайт не изменён.</div>
+<div class="details"><strong>Как устроено:</strong> персонаж с посохом вырезан из фотографии; пространство за ним восстановлено, чтобы при движении фон оставался цельным. Точка опоры закреплена под сапогами. Персонаж поворачивается как цельная фигура, а задний план меняет перспективу; движение фона постепенно исчезает у земли. Это тестовый эффект глубины, а не полноценная 3D-модель или технология Apple. Основной сайт не изменён.</div>
 </main>
 <script>
 (function(){
@@ -197,8 +197,11 @@ function tick(now){
  comp.style.setProperty("--bg-focus",(Math.max(0,(640-scene.clientWidth)*.4)).toFixed(1)+"px");
  bgUpper.style.setProperty("--bg-x",(-x*px).toFixed(2)+"px");
  bgUpper.style.setProperty("--bg-y",(-y*py*.65).toFixed(2)+"px");
- figure.style.setProperty("--figure-lean",(-x*3.4*intensity).toFixed(2)+"deg");
- figure.style.setProperty("--figure-yaw",(x*5*intensity).toFixed(2)+"deg");
+ figure.style.setProperty("--figure-lean",(x*3.2*intensity).toFixed(2)+"deg");
+ figure.style.setProperty("--figure-yaw",(x*4.5*intensity).toFixed(2)+"deg");
+ figure.style.setProperty("--figure-pitch",(-y*2.7*intensity).toFixed(2)+"deg");
+ bgUpper.style.setProperty("--world-yaw",(-x*5.2*intensity).toFixed(2)+"deg");
+ bgUpper.style.setProperty("--world-pitch",(y*3.4*intensity).toFixed(2)+"deg");
  comp.style.transform="scale("+zoom.toFixed(4)+")";
  requestAnimationFrame(tick);
 }
