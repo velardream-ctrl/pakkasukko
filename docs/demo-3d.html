@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>3D-проба по фотографии · Pakkasukko</title>
+<meta name="description" content="Отдельный экспериментальный просмотр глубины фотографии Деда Мороза Pakkasukko.">
+<style>
+:root{color-scheme:dark;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:#081723;color:#fff}
+.page{max-width:1180px;margin:auto;padding:clamp(12px,3vw,30px)}
+header{text-align:center;padding:18px 0 20px}
+.eyebrow{font-size:12px;letter-spacing:.24em;color:#d9b97b;font-weight:700}
+h1{font:400 clamp(27px,4.5vw,47px)/1.14 Georgia,"Times New Roman",serif;color:#f3e8d4;margin:12px 0}
+.description{color:#afc5cd;font-size:16px;line-height:1.5;margin:auto;max-width:680px}
+.badge{display:inline-block;margin-top:12px;padding:6px 11px;border-radius:50px;background:#1d3946;color:#d5c6a7;font-size:12px}
+.preview{border-radius:18px;overflow:hidden;background:#102936;box-shadow:0 22px 80px #0008}
+.viewport{position:relative;width:100%;height:min(72svh,820px);min-height:440px;overflow:hidden;touch-action:none;cursor:grab;background:radial-gradient(ellipse,#345065,#111d30 65%,#07111d)}
+.viewport:active{cursor:grabbing}
+.frame{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);transform-origin:50% 50%;will-change:transform}
+.frame img{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;pointer-events:none;user-select:none}
+#original{z-index:1;display:block}
+.layers{position:absolute;inset:0;perspective:900px;transform-style:preserve-3d}
+.layers[hidden]{display:none}
+.layer{position:absolute;inset:0;will-change:transform}
+.base{z-index:1;filter:blur(2px) brightness(.76)}
+.church{z-index:2;clip-path:polygon(0 0,38% 0,34% 20%,30% 29%,25% 42%,0 52%)}
+.trees{z-index:3;clip-path:polygon(88% 31%,100% 24%,100% 100%,83% 100%,88% 69%)}
+.person{z-index:5;filter:drop-shadow(0 0 5px #0005);clip-path:polygon(44% 3%,55% 3%,61% 5%,65% 11%,68% 18%,71% 23%,77% 28%,84% 30%,86% 36%,85% 40%,80% 45%,79% 61%,81% 78%,79% 90%,73% 95%,63% 99%,39% 99%,31% 97%,24% 94%,21% 83%,21% 69%,22% 51%,19% 41%,19% 32%,23% 25%,29% 22%,34% 17%,38% 9%)}
+.staff{z-index:6;clip-path:polygon(75% 3%,80% 2%,84% 5%,85% 12%,83% 18%,82% 34%,85% 96%,83% 99%,80% 99%,78% 33%,75% 18%,73% 10%)}
+.snow{position:absolute;inset:0;z-index:7;pointer-events:none;overflow:hidden}
+.flake{position:absolute;background:#f7faff;border-radius:50%;box-shadow:0 0 6px #eef5ff88;animation:fall linear infinite}
+@keyframes fall{from{transform:translate3d(0,-40px,0)}to{transform:translate3d(28px,920px,0)}}
+.tip{position:absolute;z-index:8;bottom:14px;left:50%;transform:translateX(-50%);font-size:13px;padding:10px 16px;background:#091b29c9;border:1px solid #ffffff33;border-radius:60px;white-space:nowrap;pointer-events:none}
+.controls{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;padding:17px;background:#122e3b}
+button{font:inherit;cursor:pointer;border:1px solid #647f89;border-radius:12px;background:#2b4855;color:#f7f8f5;padding:11px 16px;font-size:15px;min-height:43px}
+button:focus-visible{outline:3px solid #d6b46c;outline-offset:2px}
+button[aria-pressed=true]{background:#bd9356;border-color:#e6c587;color:#13232b;font-weight:700}
+.small{max-width:720px;color:#b8cbd1;text-align:center;font-size:14px;line-height:1.6;margin:17px auto}
+.warning{display:none;position:absolute;z-index:10;inset:18px;align-items:center;justify-content:center;text-align:center;padding:30px;background:#101f2dec;color:#ffe5af;line-height:1.5}
+.footer{text-align:center;font-size:12px;color:#86a4af;padding:18px}
+@media(max-width:600px){.viewport{height:min(69svh,650px);min-height:400px}.page{padding:8px}.preview{border-radius:12px}header{padding-top:20px}.eyebrow{font-size:11px}.tip{font-size:12px;max-width:94%;overflow:hidden;text-overflow:ellipsis}.controls{gap:8px;padding:14px}button{font-size:13px;padding:10px 12px}}
+@media(prefers-reduced-motion:reduce){.flake{animation:none}}
+</style>
+</head>
+<body>
+<div class="page">
+<header>
+<div class="eyebrow">PAKKASUKKO · ЭКСПЕРИМЕНТ</div>
+<h1>Внутри зимней сказки</h1>
+<p class="description">Пробный объёмный просмотр по настоящей фотографии Деда Мороза — с церковью и заснеженными деревьями позади.</p>
+<span class="badge">Отдельная тестовая страница · Главный сайт без изменений</span>
+</header>
+<main class="preview">
+<div class="viewport" id="viewport" aria-label="Интерактивная зимняя фотография Деда Мороза">
+<div id="frame" class="frame">
+<img id="original" src="./assets/pakkasukko-ded-moroz.webp" alt="Дед Мороз в красно-золотом костюме и светящимся посохом на фоне зимней церкви" draggable="false">
+<div class="layers" id="layers" hidden>
+<img class="layer base" alt="">
+<img class="layer church" alt="">
+<img class="layer trees" alt="">
+<img class="layer person" alt="">
+<img class="layer staff" alt="">
+</div>
+</div>
+<div class="snow" id="snow" aria-hidden="true"></div>
+<div class="tip" id="tip">Проведите пальцем или мышью</div>
+<div class="warning" id="warning" role="alert">Фотография не загрузилась. Проверьте доступность изображения на сайте и обновите страницу.</div>
+</div>
+<div class="controls">
+<button id="depth" aria-pressed="true">✦ Глубина</button>
+<button id="flat" aria-pressed="false">Исходное фото</button>
+<button id="left">↶ Влево</button>
+<button id="right">↷ Вправо</button>
+<button id="spin" aria-pressed="false">Автовращение</button>
+<button id="reset">Сброс</button>
+</div>
+</main>
+<p class="small">Один палец или мышь — небольшой поворот · Два пальца или колёсико — приближение. Деревья всегда остаются на заднем плане.</p>
+<p class="small">Это фотореалистичный эффект глубины (2.5D), а не готовая модель на 360°. Полный оборот без искажений потребует отдельной трёхмерной реконструкции.</p>
+<div class="footer">PAKKASUKKO · Тест. Бронирование и административные функции не затронуты.</div>
+</div>
+<script>
+(function(){
+"use strict";
+var viewport=document.getElementById("viewport");
+var frame=document.getElementById("frame");
+var photo=document.getElementById("original");
+var layers=document.getElementById("layers");
+var tip=document.getElementById("tip");
+var warning=document.getElementById("warning");
+var angle=0,pitch=0,scale=1,mode="depth",auto=false,loadOk=false;
+var pointers=new Map(),animStarted=false;
+function clamp(v,min,max){return Math.max(min,Math.min(max,v));}
+function layout(){
+var rect=viewport.getBoundingClientRect();
+var ratio=(photo.naturalWidth&&photo.naturalHeight)?photo.naturalWidth/photo.naturalHeight:2/3;
+var w=Math.min(rect.width,rect.height*ratio);
+var h=w/ratio;
+frame.style.width=w+"px";frame.style.height=h+"px";
+draw();
+}
+function draw(){
+frame.style.transform="translate(-50%,-50%) scale("+scale+")";
+if(!loadOk)return;
+var visible=mode==="depth";
+layers.hidden=!visible;
+photo.style.display=visible?"none":"block";
+var objects={
+base:[-angle*.18,-pitch*.2,0,0],
+church:[-angle*.65,-pitch*.3,0,0],
+trees:[-angle*.95,-pitch*.45,0,0],
+person:[angle*.58,-pitch*.5,angle*.35,-pitch*.22],
+staff:[angle*.58,-pitch*.5,angle*.35,-pitch*.22]
+};
+Object.keys(objects).forEach(function(key){
+var q=objects[key];
+var el=layers.querySelector("."+key);
+el.style.transform="translate("+q[0]+"px,"+q[1]+"px) rotateY("+q[2]+"deg) rotateX("+q[3]+"deg)";
+});
+}
+function setMode(next){
+mode=next;
+document.getElementById("depth").setAttribute("aria-pressed",String(next==="depth"));
+document.getElementById("flat").setAttribute("aria-pressed",String(next==="original"));
+tip.textContent=next==="depth"?"Проведите пальцем или мышью":"Оригинал без 3D-эффекта";
+if(next==="original"){auto=false;document.getElementById("spin").setAttribute("aria-pressed","false");}
+draw();
+}
+function setSource(src){
+Array.prototype.forEach.call(layers.querySelectorAll("img"),function(img){img.src=src;});
+}
+photo.addEventListener("load",function(){
+loadOk=true;warning.style.display="none";setSource(photo.currentSrc||photo.src);layout();setMode(mode);
+});
+photo.addEventListener("error",function(){
+if(photo.dataset.fallback!=="1"){
+photo.dataset.fallback="1";
+photo.src="https://raw.githubusercontent.com/velardream-ctrl/pakkasukko/preview/docs/assets/pakkasukko-ded-moroz.webp";
+return;
+}
+warning.style.display="flex";
+});
+if(photo.complete&&photo.naturalWidth){loadOk=true;setSource(photo.currentSrc||photo.src);layout();setMode(mode);}
+document.getElementById("depth").addEventListener("click",function(){setMode("depth");});
+document.getElementById("flat").addEventListener("click",function(){setMode("original");});
+document.getElementById("left").addEventListener("click",function(){setMode("depth");angle=clamp(angle-7,-20,20);draw();});
+document.getElementById("right").addEventListener("click",function(){setMode("depth");angle=clamp(angle+7,-20,20);draw();});
+document.getElementById("reset").addEventListener("click",function(){angle=0;pitch=0;scale=1;auto=false;document.getElementById("spin").setAttribute("aria-pressed","false");setMode("depth");draw();});
+document.getElementById("spin").addEventListener("click",function(){setMode("depth");auto=!auto;this.setAttribute("aria-pressed",String(auto));});
+viewport.addEventListener("pointerdown",function(e){
+if(mode!=="depth")return;
+e.preventDefault();viewport.setPointerCapture(e.pointerId);
+pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+});
+viewport.addEventListener("pointermove",function(e){
+if(!pointers.has(e.pointerId))return;
+e.preventDefault();
+var before=Array.from(pointers.values()),prev=pointers.get(e.pointerId);
+pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+if(pointers.size===1){
+angle=clamp(angle+(e.clientX-prev.x)*.19,-20,20);
+pitch=clamp(pitch+(e.clientY-prev.y)*.14,-10,10);
+}else if(pointers.size===2){
+var now=Array.from(pointers.values());
+var dist=function(a){return Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y);};
+if(dist(before)>6)scale=clamp(scale*dist(now)/dist(before),.8,1.6);
+}
+draw();
+});
+function end(e){pointers.delete(e.pointerId);}
+viewport.addEventListener("pointerup",end);
+viewport.addEventListener("pointercancel",end);
+viewport.addEventListener("wheel",function(e){
+if(mode!=="depth")return;e.preventDefault();scale=clamp(scale*(e.deltaY>0?.94:1.06),.8,1.6);draw();
+},{passive:false});
+var snow=document.getElementById("snow");
+for(var i=0;i<40;i++){
+var f=document.createElement("span");f.className="flake";
+var k=1+(i*11%5);
+f.style.cssText="left:"+(i*37.37%100)+"%;top:"+(-i*23%600)+"px;width:"+k+"px;height:"+k+"px;opacity:"+(.16+i%5*.12)+";animation-duration:"+(7+i%13)+"s;animation-delay:"+(-i*.43)+"s";
+snow.appendChild(f);
+}
+function tick(t){
+if(auto){angle=Math.sin(t*.00063)*19;draw();}
+requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+window.addEventListener("resize",layout,{passive:true});
+layout();
+})();
+</script>
+</body>
+</html>
