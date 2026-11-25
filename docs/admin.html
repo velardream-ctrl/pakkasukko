@@ -15,7 +15,7 @@ body{background:#f2f4f5;color:#243747}.admin-top{background:#0a1b2a;color:#fff;p
 <details class="admin-box" id="travelSettings"><summary>Стоимость поездки</summary><p>Kitee — точка выезда. Для автомобиля укажите расстояние в одну сторону, для поезда — общую цену билетов туда и обратно. Изменения действуют для новых заявок.</p><form id="fareForm"><div id="fareInputs" class="admin-grid"></div><div id="fareCities"></div><button type="button" id="addFareCity">Добавить город</button> <button class="btn btn-dark">Сохранить тариф</button><p id="fareStatus" role="status"></p></form></details>
 <details class="admin-box" id="holidaySettings">
 <summary>Праздничные тарифы и интервалы времени</summary>
-<p>Создавайте свои периоды для праздников: дата (день.месяц), время начала и окончания, надбавка в процентах. Интервалы повторяются ежегодно и могут переходить через полночь или Новый год. Все часы — по Финляндии. Если интервалы пересекаются, применяется большая надбавка. Изменения действуют только для новых заявок; дорога, гостиница и питание не дорожают.</p>
+<p>Выбирайте даты начала и окончания прямо из раскрывающегося календаря, а часы — из поля времени. Год в календаре нужен только для выбора: сохранённые интервалы повторяются каждый год. У каждого периода своя надбавка в процентах. Периоды могут переходить через полночь или Новый год. Все часы — по Финляндии. Если интервалы пересекаются, применяется большая надбавка. Изменения действуют только для новых заявок; дорога, гостиница и питание не дорожают.</p>
 <form id="holidayForm"><div id="holidayRows" class="records"></div>
 <div class="admin-actions"><button type="button" id="holidayAdd">Добавить интервал</button><button class="btn btn-dark" type="submit">Сохранить праздничные интервалы</button></div>
 <p id="holidayStatus" class="status" role="status"></p></form>
@@ -41,4 +41,4 @@ body{background:#f2f4f5;color:#243747}.admin-top{background:#0a1b2a;color:#fff;p
 <section class="admin-box"><h2>Заказы по дате получения</h2><p>Видеопоздравления и другие услуги без бронирования часов. Дата — желаемый день получения.</p><div id="videoOrderList" class="records"></div></section><section class="admin-box"><h2>Сообщения</h2><div class="admin-actions"><a href="/api/admin/export-messages">Выгрузить сообщения CSV ↓</a></div><div id="messageList" class="records"></div></section>
 
 </div>
-</main><script type="module" src="./admin.js?v=55"></script></body></html>
+</main><script type="module" src="./admin.js?v=56"></script></body></html>

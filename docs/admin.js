@@ -2,6 +2,7 @@ import {sellerForm,invoiceControls} from './billing-panel.js';
 import {applyBrand} from './site.js';
 import {musicAdmin} from './music-admin.js';
 import {holidayRules,validFare} from './fares.js?v=55';
+import {nextAnnualISO,endAnnualISO,isoToAnnual} from './holiday-calendar.js?v=56';
 import {renderVideoOrders} from './video-admin.js';
 import {moveControls,slotControls} from './reschedule-panel.js';
 
@@ -68,21 +69,29 @@ $('addFareCity').onclick=()=>addFareCity().focus();
 function appendHolidayRule(rule={}){
  const item=el('div',undefined,'record holiday-rule'),grid=el('div',undefined,'holiday-grid');
  const fields={};
+ const today=new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Helsinki'}).format(new Date());
+ const startISO=nextAnnualISO(rule.startDate||'24.12',today);
+ const endISO=endAnnualISO(startISO,rule.endDate||'25.12');
  for(const [key,title,type,fallback] of [
   ['name','Название праздника','text','Новый праздник'],
-  ['startDate','Дата начала (ДД.ММ)','text','24.12'],
+  ['startDate','Дата начала (календарь)','date','24.12'],
   ['startTime','Начало','time','20:00'],
-  ['endDate','Дата окончания (ДД.ММ)','text','25.12'],
+  ['endDate','Дата окончания (календарь)','date','25.12'],
   ['endTime','Окончание','time','09:00'],
   ['percent','Надбавка, %','number',50]
  ]){
   const label=el('label',title),input=el('input');
-  input.type=type;input.required=true;input.value=String(rule[key]??fallback);
+  input.type=type;input.required=true;
+  input.value=key==='startDate'?startISO:key==='endDate'?endISO:String(rule[key]??fallback);
   if(key==='name')input.maxLength=80;
-  if(key.endsWith('Date')){input.maxLength=5;input.placeholder='24.12';input.inputMode='numeric';}
+  if(key.endsWith('Date'))input.addEventListener('click',()=>{try{input.showPicker?.();}catch{/* Native picker icon remains available. */}});
   if(key==='percent'){input.min='0';input.max='300';input.step='1';}
   label.append(input);grid.append(label);fields[key]=input;
  }
+ fields.startDate.addEventListener('change',()=>{
+  const endAnnual=isoToAnnual(fields.endDate.value);
+  if(endAnnual){const next=endAnnualISO(fields.startDate.value,endAnnual);if(next)fields.endDate.value=next;}
+ });
  item.append(grid);
  const preview=el('p',undefined,'muted');
  const sample=()=>{const percent=fields.percent.valueAsNumber;preview.textContent=Number.isInteger(percent)&&percent>=0?'Пример: программа 100 € → '+(100*(1+percent/100)).toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2})+' €':'Проверьте процент надбавки';};
@@ -91,8 +100,8 @@ function appendHolidayRule(rule={}){
  button(actions,'Удалить этот интервал',()=>item.remove(),'decline');
  item.append(actions);
  item.readHoliday=()=>({
-  name:fields.name.value.trim(),startDate:fields.startDate.value.trim(),
-  startTime:fields.startTime.value,endDate:fields.endDate.value.trim(),
+  name:fields.name.value.trim(),startDate:isoToAnnual(fields.startDate.value),
+  startTime:fields.startTime.value,endDate:isoToAnnual(fields.endDate.value),
   endTime:fields.endTime.value,percent:fields.percent.valueAsNumber
  });
  $('holidayRows').append(item);
@@ -111,7 +120,7 @@ $('holidayForm').onsubmit=async event=>{
  const holidayRules=[...$('holidayRows').children].map(row=>row.readHoliday());
  const fares={...state.fares,holidayRules};
  if(!validFare(fares)){
-   status('holidayStatus','Проверьте название, даты ДД.ММ, часы, надбавку 0–300% и длительность интервала (от 15 минут до 72 часов).',true);
+   status('holidayStatus','Проверьте название, выбранные даты, часы, надбавку 0–300% и длительность интервала (от 15 минут до 72 часов).',true);
    return;
  }
  try{
