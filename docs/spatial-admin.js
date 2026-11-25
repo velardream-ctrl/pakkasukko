@@ -1,4 +1,4 @@
-import {spatialSettings,BUILTIN_SPATIAL,spatialAsset,SPATIAL_DEVICES} from './spatial-gallery.js?v=1';
+import {spatialSettings,BUILTIN_SPATIAL,spatialAsset,SPATIAL_DEVICES} from './spatial-gallery.js?v=2';
 const $=id=>document.getElementById(id);
 const defaults={texts:{},crops:{},pictures:{},seo:{},order:[],hidden:[],cards:[]};
 const names={phone:'Телефон',tablet:'Планшет',desktop:'Компьютер'};
@@ -60,9 +60,16 @@ function render(){
     const sceneSel=document.createElement('select');sceneSel.dataset.device=device;sceneSel.dataset.kind='scene';
     for(const scene of all)sceneSel.add(option(scene.id,scene.title));
     sceneSel.value=settings.selected[device]||BUILTIN_SPATIAL.id;
-    sceneSel.disabled=mode.value!=='spatial';
-    mode.onchange=()=>{sceneSel.disabled=mode.value!=='spatial';};
-    sceneLabel.append(sceneSel);card.append(title,modeLabel,sceneLabel);profiles.append(card);
+    const motionLabel=document.createElement('label');motionLabel.textContent='Управление движением';
+    const motion=document.createElement('select');motion.dataset.device=device;motion.dataset.kind='motion';
+    motion.add(option('auto','Автопоказ — плавное движение, можно двигать пальцем'));
+    motion.add(option('manual','Вручную — пальцем или мышью'));
+    motion.add(option('tilt','Наклон устройства — двигать телефоном или планшетом'));
+    motion.value=settings.motions[device]||'auto';
+    const updateEnabled=()=>{const useSpatial=mode.value==='spatial';sceneSel.disabled=!useSpatial;motion.disabled=!useSpatial;};
+    mode.onchange=updateEnabled;updateEnabled();
+    sceneLabel.append(sceneSel);motionLabel.append(motion);
+    card.append(title,modeLabel,sceneLabel,motionLabel);profiles.append(card);
   }
   $('scenes').replaceChildren(...all.map(makePreview));
   for(const suffix of ['foreground','background','ground'])refreshSelect($(suffix+'Existing'));
@@ -72,6 +79,7 @@ function collect(){
   settings.strength=Number($('strength').value);
   for(const el of $('profiles').querySelectorAll('select')){
     if(el.dataset.kind==='mode')settings.modes[el.dataset.device]=el.value;
+    else if(el.dataset.kind==='motion')settings.motions[el.dataset.device]=el.value;
     else settings.selected[el.dataset.device]=el.value;
   }
 }
@@ -126,7 +134,7 @@ $('newScene').onsubmit=async ev=>{
     const data=await request('/api/admin/editor');
     version=data.id;model={...defaults,...data.model};media=data.media||[];
     const state=spatialSettings(model);
-    settings={enabled:state.enabled,strength:state.strength,modes:state.modes,selected:state.selected,
+    settings={enabled:state.enabled,strength:state.strength,modes:state.modes,motions:state.motions,selected:state.selected,
       scenes:state.scenes.filter(scene=>scene.id!==BUILTIN_SPATIAL.id).map(scene=>({...scene}))};
     $('manager').hidden=false;$('loginHint').hidden=true;render();status('Настройки загружены. Изменения попадут на сайт после нажатия «Сохранить и опубликовать».');
   }catch(e){$('loginHint').hidden=false;status('Нужен вход владельца: '+e.message,true);}

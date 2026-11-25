@@ -18,6 +18,7 @@ export function spatialSettings(model){
   return {
     enabled:s.enabled!==false,
     modes:Object.fromEntries(SPATIAL_DEVICES.map(d=>[d,s.modes?.[d]==='spatial'?'spatial':'photo'])),
+    motions:Object.fromEntries(SPATIAL_DEVICES.map(d=>[d,['manual','auto','tilt'].includes(s.motions?.[d])?s.motions[d]:'auto'])),
     selected:Object.fromEntries(SPATIAL_DEVICES.map(d=>[d,String(s.selected?.[d]||BUILTIN_SPATIAL.id)])),
     scenes:[BUILTIN_SPATIAL,...scenes],
     strength:Math.max(0,Math.min(100,Number(s.strength??75)||0))
@@ -31,6 +32,13 @@ export function spatialAsset(id,editing=false){
 export function chosenSpatialScene(settings,device){
   return settings.scenes.find(c=>c.id===settings.selected[device])||BUILTIN_SPATIAL;
 }
+// The regular hero <img> is the single source of truth for all saved crop settings.
+export function matchSpatialFraming(img,frame,figure,appearance){
+  if(!img)return;
+  frame.style.transform=img.style.transform;
+  frame.style.transformOrigin=appearance.transformOrigin;
+  figure.style.backgroundPosition=appearance.objectPosition;
+}
 export function mountSpatialPhoto({model,currentDevice}){
   const photo=document.querySelector('#top .hero-photo');
   if(!photo)return {refresh(){}};
@@ -43,10 +51,13 @@ export function mountSpatialPhoto({model,currentDevice}){
   const shadow=document.createElement('div'),figure=document.createElement('div');
   base.className='pk-space-bg pk-space-base';moving.className='pk-space-bg pk-space-moving';
   shadow.className='pk-space-shadow';figure.className='pk-space-figure';
-  stage.append(base,moving,shadow,figure);
+  // The entire depth composition uses the exact same crop frame as the ordinary hero <img>.
+  // Keep the interactive surface fixed while transforming its inner layers together.
+  const frame=document.createElement('div');frame.className='pk-space-frame';
+  frame.append(base,moving,shadow,figure);stage.append(frame);
   photo.append(stage);
   let active=false,currentId='',request=0,autoBlockedUntil=0,orientation=false,neutral=null,frameId=0;
-  let x=0,y=0,targetX=0,targetY=0,last=0,pointer=null,dragged=false,enabledDevice='';
+  let x=0,y=0,targetX=0,targetY=0,last=0,pointer=null,dragged=false,enabledDevice='',currentMotion='auto';
   const strength=settings.strength/100;
   const clamp=(n,a,b)=>Math.min(b,Math.max(a,n));
   function preload(src){
@@ -59,13 +70,33 @@ export function mountSpatialPhoto({model,currentDevice}){
   }
   function ordinary(){
     active=false;stage.hidden=true;photo.classList.remove('pk-space-active');
+    if(orientation)window.removeEventListener('deviceorientation',onOrientation);
+    orientation=false;neutral=null;
     if(frameId){cancelAnimationFrame(frameId);frameId=0;}
+  }
+  function startUnrestrictedTilt(){
+    const sensor=window.DeviceOrientationEvent;
+    if(!active||currentMotion!=='tilt'||orientation||typeof sensor==='undefined'||typeof sensor.requestPermission==='function')return;
+    orientation=true;neutral=null;
+    window.addEventListener('deviceorientation',onOrientation,{passive:true});
   }
   function refresh(){
     const device=currentDevice(),scene=chosenSpatialScene(settings,device);
-    enabledDevice=device;
+    if(enabledDevice!==device){
+      if(orientation)window.removeEventListener('deviceorientation',onOrientation);
+      orientation=false;neutral=null;targetX=0;targetY=0;
+    }
+    enabledDevice=device;currentMotion=settings.motions[device];
+    stage.style.touchAction=currentMotion==='manual'?'none':'pan-y';
+    // The main editor already applies the owner's phone/tablet/desktop crop to this img.
+    // Reuse that exact transform, fit and focal point for all three spatial layers.
+    const img=photo.querySelector('img');
+    if(img)matchSpatialFraming(img,frame,figure,getComputedStyle(img));
     if(!settings.enabled||settings.modes[device]!=='spatial'){ordinary();return;}
-    if(active&&currentId===scene.id)return;
+    if(currentMotion!=='tilt'&&orientation){
+      window.removeEventListener('deviceorientation',onOrientation);orientation=false;neutral=null;
+    }
+    if(active&&currentId===scene.id){startUnrestrictedTilt();return;}
     const fg=spatialAsset(scene.foregroundId),bg=spatialAsset(scene.backgroundId);
     const ground=spatialAsset(scene.groundId)||bg;
     if(!fg||!bg){ordinary();return;}
@@ -80,6 +111,7 @@ export function mountSpatialPhoto({model,currentDevice}){
       stage.setAttribute('aria-label',scene.title||'Пространственная зимняя фотография');
       stage.hidden=false;photo.classList.add('pk-space-active');
       active=true;currentId=scene.id;
+      startUnrestrictedTilt();
       if(!frameId)frameId=requestAnimationFrame(tick);
     }).catch(()=>{if(ticket===request)ordinary();});
   }
@@ -87,7 +119,7 @@ export function mountSpatialPhoto({model,currentDevice}){
   function tick(now){
     const dt=Math.min(65,now-last||16);last=now;
     if(active){
-      if(!orientation&&!pointer&&!reduce&&now>autoBlockedUntil){
+      if(currentMotion==='auto'&&!orientation&&!pointer&&!reduce&&now>autoBlockedUntil){
         targetX=Math.sin(now*.00034)*.52;
         targetY=Math.cos(now*.00027)*.35;
       }
@@ -110,8 +142,7 @@ export function mountSpatialPhoto({model,currentDevice}){
     if(!active||ev.pointerType==='mouse'&&ev.button!==0)return;
     pointer={id:ev.pointerId,startX:ev.clientX,startY:ev.clientY,baseX:targetX,baseY:targetY};
     dragged=false;
-    if(orientation)window.removeEventListener('deviceorientation',onOrientation);
-    orientation=false;neutral=null;autoBlockedUntil=performance.now()+9000;
+    autoBlockedUntil=performance.now()+9000;
     stage.setPointerCapture?.(ev.pointerId);
   });
   stage.addEventListener('pointermove',ev=>{
@@ -126,13 +157,13 @@ export function mountSpatialPhoto({model,currentDevice}){
   stage.addEventListener('pointercancel',endPointer);
   stage.addEventListener('lostpointercapture',endPointer);
   const onOrientation=ev=>{
-    if(!active||!orientation||ev.gamma===null||ev.beta===null)return;
+    if(!active||!orientation||currentMotion!=='tilt'||pointer||ev.gamma===null||ev.beta===null)return;
     if(!neutral)neutral={gamma:ev.gamma,beta:ev.beta};
     targetX=clamp((ev.gamma-neutral.gamma)/19,-1,1);
     targetY=clamp((ev.beta-neutral.beta)/25,-1,1);
   };
   stage.addEventListener('click',async()=>{
-    if(!active||dragged||orientation||typeof window.DeviceOrientationEvent==='undefined')return;
+    if(!active||currentMotion!=='tilt'||dragged||orientation||typeof window.DeviceOrientationEvent==='undefined')return;
     try{
       const d=window.DeviceOrientationEvent;
       if(typeof d.requestPermission==='function'&&(await d.requestPermission())!=='granted')return;

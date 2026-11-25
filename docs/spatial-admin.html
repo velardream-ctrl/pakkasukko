@@ -48,7 +48,8 @@ kbd{background:#eff4f6;padding:2px 5px;border-radius:4px}
 <div id="manager" hidden>
 <section>
 <h2>Что показывать на сайте</h2>
-<p>Обычные фотографии останутся в прежних настройках. Здесь можно включить имитацию объёма отдельно на телефоне, планшете и компьютере. Посетителям кнопки переключения не показываются.</p>
+<p>Обычные фотографии и их кадрирование остаются без изменений. Пространственная фотография повторяет масштаб, положение и обрезку обычного главного фото отдельно на телефоне, планшете и компьютере. Здесь выбираются и тип фотографии, и способ движения; посетители не увидят переключателей.</p>
+<p><small>При выборе «Наклон устройства» на iPhone может потребоваться один раз коснуться фотографии и разрешить доступ к движению телефона.</small></p>
 <label class="check"><input type="checkbox" id="enabled" checked>Разрешить пространственные фотографии на сайте</label>
 <div class="grid" id="profiles"></div>
 <label style="max-width:460px;margin-top:16px">Сила движения <input id="strength" type="range" min="0" max="100" value="75"><output id="strengthValue">75%</output></label>
@@ -77,5 +78,5 @@ kbd{background:#eff4f6;padding:2px 5px;border-radius:4px}
 </div>
 <p id="loginHint" hidden>Войди в <a href="./admin.html">админку Pakkasukko</a>, затем открой эту страницу снова.</p>
 </main>
-<script type="module" src="./spatial-admin.js?v=1"></script>
+<script type="module" src="./spatial-admin.js?v=2"></script>
 </body></html>

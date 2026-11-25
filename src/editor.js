@@ -18,6 +18,7 @@ export function validSpatialSettings(value){
   }
   for(const device of ['phone','tablet','desktop']){
     if(value.modes?.[device]!==undefined&&!['photo','spatial'].includes(value.modes[device]))return false;
+    if(value.motions?.[device]!==undefined&&!['auto','manual','tilt'].includes(value.motions[device]))return false;
     if(value.selected?.[device]!==undefined&&value.selected[device]!=='winter-original'&&!ids.has(value.selected[device]))return false;
   }
   return true;
