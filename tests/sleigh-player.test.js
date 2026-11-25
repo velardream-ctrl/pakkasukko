@@ -15,7 +15,7 @@ test('RUN-040: independent animated artwork and stationary controls, no track ti
  assert.match(music,/createSleighPlayer\(box,volume/);
  assert.doesNotMatch(music,/p\.tracks\[index\]\.title/);
  assert.match(music,/audio\.addEventListener\('ended',advance\)/);
- for(const f of ['index.html','contact.html','privacy.html','video.html','trip.html'])assert.match(read(f),/music\.js\?v=43/);
+ for(const f of ['index.html','contact.html','privacy.html','video.html','trip.html'])assert.match(read(f),/music\.js\?v=44/);
 });
 
 test('RUN-041: frame transforms actually change legs, Santa and sleigh independently',()=>{

@@ -1,3 +1,4 @@
+import {attachPlayerPosition} from './sleigh-position.js?v=44';
 // Original vector illustration: animated artwork is separate from the stationary controls.
 export const sleighArt = `<svg viewBox="0 0 300 146" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
 <defs>
@@ -121,13 +122,13 @@ export function sleighFrame(seconds){
 }
 export function createSleighPlayer(box,volume,onPlay,onVolume){
  const style=document.createElement('style');style.textContent=`
-.pk-music{position:fixed;z-index:900;right:12px;bottom:max(12px,env(safe-area-inset-bottom));width:132px;max-width:calc(100vw - 24px);font:13px system-ui;color:#152b39;isolation:isolate}
+.pk-music{position:fixed;z-index:900;right:12px;bottom:max(12px,env(safe-area-inset-bottom));width:max-content;max-width:calc(100vw - 24px);display:flex;flex-direction:column;align-items:flex-end;gap:0;pointer-events:none;font:13px system-ui;color:#152b39;isolation:isolate}
 .pk-music button{box-sizing:border-box;margin:0;cursor:pointer;font:inherit;min-height:36px;width:auto;min-width:36px;max-width:none;padding:0;border:0;border-radius:50%;line-height:1;display:grid;place-items:center}
-.pk-music .pk-sleigh-toggle{display:block;position:absolute;right:0;bottom:0;width:132px;height:70px;background:transparent;border-radius:12px;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.pk-music .pk-sleigh-toggle{display:block;position:relative;flex:none;pointer-events:auto;width:132px;height:70px;background:transparent;border-radius:12px;-webkit-tap-highlight-color:transparent;touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
 .pk-sleigh-toggle svg{display:block;width:100%;height:100%;overflow:visible;pointer-events:none}
-.pk-music .pk-music-controls{display:none;position:absolute;right:0;bottom:0;align-items:center;gap:7px;padding:7px 8px;border-radius:26px;background:linear-gradient(140deg,#fff4d4,#efd3a0);border:1px solid #c79a52;box-shadow:0 3px 14px #14233244;width:max-content;max-width:calc(100vw - 24px);box-sizing:border-box}
-.pk-music.is-open{width:190px}
-.pk-music.is-open .pk-sleigh-toggle{bottom:49px;width:156px;height:76px}
+.pk-music .pk-music-controls{display:none;position:relative;pointer-events:auto;align-items:center;gap:7px;padding:7px 8px;border-radius:26px;background:linear-gradient(140deg,#fff4d4,#efd3a0);border:1px solid #c79a52;box-shadow:0 3px 14px #14233244;width:max-content;max-width:calc(100vw - 24px);box-sizing:border-box}
+ .pk-music.is-dragging .pk-sleigh-toggle{cursor:grabbing}
+.pk-music.is-open .pk-sleigh-toggle{width:156px;height:76px}
 .pk-music.is-open .pk-music-controls{display:flex}
 .pk-music-controls button{background:linear-gradient(#f3d291,#d4a34d);color:#172b37;min-width:36px;min-height:36px}
 .pk-music .pk-music-controls input{appearance:auto;-webkit-appearance:auto;accent-color:#9a692a;margin:0;width:76px;min-width:40px;max-width:76px;padding:0;min-height:28px;border:0;background:transparent;box-sizing:border-box}
@@ -169,10 +170,10 @@ export function createSleighPlayer(box,volume,onPlay,onVolume){
  const state=make('span','pk-music-state');state.textContent='♪';state.setAttribute('aria-hidden','true');toggle.append(state);
  const controls=make('div','pk-music-controls');controls.setAttribute('role','group');controls.setAttribute('aria-label','Управление музыкой');
  const button=(label,txt,fn)=>{const b=make('button','');b.type='button';b.setAttribute('aria-label',label);b.title=label;b.textContent=txt;b.onclick=fn;controls.append(b);return b;};
- let timer=0,keyboard=false,dragging=false;
- function close(){clearTimeout(timer);box.classList.remove('is-open');toggle.setAttribute('aria-expanded','false');toggle.setAttribute('aria-label','Открыть музыкальный плеер');}
- function arm(){clearTimeout(timer);timer=setTimeout(()=>{if(dragging){arm();return;}if(keyboard&&controls.contains(document.activeElement))return;if(controls.contains(document.activeElement))document.activeElement.blur();close();},5000);}
- function open(){box.classList.add('is-open');toggle.setAttribute('aria-expanded','true');toggle.setAttribute('aria-label','Свернуть музыкальный плеер');arm();}
+ let timer=0,keyboard=false,dragging=false,position=null, moving=false;
+ function close(){clearTimeout(timer);box.classList.remove('is-open');toggle.setAttribute('aria-expanded','false');toggle.setAttribute('aria-label','Открыть музыкальный плеер');position?.layout();}
+ function arm(){clearTimeout(timer);timer=setTimeout(()=>{if(dragging||moving){arm();return;}if(keyboard&&controls.contains(document.activeElement))return;if(controls.contains(document.activeElement))document.activeElement.blur();close();},5000);}
+ function open(){box.classList.add('is-open');toggle.setAttribute('aria-expanded','true');toggle.setAttribute('aria-label','Свернуть музыкальный плеер');position?.layout();arm();}
  toggle.onclick=()=>{if(box.classList.contains('is-open'))close();else open();};
  const play=button('Включить музыку','▶',()=>{onPlay();arm();});
  const slider=make('input','');Object.assign(slider,{type:'range',min:0,max:100,value:volume});slider.setAttribute('aria-label','Громкость музыки');slider.oninput=()=>{onVolume(Number(slider.value));arm();};controls.append(slider);
@@ -186,6 +187,8 @@ export function createSleighPlayer(box,volume,onPlay,onVolume){
  document.addEventListener('pointerdown',e=>{if(!box.contains(e.target))close();});
  box.addEventListener('keydown',e=>{if(e.key==='Escape'){close();toggle.focus();}});
  box.append(toggle,controls);
+ position=attachPlayerPosition(box,toggle,()=>{moving=true;clearTimeout(timer);},()=>{moving=false;if(box.classList.contains('is-open'))arm();});
+ requestAnimationFrame(position.layout);
  syncMotion();
  return {update(playing,animate=playing){requested=animate;syncMotion();box.classList.toggle('is-playing',playing);play.textContent=playing?'Ⅱ':'▶';play.setAttribute('aria-label',playing?'Выключить музыку':'Включить музыку');play.title=playing?'Выключить музыку':'Включить музыку';}};
 }

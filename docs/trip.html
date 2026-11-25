@@ -6,4 +6,4 @@ try{
  const v=await res.json(),amount=n=>n==null?'по согласованию':euros(n);
  document.querySelector('#result').textContent=v.cancelled?'Заявка отменена или отклонена.':[v.day+' · '+v.city,'Максимум при бронировании: '+amount(v.maximum),v.share!=null?'Расходы на поездку '+euros(v.pool)+' · Заказов: '+v.participants+' · Ваша доля: '+euros(v.share)+' · Итого: '+amount(v.base==null?null:v.base+v.share):'Расходы на дорогу: '+amount(v.travel)+'. При совместном выезде доля фиксируется в день поездки.'].join(' · ');
 }catch{document.querySelector('#result').textContent='Расчёт недоступен. Проверьте ссылку.'}
-</script><script type="module" src="./music.js?v=43"></script></html>
+</script><script type="module" src="./music.js?v=44"></script></html>
