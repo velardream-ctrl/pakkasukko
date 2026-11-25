@@ -140,7 +140,7 @@ async function api(req,env,ctx,url){
    for(const [index,slot] of slots.entries()){
      const order=orders.find(o=>o.slotId===slot.id),id=crypto.randomUUID();
      const saved={...visitQuote(snapshot,slots.length,index),groupId};
-     const holiday=saved.holidayName?' · '+saved.holidayName+' +'+saved.holidayPercent+'% ('+euros(saved.holidayExtra)+')':'';
+     const holiday=saved.holidayName?' · '+saved.holidayName+' +'+saved.holidayPercent+'% ('+(saved.holidayExtra===null?'стоимость по согласованию':euros(saved.holidayExtra))+')':'';
      const detail=slots.length===1?describe(saved):'Визит '+(index+1)+'/'+slots.length+holiday+' · Программа '+(saved.base==null?'по согласованию':euros(saved.base))+' · Доля дороги '+(saved.travel==null?'по согласованию':euros(saved.travel))+' · Итого '+(saved.total==null?'по согласованию':euros(saved.total));
      statements.push(env.DB.prepare("INSERT INTO bookings(id,slot_id,service,name,phone,email,city,address,message,status,created_at) VALUES(?,(SELECT id FROM slots WHERE id=? AND status='open'),?,?,?,?,?,?,?,'pending',?)").bind(id,slot.id,b.service,b.name,b.phone,b.email,b.city,order.address,b.message,now()),
        env.DB.prepare("INSERT INTO booking_quotes(booking_id,snapshot,summary) VALUES(?,?,?)").bind(id,JSON.stringify(saved),detail));

@@ -69,7 +69,7 @@ export function describe(q){
   else if(q.mode==='rail')ride='Поезд, билеты туда и обратно '+euros(q.transport);
   else ride='Автомобиль, туда и обратно '+q.km+' км · '+euros(q.transport);
   const parts=['Программа '+(q.base===null?'по согласованию':euros(q.base)),ride];
-  if(q.holidayName&&q.holidayExtra!==null)parts.push(q.holidayName+' · +'+q.holidayPercent+'% к программе ('+euros(q.holidayExtra)+')');
+  if(q.holidayName)parts.push(q.holidayName+' · +'+q.holidayPercent+'% к программе'+(q.holidayExtra===null?' (стоимость по согласованию)':' ('+euros(q.holidayExtra)+')'));
   if(q.hotel)parts.push('Гостиница ('+q.nights+' ноч.) '+euros(q.hotel));
   if(q.meals)parts.push('Питание '+euros(q.meals));
   parts.push(q.total===null?'Итого по согласованию':'Итого '+euros(q.total));
@@ -81,7 +81,7 @@ export function describe(q){
 export function visitQuote(q,count,index){
  const holidayName=q.remote?null:holidayNight(q.visitTimes?.[index]);
  const holidayPercent=holidayName?(q.holidayPercent??50):0;
- const holidayExtra=holidayName&&q.base!==null?Math.round(q.base*holidayPercent/100):0;
+ const holidayExtra=holidayName?(q.base===null?null:Math.round(q.base*holidayPercent/100)):0;
  const base=q.base===null?null:q.base+holidayExtra;
  const travel=count===1?q.travel:q.travel===null?null:Math.floor(q.travel/count)+(index<q.travel%count?1:0);
  return {...q,...(count>1?{group:true,groupSize:count,tripCost:q.travel}:{}),

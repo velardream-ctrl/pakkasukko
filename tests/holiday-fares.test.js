@@ -57,3 +57,11 @@ test('group of mixed evening hours only surcharges the festive visits',()=>{
  assert.equal(festive.holidayName,'Рождественская ночь');
  assert.deepEqual(snapshot.visitTimes,times);
 });
+
+test('negotiated program prices never claim a fictitious zero-euro holiday surcharge',()=>{
+ const q=quote(defaultFare,prices().event,'Kitee',false,['2026-12-24T22:00']);
+ const festive=visitQuote(q,1,0);
+ assert.equal(festive.base,null);
+ assert.equal(festive.holidayExtra,null);
+ assert.equal(festive.total,null);
+});
