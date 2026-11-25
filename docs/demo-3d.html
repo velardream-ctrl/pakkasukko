@@ -21,13 +21,15 @@ h1{font:400 clamp(27px,5vw,44px)/1.14 Georgia,serif;letter-spacing:-.018em;margi
 .ambient{position:absolute;inset:-8%;background:url("./assets/demo-3d-panorama.png") center/cover;filter:blur(32px) brightness(.54) saturate(.8);pointer-events:none;opacity:.8}
 .composition{position:absolute;inset:0;width:100%;height:100%;overflow:hidden;background:#08101c;box-shadow:0 12px 55px #000a;will-change:transform}
 .composition img{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;display:block;pointer-events:none;-webkit-user-drag:none}
-.background{z-index:1;left:50%!important;right:auto!important;top:0!important;bottom:auto!important;width:auto!important;max-width:none!important;height:100%;object-fit:cover;transform:translate3d(calc(-50% + var(--bg-focus,0px) + var(--bg-x,0px)),var(--bg-y,0px),0) scale(var(--bg-scale,1.34));transform-origin:center;will-change:transform}
-.contact-shadow{z-index:2;position:absolute;left:50%;width:min(35%,280px);height:4%;bottom:2.3%;border-radius:50%;background:#080c1c73;filter:blur(14px);transform:translate3d(calc(-50% + var(--shadow-x,0px)),4px,0);pointer-events:none}
-.figure{z-index:3;left:50%!important;right:auto!important;top:0!important;bottom:auto!important;width:auto!important;max-width:none!important;height:100%;object-fit:contain;transform:translate3d(calc(-50% + var(--figure-x,0px)),var(--figure-y,0px),0);filter:drop-shadow(var(--shadow-x,0px) 9px 13px #02091770);will-change:transform}
-.original{z-index:5;opacity:0;object-fit:contain!important;transition:opacity .24s}
+.background{z-index:1;left:50%!important;right:auto!important;top:0!important;bottom:auto!important;width:auto!important;max-width:none!important;height:100%;object-fit:cover;transform:translate3d(calc(-50% + var(--bg-focus,0px)),0,0) scale(var(--bg-scale,1.34));transform-origin:center;will-change:transform}
+.background-upper{z-index:2;transform:translate3d(calc(-50% + var(--bg-focus,0px) + var(--bg-x,0px)),var(--bg-y,0px),0) scale(var(--bg-scale,1.34));-webkit-mask-image:linear-gradient(to bottom,#000 0%,#000 34%,#000d 48%,#0008 65%,transparent 87%);mask-image:linear-gradient(to bottom,#000 0%,#000 34%,#000d 48%,#0008 65%,transparent 87%)}
+@supports not ((-webkit-mask-image:linear-gradient(to bottom,#000,transparent)) or (mask-image:linear-gradient(to bottom,#000,transparent))){.background-upper{display:none}}
+.contact-shadow{z-index:3;position:absolute;left:50%;width:min(35%,280px);height:4%;bottom:2.3%;border-radius:50%;background:#080c1c73;filter:blur(14px);transform:translate3d(calc(-50% + var(--shadow-x,0px)),4px,0);pointer-events:none}
+.figure{z-index:4;left:50%!important;right:auto!important;top:0!important;bottom:auto!important;width:auto!important;max-width:none!important;height:100%;object-fit:contain;transform-origin:50% 95%;transform:translate3d(-50%,0,0) perspective(1100px) rotateY(var(--figure-yaw,0deg)) skewX(var(--figure-lean,0deg));filter:drop-shadow(0px 9px 13px #02091770);will-change:transform}
+.original{z-index:6;opacity:0;object-fit:contain!important;transition:opacity .24s}
 .composition.flat .original,.composition.broken .original{opacity:1}
 .composition.flat .figure,.composition.broken .figure,.composition.flat .contact-shadow,.composition.broken .contact-shadow{opacity:0}
-.snow{position:absolute;inset:0;z-index:4;pointer-events:none;overflow:hidden}
+.snow{position:absolute;inset:0;z-index:5;pointer-events:none;overflow:hidden}
 .snow span{position:absolute;top:-8%;left:var(--left);width:var(--size);height:var(--size);background:#fff9;border-radius:50%;opacity:var(--opacity);filter:blur(var(--blur));animation:fall var(--duration) linear var(--delay) infinite}
 @keyframes fall{0%{transform:translate3d(0,-20px,0)}45%{transform:translate3d(var(--drift),52vh,0)}100%{transform:translate3d(calc(var(--drift) * -0.4),112vh,0)}}
 .scene-overlay{position:absolute;left:50%;bottom:17px;transform:translateX(-50%);z-index:7;white-space:nowrap;border:1px solid #d3e0e24f;background:#071827c9;color:#edf6f6;border-radius:999px;padding:8px 14px;font-size:13px;pointer-events:none;backdrop-filter:blur(7px)}
@@ -56,19 +58,20 @@ button:focus-visible,input:focus-visible{outline:3px solid #ffdba5;outline-offse
 <header>
 <div class="kicker">PAKKASUKKO · ТЕСТ 3D</div>
 <h1>Внутри зимней сказки</h1>
-<p class="subtitle">Дед Мороз — впереди, за ним — широкий зимний лес с церковью и заснеженными елями. Двигайте фотографию и открывайте новые части пейзажа.</p>
+<p class="subtitle">Ноги Деда Мороза стоят на неподвижном снегу, а верхняя часть фигуры и далёкий лес создают ощущение глубины. Проведите пальцем по сцене.</p>
 </header>
 <section class="demo" aria-label="Интерактивная фотография Деда Мороза">
 <div class="scene" id="scene" aria-label="Проведите пальцем или мышью, чтобы увидеть глубину">
 <div class="ambient" aria-hidden="true"></div>
 <div class="composition" id="composition">
 <img class="background" id="background" src="./assets/demo-3d-panorama.png" alt="">
+<img class="background background-upper" id="backgroundUpper" src="./assets/demo-3d-panorama.png" alt="">
 <div class="contact-shadow" aria-hidden="true"></div>
 <img class="figure" id="figure" src="./assets/demo-3d-santa.png" alt="Дед Мороз в красно-золотом костюме с волшебным светящимся посохом">
 <div class="snow" id="snow" aria-hidden="true"></div>
 <img class="original" id="original" src="./assets/pakkasukko-ded-moroz.webp" alt="Оригинальная фотография Деда Мороза у заснеженной церкви">
 </div>
-<div class="scene-overlay" id="hint">Проведите пальцем — фон шире</div>
+<div class="scene-overlay" id="hint">Проведите пальцем — ноги на месте</div>
 </div>
 <div class="controls">
 <button type="button" id="depthBtn" aria-pressed="true">✦ Объёмное фото</button>
@@ -81,7 +84,7 @@ button:focus-visible,input:focus-visible{outline:3px solid #ffdba5;outline-offse
 <div class="status" id="status" role="status" aria-live="polite">Загружаем Деда Мороза и зимний фон…</div>
 </section>
 <p class="instructions">Проведите по фотографии пальцем или мышью. Для эффекта от наклона телефона нажмите «Движение iPhone» и разрешите доступ к датчику. Кнопка «Автопоказ» показывает движение без датчика.</p>
-<div class="details"><strong>Как устроено:</strong> персонаж с посохом вырезан из фотографии; пространство за ним восстановлено, чтобы при движении фон оставался цельным. Это тестовый эффект двухслойной глубины с широким лесным фоном, а не полноценная 3D-модель или точная технология Apple. Основной сайт не изменён.</div>
+<div class="details"><strong>Как устроено:</strong> персонаж с посохом вырезан из фотографии; пространство за ним восстановлено, чтобы при движении фон оставался цельным. Земля под сапогами зафиксирована, а движение фона постепенно исчезает к нижнему краю. Это тестовый эффект глубины, а не полноценная 3D-модель или технология Apple. Основной сайт не изменён.</div>
 </main>
 <script>
 (function(){
@@ -89,6 +92,7 @@ button:focus-visible,input:focus-visible{outline:3px solid #ffdba5;outline-offse
 var scene=document.getElementById("scene");
 var comp=document.getElementById("composition");
 var bg=document.getElementById("background");
+var bgUpper=document.getElementById("backgroundUpper");
 var figure=document.getElementById("figure");
 var status=document.getElementById("status");
 var hint=document.getElementById("hint");
@@ -110,7 +114,7 @@ function updateMode(){
  comp.classList.toggle("flat",flat);
  setPressed(depthBtn,!flat);setPressed(flatBtn,flat);
  hint.textContent=flat?"Это оригинальное фото":"Проведите пальцем — фон шире";
- if(!broken)message(flat?"Оригинальная фотография без эффекта глубины.":"Панорама леса готова. Двигайте фото — Дед Мороз смещается, а зимний лес открывается за ним.");
+ if(!broken)message(flat?"Оригинальная фотография без эффекта глубины.":"Теперь сапоги и земля стоят на месте. Двигайте фото — лес и верхняя часть фигуры плавно меняют положение.");
 }
 depthBtn.addEventListener("click",function(){if(broken){message("Объёмное фото пока недоступно: не загрузился один из слоёв.");return;}flat=false;updateMode();});
 flatBtn.addEventListener("click",function(){flat=true;stopAuto();stopSensor();updateMode();});
@@ -189,14 +193,12 @@ function tick(now){
  var safeX=Math.max(0,(widthAtHeight*bgScale-scene.clientWidth)/2-6);
  var px=Math.min(scene.clientWidth*.17,125,safeX)*intensity;
  var py=Math.min(scene.clientHeight*.055,36)*intensity;
- var fx=Math.min(scene.clientWidth*.095,74)*intensity;
- bg.style.setProperty("--bg-scale",bgScale.toFixed(4));
- bg.style.setProperty("--bg-focus",(Math.max(0,(640-scene.clientWidth)*.4)).toFixed(1)+"px");
- bg.style.setProperty("--bg-x",(-x*px).toFixed(2)+"px");
- bg.style.setProperty("--bg-y",(-y*py).toFixed(2)+"px");
- figure.style.setProperty("--figure-x",(x*fx).toFixed(2)+"px");
- figure.style.setProperty("--figure-y",(y*py*.20).toFixed(2)+"px");
- figure.style.setProperty("--shadow-x",(-x*fx*.32).toFixed(2)+"px");
+ comp.style.setProperty("--bg-scale",bgScale.toFixed(4));
+ comp.style.setProperty("--bg-focus",(Math.max(0,(640-scene.clientWidth)*.4)).toFixed(1)+"px");
+ bgUpper.style.setProperty("--bg-x",(-x*px).toFixed(2)+"px");
+ bgUpper.style.setProperty("--bg-y",(-y*py*.65).toFixed(2)+"px");
+ figure.style.setProperty("--figure-lean",(-x*3.4*intensity).toFixed(2)+"deg");
+ figure.style.setProperty("--figure-yaw",(x*5*intensity).toFixed(2)+"deg");
  comp.style.transform="scale("+zoom.toFixed(4)+")";
  requestAnimationFrame(tick);
 }
@@ -204,14 +206,14 @@ requestAnimationFrame(tick);
 var loaded=0;
 function assetReady(){
  loaded++;
- if(loaded===2&&!broken){ready=true;message("Готово! Широкая лесная панорама движется за Дедом Морозом — попробуйте повести пальцем в стороны.");}
+ if(loaded===3&&!broken){ready=true;message("Готово! Снег у ног неподвижен, а панорама движется выше уровня земли. Попробуйте провести пальцем в стороны.");}
 }
 function assetError(){
  if(broken)return;
  broken=true;stopAuto();stopSensor();comp.classList.add("broken");
  message("Не удалось загрузить один из слоёв. Показываем исходную фотографию. Обновите страницу чуть позже.");
 }
-[bg,figure].forEach(function(img){
+[bg,bgUpper,figure].forEach(function(img){
  if(img.complete){if(img.naturalWidth>0)assetReady();else assetError();}
  else{img.addEventListener("load",assetReady,{once:true});img.addEventListener("error",assetError,{once:true});}
 });
