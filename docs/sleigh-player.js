@@ -112,16 +112,19 @@ export function createSleighPlayer(box,volume,onPlay,onNext,onVolume){
  const state=make('span','pk-music-state');state.textContent='♪';state.setAttribute('aria-hidden','true');toggle.append(state);
  const controls=make('div','pk-music-controls');controls.setAttribute('role','group');controls.setAttribute('aria-label','Управление музыкой');
  const button=(label,txt,fn)=>{const b=make('button','');b.type='button';b.setAttribute('aria-label',label);b.title=label;b.textContent=txt;b.onclick=fn;controls.append(b);return b;};
- let timer=0;
+ let timer=0,keyboard=false,dragging=false;
  function close(){clearTimeout(timer);box.classList.remove('is-open');toggle.setAttribute('aria-expanded','false');toggle.setAttribute('aria-label','Открыть музыкальный плеер');}
- function arm(){clearTimeout(timer);timer=setTimeout(()=>{if(controls.contains(document.activeElement))return;close();},5000);}
+ function arm(){clearTimeout(timer);timer=setTimeout(()=>{if(dragging){arm();return;}if(keyboard&&controls.contains(document.activeElement))return;if(controls.contains(document.activeElement))document.activeElement.blur();close();},5000);}
  function open(){box.classList.add('is-open');toggle.setAttribute('aria-expanded','true');toggle.setAttribute('aria-label','Свернуть музыкальный плеер');arm();}
  toggle.onclick=()=>{if(box.classList.contains('is-open'))close();else open();};
  const play=button('Включить музыку','▶',()=>{onPlay();arm();});
  button('Следующая композиция','⏭',()=>{onNext();arm();});
  const slider=make('input','');Object.assign(slider,{type:'range',min:0,max:100,value:volume});slider.setAttribute('aria-label','Громкость музыки');slider.oninput=()=>{onVolume(Number(slider.value));arm();};controls.append(slider);
  const collapse=button('Свернуть плеер','×',()=>{close();toggle.focus();});collapse.className='pk-music-close';
- controls.addEventListener('focusout',arm);controls.addEventListener('pointerdown',arm);controls.addEventListener('keydown',arm);
+ controls.addEventListener('focusout',arm);controls.addEventListener('pointerdown',()=>{keyboard=false;arm();});controls.addEventListener('keydown',()=>{keyboard=true;arm();});
+ slider.addEventListener('pointerdown',()=>{dragging=true;});
+ for(const event of ['pointerup','pointercancel'])document.addEventListener(event,()=>{if(dragging){dragging=false;arm();}});
+ box.addEventListener('keydown',()=>{keyboard=true;});toggle.addEventListener('pointerdown',()=>{keyboard=false;});
  document.addEventListener('pointerdown',e=>{if(!box.contains(e.target))close();});
  box.addEventListener('keydown',e=>{if(e.key==='Escape'){close();toggle.focus();}});
  box.append(toggle,controls);
