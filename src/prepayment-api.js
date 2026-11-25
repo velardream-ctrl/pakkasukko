@@ -1,5 +1,4 @@
 import {invoiceView} from './invoice-view.js';
-import {makePDF,base64} from './invoice-pdf.js';
 import {invoiceService} from '../docs/invoice-service.js';
 const fiDay=()=>new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Helsinki'}).format(new Date());
 const validEmail=value=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -50,6 +49,7 @@ export async function prepaymentsAPI(req,env,path,reply){
  const document=JSON.parse(old.document),number='A-'+old.number;
  if(path==='view'&&method==='GET')return invoiceView({number,document:old.document,sent_at:old.sent_at},id,'prepayments');
  if(path==='pdf'&&method==='GET'){
+  const {makePDF}=await import('./invoice-pdf.js');
   const bytes=await makePDF(document,number,env,url.origin);
   return new Response(bytes,{headers:{'Content-Type':'application/pdf','Content-Disposition':'inline; filename="Pakkasukko-ennakko-'+old.number+'.pdf"','Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'}});
  }
@@ -58,6 +58,7 @@ export async function prepaymentsAPI(req,env,path,reply){
   const input=await readJSON(req),email=String(input.email||old.email||'').trim();
   if(!validEmail(email))return fail(reply,'Введите правильный email для авансового счёта.');
   if(!env.RESEND_API_KEY||!env.FROM_EMAIL)return fail(reply,'Не настроена почта Resend.');
+  const {makePDF,base64}=await import('./invoice-pdf.js');
   const bytes=await makePDF(document,number,env,url.origin);
   const response=await fetch('https://api.resend.com/emails',{method:'POST',headers:{
    Authorization:'Bearer '+env.RESEND_API_KEY,'Content-Type':'application/json',
