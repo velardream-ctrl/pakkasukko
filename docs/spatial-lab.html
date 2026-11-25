@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#081725">
+<title>PAKKASUKKO · отдельный тест пространственного фото</title>
+<style>
+:root{color-scheme:dark;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#071421;color:#f3f3f0}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(ellipse at 50% -10%,#163547 0%,#081725 53%,#071421 100%);min-height:100vh}
+header{max-width:1000px;margin:0 auto;text-align:center;padding:29px 20px 18px}
+.kicker{color:#e7c78b;letter-spacing:.23em;font-size:11px;font-weight:800}
+h1{font:400 clamp(28px,4.6vw,47px)/1.13 Georgia,serif;margin:14px 0 10px}
+header p{color:#bdd0d9;line-height:1.6;font-size:15px;max-width:660px;margin:0 auto}
+.pill{display:inline-block;margin-top:15px;padding:7px 15px;background:#1e3e49;border-radius:40px;color:#e3d2b0;font-size:13px}
+main{max-width:1080px;margin:0 auto;padding:10px 15px 45px}
+.layout{display:grid;grid-template-columns:minmax(280px,480px) minmax(260px,1fr);align-items:start;justify-content:center;gap:24px}
+.viewer{position:relative;width:100%;max-width:480px;aspect-ratio:2/3;overflow:hidden;border:1px solid #536776;border-radius:19px;background:#0a1a26;box-shadow:0 14px 65px #000a;touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none}
+.viewer.dragging{cursor:grabbing}
+.world{position:absolute;inset:0;overflow:hidden;isolation:isolate;--focus:42%;--bgsize:100%;--move-x:0px;--move-y:0px;--bg-yaw:0deg;--bg-pitch:0deg}
+.back{position:absolute;inset:-5% -4%;background-image:url('./assets/spatial-lab-panorama.png');background-repeat:no-repeat;background-size:auto var(--bgsize);background-position:var(--focus) top;pointer-events:none}
+.back.fixed{z-index:1}
+.back.moving{z-index:2;will-change:transform;transform:translate3d(var(--move-x),var(--move-y),0) perspective(1400px) rotateY(var(--bg-yaw)) rotateX(var(--bg-pitch));transform-origin:50% 94%;-webkit-mask-image:linear-gradient(to bottom,#000 0%,#000 86%,#000c 91%,#0005 95%,transparent 98%);mask-image:linear-gradient(to bottom,#000 0%,#000 86%,#000c 91%,#0005 95%,transparent 98%)}
+.contact{z-index:3;position:absolute;left:50%;bottom:1.8%;width:31%;height:3.7%;border-radius:50%;transform:translateX(-50%);background:#050b1880;filter:blur(9px);pointer-events:none}
+.santa{z-index:4;position:absolute;inset:0;width:100%;height:100%;object-fit:contain;object-position:center top;display:block;transform:none!important;filter:drop-shadow(0 4px 8px #020b1880);pointer-events:none;-webkit-user-drag:none}
+.original{z-index:5;position:absolute;inset:0;width:100%;height:100%;object-fit:contain;object-position:center top;opacity:0;pointer-events:none;transition:opacity .25s}
+.viewer.flat .original{opacity:1}
+.viewer.flat .world{visibility:hidden}
+.snow{position:absolute;inset:0;z-index:6;overflow:hidden;pointer-events:none}
+.snow span{position:absolute;left:var(--left);top:-5%;width:var(--size);height:var(--size);border-radius:50%;background:#fffc;opacity:var(--opacity);filter:blur(var(--blur));animation:fall var(--duration) linear var(--delay) infinite}
+@keyframes fall{0%{transform:translate3d(0,-20px,0)}50%{transform:translate3d(var(--drift),60vh,0)}100%{transform:translate3d(calc(var(--drift) * -.28),120vh,0)}}
+.viewer.flat .snow{display:none}
+.hint{position:absolute;left:50%;bottom:19px;transform:translateX(-50%);z-index:7;border-radius:35px;padding:9px 13px;background:#092030c8;border:1px solid #b8d5dc55;white-space:nowrap;font-size:13px;color:#fff;pointer-events:none}
+.panel{background:#123040;border:1px solid #3b5c69;border-radius:17px;padding:23px;box-shadow:0 9px 34px #0003}
+.panel h2{font:400 26px/1.2 Georgia,serif;color:#f6e8ca;margin:0 0 10px}
+.panel p{color:#c5d5de;font-size:14px;line-height:1.55}
+.buttons{display:flex;gap:9px;flex-wrap:wrap;margin:16px 0}
+button{font:inherit;cursor:pointer;padding:10px 13px;min-height:44px;border-radius:11px;border:1px solid #668695;color:#f3f8fb;background:#2a5263}
+button[aria-pressed=true]{background:#cfa66f;border-color:#edce93;color:#142a35;font-weight:750}
+button:focus-visible,input:focus-visible{outline:3px solid #ffdaa5;outline-offset:3px}
+label{display:grid;grid-template-columns:1fr auto;gap:5px 12px;color:#d6e2e6;font-size:14px;margin:18px 0;align-items:center}
+label input{grid-column:1 / -1;width:100%;accent-color:#d9ad70}
+output{font-variant-numeric:tabular-nums;color:#f9deaa}
+.status{border-radius:11px;padding:11px 12px;background:#0c2634;color:#bfd8df;min-height:48px;line-height:1.5;font-size:13px}
+.note{border-top:1px solid #55717a77;margin-top:19px;padding-top:12px;font-size:13px!important}
+.landscape{margin:20px auto 0;max-width:950px;padding:17px;border:1px solid #365668;background:#0f2937;border-radius:17px}
+.landscape img{display:block;width:100%;height:auto;aspect-ratio:2/1;object-fit:cover;border-radius:10px}
+.landscape h2{font:400 23px Georgia,serif;margin:0 0 11px;color:#f6e9cf}
+.landscape p{font-size:13px;line-height:1.5;color:#becfd7;margin:10px 0 0}
+@media(max-width:820px){.layout{grid-template-columns:1fr;justify-items:center;gap:15px}.viewer{max-width:min(100%,470px)}.panel{width:100%;max-width:600px}}
+@media(max-width:450px){header{padding:17px 12px 13px}main{padding:6px 9px 30px}.viewer{border-radius:12px}.panel{padding:16px}.buttons{gap:7px}button{padding:9px 11px;font-size:14px}.hint{font-size:12px;padding:7px 9px}.landscape{padding:10px}}
+@media(prefers-reduced-motion:reduce){.snow span{animation:none;display:none}.original{transition:none}}
+</style>
+</head>
+<body>
+<header>
+<div class="kicker">PAKKASUKKO · ОТДЕЛЬНАЯ ЛАБОРАТОРИЯ</div>
+<h1>Зимняя сказка — новое 3D</h1>
+<p>Проверяем настоящую прозрачную фигуру Деда Мороза на цельной широкой зимней панораме. Теперь позади него нет вырезанной дыры и наложенной прямоугольной фотографии.</p>
+<div class="pill">Тестовый макет · основной сайт не менялся</div>
+</header>
+<main>
+<div class="layout">
+<div class="viewer" id="viewer" aria-label="Проведите по изображению, чтобы повернуть зимнюю панораму">
+<div class="world" id="world">
+<div class="back fixed" aria-hidden="true"></div>
+<div class="back moving" aria-hidden="true"></div>
+<div class="contact" aria-hidden="true"></div>
+<img class="santa" src="./assets/demo-3d-santa.png" alt="Дед Мороз в красно-золотом костюме перед заснеженной церковью">
+</div>
+<img class="original" src="./assets/pakkasukko-ded-moroz.webp" alt="Оригинальная фотография Деда Мороза">
+<div class="snow" id="snow" aria-hidden="true"></div>
+<div class="hint" id="hint">Проведи пальцем — движется только фон</div>
+</div>
+<section class="panel" aria-label="Управление тестом">
+<h2>Попробуем без швов</h2>
+<p>Дед Мороз стоит неподвижно, включая ноги. Перед ним нет движущихся ёлок. Земля под ботинками остаётся на месте, а церковь и зимний лес чуть поворачиваются позади.</p>
+<div class="buttons">
+<button id="depthBtn" aria-pressed="true" type="button">Объёмное фото</button>
+<button id="flatBtn" aria-pressed="false" type="button">Оригинал</button>
+</div>
+<div class="buttons">
+<button id="manualBtn" aria-pressed="true" type="button">Пальцем</button>
+<button id="autoBtn" aria-pressed="false" type="button">Автопоказ</button>
+<button id="tiltBtn" aria-pressed="false" type="button">Наклон телефона</button>
+<button id="resetBtn" type="button">Сброс</button>
+</div>
+<label>Глубина движения <output id="depthOut">68%</output><input id="depth" type="range" min="0" max="100" value="68"></label>
+<label>Размер церкви и фона <output id="zoomOut">100%</output><input id="zoom" type="range" min="95" max="135" value="100"></label>
+<label>Положение церкви <output id="focusOut">42%</output><input id="focus" type="range" min="32" max="54" value="42"></label>
+<div id="status" class="status" role="status" aria-live="polite">Сцена готова к просмотру. Переключай оригинал и объёмную фотографию для сравнения.</div>
+<p class="note">На iPhone при выборе «Наклон телефона» Safari может попросить разрешение на датчик. Все настройки здесь пробные и не меняют рабочий сайт.</p>
+</section>
+</div>
+<section class="landscape" aria-label="Новый фон без Деда Мороза">
+<h2>Новый широкий фон целиком</h2>
+<img src="./assets/spatial-lab-panorama.png" alt="Цельная панорамная фотография снежной церкви и хвойного леса, без Деда Мороза">
+<p>Это единое изображение, а не несколько склеенных участков. Церковь, зимний лес и снежная площадка находятся на одном непрерывном заднем плане. Прозрачный Дед Мороз расположен перед ним отдельным неподвижным слоем.</p>
+</section>
+</main>
+<script>
+(()=>{
+"use strict";
+const $=id=>document.getElementById(id),viewer=$('viewer'),world=$('world'),status=$('status');
+const clamp=(n,a,b)=>Math.min(b,Math.max(a,n));
+let flat=false,mode='manual',x=0,y=0,tx=0,ty=0,last=0,blockedUntil=0,orientation=false,neutral=null,ptr=null;
+function message(t){status.textContent=t;}
+function pressed(id,on){$(id).setAttribute('aria-pressed',String(on));}
+function updateButtons(){pressed('depthBtn',!flat);pressed('flatBtn',flat);pressed('manualBtn',mode==='manual');pressed('autoBtn',mode==='auto');pressed('tiltBtn',mode==='tilt');viewer.classList.toggle('flat',flat);$('hint').textContent=flat?'Исходная фотография без движения':'Проведи пальцем — движется только фон';}
+function disableTilt(){if(orientation)window.removeEventListener('deviceorientation',onTilt);orientation=false;neutral=null;}
+function setMode(m){disableTilt();mode=m;tx=ty=0;updateButtons();}
+$('depthBtn').onclick=()=>{flat=false;updateButtons();message('Новая панорама за неподвижным Дедом Морозом.');};
+$('flatBtn').onclick=()=>{flat=true;disableTilt();updateButtons();message('Оригинальная фотография для сравнения.');};
+$('manualBtn').onclick=()=>{flat=false;setMode('manual');message('Двигай зимнюю сцену пальцем или мышью.');};
+$('autoBtn').onclick=()=>{flat=false;setMode('auto');message('Включено плавное автоматическое движение заднего плана.');};
+const onTilt=e=>{if(!orientation||mode!=='tilt'||flat||ptr||e.beta==null||e.gamma==null)return;if(!neutral)neutral={gamma:e.gamma,beta:e.beta};tx=clamp((e.gamma-neutral.gamma)/20,-1,1);ty=clamp((e.beta-neutral.beta)/27,-1,1);};
+$('tiltBtn').onclick=async()=>{
+  flat=false;setMode('tilt');
+  if(typeof DeviceOrientationEvent==='undefined'){message('Этот браузер не предоставляет датчик наклона. Можно двигать пальцем.');return;}
+  try{
+    if(typeof DeviceOrientationEvent.requestPermission==='function'){
+      const permission=await DeviceOrientationEvent.requestPermission();
+      if(permission!=='granted'){message('Доступ к датчику не разрешён. Пальцем можно двигать и в этом режиме.');return;}
+    }
+    orientation=true;neutral=null;window.addEventListener('deviceorientation',onTilt,{passive:true});
+    updateButtons();message('Датчик включён. Медленно наклоняй телефон в стороны.');
+  }catch{message('Датчик недоступен. Для теста используй движение пальцем.');}
+};
+$('resetBtn').onclick=()=>{$('depth').value=68;$('zoom').value=100;$('focus').value=42;tx=ty=x=y=0;flat=false;setMode('manual');updateSliders();message('Настройки теста сброшены.');};
+function updateSliders(){
+  $('depthOut').textContent=$('depth').value+'%';
+  $('zoomOut').textContent=$('zoom').value+'%';
+  $('focusOut').textContent=$('focus').value+'%';
+  world.style.setProperty('--focus',$('focus').value+'%');
+  world.style.setProperty('--bgsize',$('zoom').value+'%');
+}
+['depth','zoom','focus'].forEach(id=>$(id).addEventListener('input',updateSliders));
+updateSliders();
+viewer.addEventListener('pointerdown',e=>{
+ if(flat||e.pointerType==='mouse'&&e.button!==0)return;
+ ptr={id:e.pointerId,startX:e.clientX,startY:e.clientY,baseX:tx,baseY:ty};
+ viewer.classList.add('dragging');blockedUntil=performance.now()+8000;
+ viewer.setPointerCapture?.(e.pointerId);
+});
+viewer.addEventListener('pointermove',e=>{
+ if(!ptr||ptr.id!==e.pointerId||flat)return;
+ tx=clamp(ptr.baseX+(e.clientX-ptr.startX)/Math.max(140,viewer.clientWidth*.38),-1,1);
+ ty=clamp(ptr.baseY+(e.clientY-ptr.startY)/Math.max(190,viewer.clientHeight*.50),-1,1);
+});
+function up(e){if(ptr?.id===e.pointerId){ptr=null;viewer.classList.remove('dragging');blockedUntil=performance.now()+4500;}}
+for(const ev of ['pointerup','pointercancel','lostpointercapture'])viewer.addEventListener(ev,up);
+window.addEventListener('pagehide',disableTilt);
+function tick(now){
+ const dt=Math.min(65,now-last||16);last=now;
+ if(mode==='auto'&&!flat&&!ptr&&now>blockedUntil){
+  tx=Math.sin(now*.00034)*.57;ty=Math.cos(now*.00028)*.34;
+ }
+ const ease=1-Math.exp(-dt/135);x+=(tx-x)*ease;y+=(ty-y)*ease;
+ const strength=Number($('depth').value)/100;
+ const px=Math.min(viewer.clientWidth*.07,33)*strength,py=Math.min(viewer.clientHeight*.022,15)*strength;
+ world.style.setProperty('--move-x',(-x*px).toFixed(2)+'px');
+ world.style.setProperty('--move-y',(-y*py).toFixed(2)+'px');
+ world.style.setProperty('--bg-yaw',(-x*1.55*strength).toFixed(2)+'deg');
+ world.style.setProperty('--bg-pitch',(y*.95*strength).toFixed(2)+'deg');
+ requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+const snow=$('snow');
+for(let i=0;i<34;i++){
+ const f=document.createElement('span'),size=1+Math.random()*3;
+ f.style.setProperty('--left',(Math.random()*100).toFixed(2)+'%');
+ f.style.setProperty('--size',size.toFixed(1)+'px');
+ f.style.setProperty('--opacity',(.14+Math.random()*.35).toFixed(2));
+ f.style.setProperty('--blur',(Math.random()*1.1).toFixed(1)+'px');
+ f.style.setProperty('--duration',(7+Math.random()*15).toFixed(2)+'s');
+ f.style.setProperty('--delay',(-Math.random()*30).toFixed(2)+'s');
+ f.style.setProperty('--drift',((Math.random()-.5)*80).toFixed(1)+'px');
+ snow.append(f);
+}
+updateButtons();
+})();
+</script>
+</body>
+</html>
