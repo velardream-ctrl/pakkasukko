@@ -58,11 +58,20 @@ function addFareCity(city='',km=0,r={}){
 }
 function renderFare(){
  const f=state.fares,box=$('fareInputs');box.replaceChildren();$('fareCities').replaceChildren();
+ $('holidayPercent').value=f.holidayPercent??50;
  fareNumber(box,'Цена бензина, €/л',f.fuel,20,'0.001').id='fareFuel';
  fareNumber(box,'Расход, л/100 км',f.consumption,100,'0.1').id='fareConsumption';
  for(const [city,km] of Object.entries(f.km))if(city!=='Kitee')addFareCity(city,km,f.routes?.[city]);
 }
 $('addFareCity').onclick=()=>addFareCity().focus();
+$('holidayForm').onsubmit=async event=>{
+ event.preventDefault();
+ const holidayPercent=$('holidayPercent').valueAsNumber;
+ if(!Number.isInteger(holidayPercent)||holidayPercent<0||holidayPercent>300){status('holidayStatus','Укажите надбавку от 0 до 300%.',true);return;}
+ const fares={...state.fares,holidayPercent};
+ try{await request('/api/admin/travel-fare','POST',fares);state.fares=fares;status('holidayStatus','Праздничный тариф сохранён. Новая цена применяется к новым заявкам.');}
+ catch(e){status('holidayStatus',e.message,true);}
+};
 $('fareForm').onsubmit=async event=>{
  event.preventDefault();
  const km=Object.create(null),routes=Object.create(null),names=new Set(['kitee']);km.Kitee=0;
@@ -71,7 +80,7 @@ $('fareForm').onsubmit=async event=>{
    if(!key||names.has(key)){status('fareStatus','Введите уникальное название для каждого города.',true);return;}
    names.add(key);km[entry.city]=entry.km;routes[entry.city]=entry.route;
  }
- const fares={fuel:$('fareFuel').valueAsNumber,consumption:$('fareConsumption').valueAsNumber,km,routes};
+ const fares={fuel:$('fareFuel').valueAsNumber,consumption:$('fareConsumption').valueAsNumber,km,routes,holidayPercent:state.fares.holidayPercent??50};
  try{await request('/api/admin/travel-fare','POST',fares);state.fares=fares;status('fareStatus','Тариф сохранён. Города автоматически обновятся на главной странице и в форме бронирования.');}
  catch(e){status('fareStatus',e.message,true);}
 };

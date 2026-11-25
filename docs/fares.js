@@ -1,8 +1,9 @@
 import {deliveryConfig} from './video-service.js';
-export const defaultFare={fuel:2.20,consumption:10,km:{Kitee:0,Puhos:15,'Tohmajärvi':20,Joensuu:67},routes:{}};
+export const defaultFare={fuel:2.20,consumption:10,holidayPercent:50,km:{Kitee:0,Puhos:15,'Tohmajärvi':20,Joensuu:67},routes:{}};
 export function validFare(f){
   const number=(n,min,max)=>typeof n==='number'&&Number.isFinite(n)&&n>=min&&n<=max;
   if(!number(f?.fuel,0.001,20)||!number(f?.consumption,0.1,100)||f.km?.Kitee!==0)return false;
+  if(f.holidayPercent!==undefined&&(!Number.isInteger(f.holidayPercent)||!number(f.holidayPercent,0,300)))return false;
   const cities=Object.keys(f.km),seen=new Set();
   if(cities.length>100 || !f.routes || typeof f.routes!=='object' || Array.isArray(f.routes))return false;
   if(Object.keys(f.routes).some(city=>!Object.hasOwn(f.km,city)))return false;
@@ -26,7 +27,26 @@ export function prices(site={},content={}){
   return items;
 }
 export const euros=cents=>(cents/100).toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2})+' €';
-export function quote(fare,item,city,group=false){
+// Finland local time (slot timestamps are stored as YYYY-MM-DDTHH:mm in Helsinki).
+// Every interval is annual: Christmas Eve, New Year's Eve and Old New Year's Eve.
+const festiveNights=[
+  {month:'12',eve:'24',morning:'25',name:'Рождественская ночь'},
+  {month:'12',eve:'31',nextMonth:'01',morning:'01',name:'Новогодняя ночь'},
+  {month:'01',eve:'13',morning:'14',name:'Старый Новый год'}
+];
+export function holidayNight(startAt){
+  const m=/^\d{4}-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(String(startAt||''));
+  if(!m)return null;
+  const [,month,day,hour,minute]=m;
+  if(Number(hour)>23||Number(minute)>59)return null;
+  for(const night of festiveNights){
+    if(month===night.month&&day===night.eve&&Number(hour)>=20)return night.name;
+    if(month===(night.nextMonth||night.month)&&day===night.morning&&Number(hour)<9)return night.name;
+  }
+  return null;
+}
+export const holidayRate=fare=>Number.isInteger(fare?.holidayPercent)&&fare.holidayPercent>=0&&fare.holidayPercent<=300?fare.holidayPercent:50;
+export function quote(fare,item,city,group=false,visitTimes=[]){
   const match=String(item.label).trim().match(/^(?:от\s*)?(\d+(?:[.,]\d{1,2})?)\s*(?:€|евро)?$/iu);
   const base=match?Math.round(Number(match[1].replace(',','.'))*100):null;
   const known=Object.hasOwn(fare.km,city),local=item.remote||city==='Kitee';
@@ -38,7 +58,8 @@ export function quote(fare,item,city,group=false){
   const hotel=nights*nightly,meals=Math.round((route?.meals||0)*100);
   const travel=transport===null?null:transport+hotel+meals;
   return {city,group,remote:item.remote,label:item.label,base,mode:rail?'rail':'car',km,fuel:fare.fuel,consumption:fare.consumption,
-    transport,nights,nightly,hotel,meals,travel,total:base===null||travel===null?null:base+travel};
+    transport,nights,nightly,hotel,meals,travel,total:base===null||travel===null?null:base+travel,
+    holidayPercent:holidayRate(fare),visitTimes:[...visitTimes].sort()};
 }
 export function describe(q){
   let ride;
@@ -48,6 +69,7 @@ export function describe(q){
   else if(q.mode==='rail')ride='Поезд, билеты туда и обратно '+euros(q.transport);
   else ride='Автомобиль, туда и обратно '+q.km+' км · '+euros(q.transport);
   const parts=['Программа '+(q.base===null?'по согласованию':euros(q.base)),ride];
+  if(q.holidayName&&q.holidayExtra!==null)parts.push(q.holidayName+' · +'+q.holidayPercent+'% к программе ('+euros(q.holidayExtra)+')');
   if(q.hotel)parts.push('Гостиница ('+q.nights+' ноч.) '+euros(q.hotel));
   if(q.meals)parts.push('Питание '+euros(q.meals));
   parts.push(q.total===null?'Итого по согласованию':'Итого '+euros(q.total));
@@ -57,7 +79,12 @@ export function describe(q){
 
 // Distribute integer cents in chronological order, without losing a rounding cent.
 export function visitQuote(q,count,index){
- if(count===1)return q;
- const travel=q.travel===null?null:Math.floor(q.travel/count)+(index<q.travel%count?1:0);
- return {...q,group:true,groupSize:count,tripCost:q.travel,travel,total:q.base===null||travel===null?null:q.base+travel};
+ const holidayName=q.remote?null:holidayNight(q.visitTimes?.[index]);
+ const holidayPercent=holidayName?(q.holidayPercent??50):0;
+ const holidayExtra=holidayName&&q.base!==null?Math.round(q.base*holidayPercent/100):0;
+ const base=q.base===null?null:q.base+holidayExtra;
+ const travel=count===1?q.travel:q.travel===null?null:Math.floor(q.travel/count)+(index<q.travel%count?1:0);
+ return {...q,...(count>1?{group:true,groupSize:count,tripCost:q.travel}:{}),
+   regularBase:q.base,base,holidayName,holidayPercent,holidayExtra,travel,
+   total:base===null||travel===null?null:base+travel};
 }

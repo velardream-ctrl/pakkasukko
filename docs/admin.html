@@ -12,6 +12,12 @@ body{background:#f2f4f5;color:#243747}.admin-top{background:#0a1b2a;color:#fff;p
 <section class="admin-box admin-login" id="loginBox"><h2>Вход владельца</h2><p>Закрытая административная часть. Пароль хранится только в секретах отдельного Cloudflare Worker Pakkasukko.</p><div id="previewNotice" class="preview-warning hidden">Здесь опубликован только визуальный макет GitHub Pages. Для настоящей админки подключите собственный Cloudflare Worker и D1-базу проекта Pakkasukko.</div><form id="loginForm"><label>Пароль<input type="password" name="password" required autocomplete="current-password"></label><button class="btn btn-dark" type="submit">Войти ↗</button><p id="loginStatus" class="status" role="status"></p></form></section>
 <div id="dashboard" class="hidden"><details class="admin-box" id="musicSettings"><summary>Музыка зимней сказки</summary><div id="musicForm"></div></details><details class="admin-box" id="billingSettings"><summary>Реквизиты для счетов и PDF</summary><div id="sellerForm"></div></details>
 <details class="admin-box" id="travelSettings"><summary>Стоимость поездки</summary><p>Kitee — точка выезда. Для автомобиля укажите расстояние в одну сторону, для поезда — общую цену билетов туда и обратно. Изменения действуют для новых заявок.</p><form id="fareForm"><div id="fareInputs" class="admin-grid"></div><div id="fareCities"></div><button type="button" id="addFareCity">Добавить город</button> <button class="btn btn-dark">Сохранить тариф</button><p id="fareStatus" role="status"></p></form></details>
+<details class="admin-box" id="holidaySettings">
+<summary>Праздничный ночной тариф</summary>
+<p>По времени Финляндии: 24 декабря 20:00 — 25 декабря 09:00 (Рождество), 31 декабря 20:00 — 1 января 09:00 (Новый год), 13 января 20:00 — 14 января 09:00 (Старый Новый год). Повышение действует только на стоимость программы, не на дорогу, гостиницу или питание. Начало визита определяет тариф.</p>
+<form id="holidayForm"><label>Надбавка к стоимости программы, %<input type="number" id="holidayPercent" name="holidayPercent" min="0" max="300" step="1" value="50" required></label>
+<button type="submit" class="btn btn-dark">Сохранить праздничный тариф</button><p id="holidayStatus" class="status" role="status"></p></form>
+</details>
 <section class="admin-box" id="bookingSettingsPanel">
 <h2>Включение бронирования</h2>
 <p>Свободные даты видны посетителям без регистрации. Приём заявок включается отдельно, только после настройки защиты, почтовых уведомлений и информации о персональных данных.</p>
@@ -33,4 +39,4 @@ body{background:#f2f4f5;color:#243747}.admin-top{background:#0a1b2a;color:#fff;p
 <section class="admin-box"><h2>Заказы по дате получения</h2><p>Видеопоздравления и другие услуги без бронирования часов. Дата — желаемый день получения.</p><div id="videoOrderList" class="records"></div></section><section class="admin-box"><h2>Сообщения</h2><div class="admin-actions"><a href="/api/admin/export-messages">Выгрузить сообщения CSV ↓</a></div><div id="messageList" class="records"></div></section>
 
 </div>
-</main><script type="module" src="./admin.js?v=45"></script></body></html>
+</main><script type="module" src="./admin.js?v=54"></script></body></html>

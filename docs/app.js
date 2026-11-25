@@ -1,5 +1,6 @@
 import {deliveryConfig,deliveryLink} from './video-service.js';
-import {mountFares} from './fare-form.js?v=45';
+import {mountFares} from './fare-form.js?v=54';
+import {holidayNight,holidayRate} from './fares.js?v=54';
 import {fitTagline} from './tagline.js';
 import {pageText,initial,bindPage,renderPage,deviceFor} from './site.js?v=45';
 import {mountSpatialPhoto} from './spatial-gallery.js?v=8';
@@ -85,17 +86,18 @@ async function activate(){
         field.value=addressInputs.get(slot.id)||'';field.placeholder='Улица и дом';
         field.oninput=()=>addressInputs.set(slot.id,field.value);label.append(field);addressList.append(label);
       }
-      $('#slotId').value=list[0]?.id||'';fare.setCount(list.length);
+      $('#slotId').value=list[0]?.id||'';fare.setSlots(list);
       submit.disabled=!list.length;submit.textContent=list.length?pageText(model,'send'):pageText(model,'chooseTime');
     }
     function fill(){
-      chosen.clear();addressInputs.clear();addressList.replaceChildren();addressLabel.hidden=false;originalAddress.required=true;fare.setCount(1);
+      chosen.clear();addressInputs.clear();addressList.replaceChildren();addressLabel.hidden=false;originalAddress.required=true;fare.setSlots([]);
       area.replaceChildren();$('#slotId').value='';submit.disabled=true;
       submit.textContent=selectable?pageText(model,'chooseTime'):'Приём заявок пока закрыт';
       for(const slot of slots.filter(s=>s.start_at.startsWith(select.value))){
         const element=document.createElement(selectable?'button':'span');
         element.className=selectable?'slot':'slot slot-readonly';
         element.textContent=slot.start_at.slice(11,16)+'–'+slot.end_at.slice(11,16);
+        if(holidayRate(config.fares)>0&&holidayNight(slot.start_at))element.textContent+=' · ✦ +'+holidayRate(config.fares)+'%';
         if(selectable){
           element.type='button';
           element.addEventListener('click',()=>{

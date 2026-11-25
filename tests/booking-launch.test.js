@@ -101,7 +101,7 @@ test('booking freezes the accepted price before confirmation and refuses stale q
  const slot=sqlite.prepare('SELECT id FROM slots').get();
  const config=await (await request('public-config')).json();
  const body={service:'gift',city:'Tohmajärvi',slotId:slot.id,name:'Test',address:'Road 1',phone:'123456',turnstileToken:'test',group:true};
- body.quoteToken=JSON.stringify(quote(config.fares,config.services.gift,body.city,true));
+ body.quoteToken=JSON.stringify(quote(config.fares,config.services.gift,body.city,true,['2099-12-24T10:00']));
  const original=globalThis.fetch;
  try{
    globalThis.fetch=async()=>Response.json({success:true});
@@ -128,7 +128,7 @@ test('multiple times keep their own addresses, freeze a single trip and produce 
  const config=await (await request('public-config')).json();
  const payload={service:'gift',city:'Tohmajärvi',name:'Test',phone:'123456',turnstileToken:'test',
    visits:[{slotId:second.id,address:'Second 2'},{slotId:first.id,address:'First 1'}]};
- const token=group=>JSON.stringify(quote(config.fares,config.services.gift,payload.city,group));
+ const token=group=>JSON.stringify(quote(config.fares,config.services.gift,payload.city,group,group?['2099-12-24T10:00','2099-12-24T12:00']:['2099-12-24T14:00']));
  const original=globalThis.fetch;
  try{
    globalThis.fetch=async()=>Response.json({success:true});

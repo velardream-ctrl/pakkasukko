@@ -1,4 +1,4 @@
-import {defaultFare,prices,quote,describe,euros,visitQuote} from './fares.js';
+import {defaultFare,prices,quote,describe,euros,visitQuote} from './fares.js?v=54';
 import {routeCities} from './route-cities.js';
 export function mountFares(form,config){
   const service=form.elements.service,input=form.elements.city;
@@ -21,23 +21,28 @@ export function mountFares(form,config){
   note.textContent='При бронировании фиксируется максимальная сумма. Если в день выезда будут другие подтверждённые заказы в ваш город на ту же поездку, расходы разделятся и ваша сумма может уменьшиться. Для нескольких адресов в одном городе выберите отдельное время для каждого.';
   block.append(note,output);input.closest('.form-row').after(block);
   let count=1;
+  let selectedSlots=[];
   let current;
   function update(){
     populate();
     const other=select.value==='Другой город';
     input.hidden=!other;input.required=other;input.placeholder='Название города';
     const items=config.services||prices(config.site,config.content);
-    current=quote(config.fares||defaultFare,items[service.value]||{label:'По запросу',remote:false},other?input.value.trim():select.value,count>1);
-    output.textContent=describe(current);
-    if(count>1)output.textContent='Коллективная заявка · Визитов: '+count+' · Программа за визит: '+(current.base==null?'по согласованию':euros(current.base))+' · Одна поездка: '+(current.travel==null?'по согласованию':euros(current.travel))+' · Максимум за все адреса: '+(current.total==null?'по согласованию':euros(current.base*count+current.travel));
-    if(count>1&&current.total!=null){
-      const amounts=Array.from({length:count},(_,i)=>euros(visitQuote(current,count,i).total));
-      output.textContent+=' · По времени: '+amounts.join(' / ');
+    const times=selectedSlots.map(s=>s.start_at).sort();
+    current=quote(config.fares||defaultFare,items[service.value]||{label:'По запросу',remote:false},other?input.value.trim():select.value,count>1,times);
+    output.textContent=describe(visitQuote(current,1,0));
+    if(count>1){
+      const visits=Array.from({length:count},(_,i)=>visitQuote(current,count,i));
+      const total=visits.every(v=>v.total!==null)?visits.reduce((sum,v)=>sum+v.total,0):null;
+      output.textContent='Коллективная заявка · Визитов: '+count+' · Обычная программа: '+(current.base==null?'по согласованию':euros(current.base))+' · Одна поездка: '+(current.travel==null?'по согласованию':euros(current.travel))+' · Максимум за все адреса: '+(total===null?'по согласованию':euros(total));
+      const holidayVisits=visits.filter(v=>v.holidayName);
+      if(holidayVisits.length)output.textContent+=' · Праздничный тариф +'+current.holidayPercent+'% на '+holidayVisits.length+' '+(holidayVisits.length===1?'визит':'визита(ов)');
+      if(total!==null)output.textContent+=' · По времени: '+visits.map(v=>euros(v.total)).join(' / ');
     }
   }
   for(const control of [select,service,input])control.addEventListener('input',update);
   service.addEventListener('change',update);
   form.addEventListener('reset',()=>queueMicrotask(update));
   update();
-  return {update,setCount(n){count=Math.max(1,n);update();},payload(){update();return {city:current.city,group:count>1,quoteToken:JSON.stringify(current)};}};
+  return {update,setCount(n){count=Math.max(1,n);selectedSlots=[];update();},setSlots(slots){selectedSlots=[...(slots||[])].sort((a,b)=>a.start_at.localeCompare(b.start_at));count=Math.max(1,selectedSlots.length);update();},payload(){update();return {city:current.city,group:count>1,quoteToken:JSON.stringify(current)};}};
 }

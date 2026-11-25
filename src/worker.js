@@ -127,20 +127,21 @@ async function api(req,env,ctx,url){
    catch(e){return fail(e.message);}
    const b=orders[0];
    const services=prices(site,await getContent(env)),fares=await fareSettings(env);
-   const snapshot=quote(fares,services[b.service],b.city,orders.length>1||(!input.visits&&input.group===true));
-   if(JSON.stringify(snapshot)!==input.quoteToken)return reply({error:'Тариф изменился. Проверьте новый расчёт и отправьте заявку ещё раз.',fares,services},409);
-   const summary=describe(snapshot);
    b.service=cards.find(c=>c.id===b.service)?.title||b.service;
    if(!await human(b.turnstileToken,req,env))return fail('Пройдите проверку от спама.',403);
    if(!await rateLimit(req,env,'booking',5,60))return fail('Слишком много запросов.',429);
    const placeholders=orders.map(()=>'?').join(',');
    const {results:slots}=await env.DB.prepare('SELECT * FROM slots WHERE id IN ('+placeholders+') ORDER BY start_at').bind(...orders.map(o=>o.slotId)).all();
    if(slots.length!==orders.length||slots.some(s=>s.status!=='open'||s.start_at<=fiNow()||s.start_at.slice(0,10)!==slots[0].start_at.slice(0,10)))return fail('Один из интервалов недоступен. Выберите свободное время в один день.',409);
+   // Recalculate with trusted slot timestamps. The client cannot choose its own holiday prices.
+   const snapshot=quote(fares,services[orders[0].service],b.city,orders.length>1||(!input.visits&&input.group===true),slots.map(s=>s.start_at));
+   if(JSON.stringify(snapshot)!==input.quoteToken)return reply({error:'Тариф изменился. Проверьте новый расчёт и отправьте заявку ещё раз.',fares,services},409);
    const groupId=crypto.randomUUID(),statements=[],receipts=[];
    for(const [index,slot] of slots.entries()){
      const order=orders.find(o=>o.slotId===slot.id),id=crypto.randomUUID();
      const saved={...visitQuote(snapshot,slots.length,index),groupId};
-     const detail=slots.length===1?summary:'Визит '+(index+1)+'/'+slots.length+' · Доля дороги '+(saved.travel==null?'по согласованию':euros(saved.travel))+' · Итого '+(saved.total==null?'по согласованию':euros(saved.total));
+     const holiday=saved.holidayName?' · '+saved.holidayName+' +'+saved.holidayPercent+'% ('+euros(saved.holidayExtra)+')':'';
+     const detail=slots.length===1?describe(saved):'Визит '+(index+1)+'/'+slots.length+holiday+' · Программа '+(saved.base==null?'по согласованию':euros(saved.base))+' · Доля дороги '+(saved.travel==null?'по согласованию':euros(saved.travel))+' · Итого '+(saved.total==null?'по согласованию':euros(saved.total));
      statements.push(env.DB.prepare("INSERT INTO bookings(id,slot_id,service,name,phone,email,city,address,message,status,created_at) VALUES(?,(SELECT id FROM slots WHERE id=? AND status='open'),?,?,?,?,?,?,?,'pending',?)").bind(id,slot.id,b.service,b.name,b.phone,b.email,b.city,order.address,b.message,now()),
        env.DB.prepare("INSERT INTO booking_quotes(booking_id,snapshot,summary) VALUES(?,?,?)").bind(id,JSON.stringify(saved),detail));
      receipts.push({id,time:slot.start_at,address:order.address,summary:detail});
@@ -188,7 +189,7 @@ async function api(req,env,ctx,url){
    const f=await parse(req);
    if(!validFare(f))return fail('Проверьте цену топлива, расход и километраж.');
    const km=f.km,routes=f.routes;
-   await setSetting(env,'travel_fare',JSON.stringify({fuel:f.fuel,consumption:f.consumption,km,routes}));
+   await setSetting(env,'travel_fare',JSON.stringify({fuel:f.fuel,consumption:f.consumption,km,routes,holidayPercent:f.holidayPercent??50}));
    return reply({ok:true});
  }
  if(path==='/api/admin/editor')return await editorAPI(req,env,path,reply);
