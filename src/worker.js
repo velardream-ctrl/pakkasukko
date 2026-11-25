@@ -87,7 +87,15 @@ async function api(req,env,ctx,url){
    const fingerprint=key?await mac(env.SESSION_SECRET,JSON.stringify({...input,turnstileToken:''})):'';
    const replay=async()=>{
      const stored=key&&await env.DB.prepare('SELECT fingerprint,result FROM booking_submissions WHERE token=?').bind(key).first();
-     return stored?(same(stored.fingerprint,fingerprint)?reply(JSON.parse(stored.result),201):fail('Данные отправки изменились.',409)):null;
+     if(!stored)return null;
+     if(!same(stored.fingerprint,fingerprint))return fail('Данные отправки изменились.',409);
+     const result=JSON.parse(stored.result);
+     const ids=(result.receipts||[{id:result.id}]).map(v=>v.id).filter(Boolean);
+     if(ids.length){
+       const count=await env.DB.prepare('SELECT COUNT(*) AS n FROM bookings WHERE id IN ('+ids.map(()=>'?').join(',')+')').bind(...ids).first();
+       if(count.n!==ids.length)return fail('Предыдущая заявка была удалена. Обновите календарь перед новым бронированием.',409);
+     }
+     return reply(result,201);
    };
    if(key){const previous=await replay();if(previous)return previous;}
    const visits=input.visits??[{slotId:input.slotId,address:input.address}];
@@ -220,6 +228,19 @@ async function api(req,env,ctx,url){
    if(!['completed','cancelled'].includes(status))return fail('Недопустимый статус.');
    const r=await env.DB.prepare("INSERT INTO booking_details(booking_id,final_status) SELECT id,? FROM bookings WHERE id=? AND (status='confirmed' OR (status='pending' AND ?='cancelled')) ON CONFLICT(booking_id) DO UPDATE SET final_status=excluded.final_status WHERE booking_details.final_status IS NULL").bind(status,id,status).run();
    return r.meta.changes?reply({ok:true}):fail('Переход недоступен.',409);
+ }
+ if(path==='/api/admin/bookings/delete'&&method==='POST'){
+   const body=await parse(req),id=clean(body?.id,80);
+   if(!id)return fail('Выберите заказ.');
+   try{
+     const r=await env.DB.prepare('DELETE FROM bookings WHERE id=?').bind(id).run();
+     return r.meta.changes?reply({ok:true}):fail('Заказ уже удалён или не найден.',404);
+   }catch(e){
+     const msg=String(e?.message||e);
+     if(msg.includes('booking active'))return fail('Сначала отмените или отклоните заказ. Выполненные заказы не удаляются.',409);
+     if(msg.includes('booking financial lock'))return fail('Удаление запрещено: по заказу выписан счёт или зафиксирована поездка.',409);
+     console.warn('Booking deletion rejected',msg);return fail('Не удалось удалить заказ. Данные сохранены.',409);
+   }
  }
  if(path==='/api/admin/bookings/details'&&method==='POST'){
    const b=await parse(req),minutes=Number(b.minutes);

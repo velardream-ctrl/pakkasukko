@@ -149,6 +149,15 @@ function render(){
    }
    button(item,'Сохранить детали',async()=>{try{await request('/api/admin/bookings/details','POST',{id:v.id,...Object.fromEntries(Object.entries(values).map(([k,i])=>[k,i.value]))});await reload();}catch(e){alert(e.message);}});
   }
+  if(v.final_status==='cancelled'||v.status==='declined'){
+   if(v.invoice_number!=null||v.share!=null)textBlock(item,'p','Удаление недоступно: сохранены финансовые документы или расчёт поездки.','muted');
+   else{
+    const remove=button(item,'Удалить заказ',async()=>{
+     if(!confirm('Окончательно удалить отменённый/отклонённый заказ от «'+v.name+'»? История этого заказа будет удалена, календарь и другие заказы сохранятся.'))return;
+     remove.disabled=true;try{await request('/api/admin/bookings/delete','POST',{id:v.id});await reload();}catch(e){alert(e.message);}finally{remove.disabled=false;}
+    },'decline');
+   }
+  }
   moveControls(item,v,state.slots,request,reload);
   invoiceControls(item,v,request,reload);
   b.append(item);

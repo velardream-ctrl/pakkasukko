@@ -115,3 +115,16 @@ BEGIN
  UPDATE slots SET status='reserved',booking_id=NEW.booking_id
  WHERE id=NEW.new_slot AND EXISTS(SELECT 1 FROM bookings WHERE id=NEW.booking_id AND status='confirmed');
 END;
+
+-- RUN-036: only cancelled/declined, non-financial bookings can be deleted.
+CREATE TRIGGER IF NOT EXISTS booking_delete_guard BEFORE DELETE ON bookings
+BEGIN
+ SELECT CASE WHEN OLD.status<>'declined' AND NOT EXISTS(SELECT 1 FROM booking_details WHERE booking_id=OLD.id AND final_status='cancelled')
+ THEN RAISE(ABORT,'booking active') END;
+ SELECT CASE WHEN EXISTS(SELECT 1 FROM invoices WHERE booking_id=OLD.id) OR EXISTS(SELECT 1 FROM trip_shares WHERE booking_id=OLD.id)
+ THEN RAISE(ABORT,'booking financial lock') END;
+ DELETE FROM booking_moves WHERE booking_id=OLD.id;
+ DELETE FROM booking_quotes WHERE booking_id=OLD.id;
+ DELETE FROM booking_details WHERE booking_id=OLD.id;
+ UPDATE slots SET status='open',booking_id=NULL WHERE booking_id=OLD.id AND status='reserved';
+END;

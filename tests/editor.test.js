@@ -106,3 +106,31 @@ test('RUN-035: only authenticated owner can delete a selected letter',async()=>{
  assert.equal((await request('admin/messages/delete',{id:'letter-one'})).status,404);
  assert.deepEqual((await (await request('admin/dashboard')).json()).messages.map(r=>r.id),['letter-two']);
 });
+
+test('RUN-036: cancelled orders can be removed without affecting a new reservation or financial records',async()=>{
+ const {request,sqlite,login}=fixture();
+ assert.equal((await request('admin/bookings/delete',{id:'one'})).status,401);
+ await login();
+ const create=async(startAt)=>(await (await request('admin/slots',{startAt,minutes:30,status:'open'})).json()).id;
+ const a=await create('2099-12-26T10:00'), b=await create('2099-12-26T11:00');
+ const insert=sqlite.prepare("INSERT INTO bookings(id,slot_id,service,name,phone,city,address,status,created_at) VALUES(?,?,'gift','test','test','test','test','pending','test')");
+ for(const [id,slot] of [['one',a],['two',a],['financial',b]])insert.run(id,slot);
+ const set=(id,status)=>request('admin/bookings/status',{id,status});
+ const del=id=>request('admin/bookings/delete',{id});
+ assert.equal((await del('one')).status,409);
+ assert.equal((await set('one','confirmed')).status,200);
+ assert.equal((await del('one')).status,409);
+ assert.equal((await set('one','cancelled')).status,200);
+ assert.equal((await set('two','confirmed')).status,200);
+ sqlite.prepare("INSERT INTO booking_quotes VALUES(?,?,?)").run('one','{}','test');
+ assert.equal((await del('one')).status,200);
+ assert.equal(sqlite.prepare('SELECT booking_id FROM slots WHERE id=?').get(a).booking_id,'two');
+ assert.equal(sqlite.prepare("SELECT COUNT(*) n FROM booking_quotes WHERE booking_id='one'").get().n,0);
+ assert.equal((await del('one')).status,404);
+ assert.equal((await set('financial','confirmed')).status,200);
+ sqlite.prepare('INSERT INTO invoices(booking_id,document) VALUES(?,?)').run('financial','{}');
+ assert.equal((await set('financial','cancelled')).status,200);
+ assert.equal((await del('financial')).status,409);
+ assert.equal(sqlite.prepare('SELECT COUNT(*) n FROM invoices').get().n,1);
+ assert.equal(sqlite.prepare('SELECT COUNT(*) n FROM bookings').get().n,2);
+});
