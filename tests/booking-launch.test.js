@@ -324,3 +324,60 @@ test('advance invoice reserves a slot, bank confirmation is manual, final quote 
   assert.equal((await request('admin/bookings/delete',{id})).status,409,'financial documents block deletion');
  }finally{globalThis.fetch=original;}
 });
+
+test('Stripe links remain private and signed webhooks alone confirm the 50 euro deposit',async()=>{
+ const {request,login,sqlite,env}=fixture();
+ env.DB.batch=async statements=>{sqlite.exec('BEGIN');try{for(const statement of statements)statement.run();sqlite.exec('COMMIT');}catch(error){sqlite.exec('ROLLBACK');throw error;}};
+ Object.assign(env,{TURNSTILE_SITE_KEY:'site',TURNSTILE_SECRET:'secret',OWNER_EMAIL:'owner@example.test',FROM_EMAIL:'from@example.test',RESEND_API_KEY:'test',
+  STRIPE_SECRET_KEY:'sk_test_testkey',STRIPE_WEBHOOK_SECRET:'whsec_somethingsecret'});
+ for(const key of ['enabled','mail_test','mail_received','privacy_confirmed'])sqlite.prepare("INSERT INTO booking_settings(key,value) VALUES(?,?)").run(key,'true');
+ sqlite.prepare("INSERT INTO booking_settings(key,value) VALUES('billing_profile',?)").run(JSON.stringify({name:'Karjalas',owner:'Artist',businessId:'3445587-1',address:'Finland',iban:'FI123',bic:'',contact:'',vatRate:'0',vatId:'',vatNote:'No VAT',terms:'14',logo:''}));
+ await login();
+ const fare={...defaultFare,prepayments:{enabled:true,dueDays:14,defaultRule:{mode:'fixed',percent:0,amount:5000},rules:{}}};
+ await request('admin/travel-fare',fare);
+ await request('admin/slots',{startAt:'2099-12-21T17:00',minutes:30});
+ const slot=sqlite.prepare('SELECT id FROM slots').get();
+ const publicCfg=await (await request('public-config')).json();
+ const booking={service:'home',city:'Kitee',slotId:slot.id,name:'Client',phone:'1234567',address:'North 1',email:'client@example.test',
+  turnstileToken:'abc',prepaymentTerms:'accepted',quoteToken:JSON.stringify(quote(publicCfg.fares,publicCfg.services.home,'Kitee',false,['2099-12-21T17:00']))};
+ const original=globalThis.fetch;
+ try{
+  globalThis.fetch=async(target,options)=>{
+   if(String(target).includes('turnstile'))return Response.json({success:true});
+   if(String(target).includes('/v1/checkout/sessions')){
+    assert.match(options.headers.Authorization,/sk_test_/);
+    const form=new URLSearchParams(options.body);
+    assert.equal(form.get('line_items[0][price_data][unit_amount]'),'5000');
+    return Response.json({id:'cs_test_test_checkout',url:'https://checkout.stripe.com/c/pay/example',amount_total:5000,currency:'eur',expires_at:Math.floor(Date.now()/1000)+86400});
+   }
+   throw Error('Unexpected external request '+target);
+  };
+  const created=await request('bookings',booking);assert.equal(created.status,201);
+  const {id}=await created.json();
+  assert.equal((await request('admin/stripe/status')).status,200);
+  assert.equal((await request('admin/stripe/checkout-link?id='+id,{})).status,409,'advance invoice is required');
+  assert.equal((await request('admin/prepayments/request?id='+id,{})).status,200);
+  const link=await (await request('admin/stripe/checkout-link?id='+id,{})).json();
+  assert.equal(link.amount,5000);assert.match(link.url,/stripe/);
+  assert.equal((await request('admin/stripe/checkout-link?id='+id,{})).status,200,'reuses active session');
+  const body=JSON.stringify({id:'evt_test1',type:'checkout.session.completed',data:{object:{
+   id:'cs_test_test_checkout',payment_status:'paid',amount_total:5000,currency:'eur',client_reference_id:id,payment_intent:'pi_test_payment'
+  }}});
+  async function webhook(data,valid=true){
+   const stamp=Math.floor(Date.now()/1000),k=await crypto.subtle.importKey('raw',new TextEncoder().encode('whsec_somethingsecret'),{name:'HMAC',hash:'SHA-256'},false,['sign']);
+   const signed=await crypto.subtle.sign('HMAC',k,new TextEncoder().encode(stamp+'.'+data));
+   const hex=Array.from(new Uint8Array(signed)).map(n=>n.toString(16).padStart(2,'0')).join('');
+   return worker.fetch(new Request('https://calendar.test/api/stripe/webhook',{method:'POST',headers:{'Stripe-Signature':'t='+stamp+',v1='+(valid?hex:'0'.repeat(64))},body:data}),env,{waitUntil:()=>{}});
+  }
+  assert.equal((await webhook(body,false)).status,400);
+  assert.equal(sqlite.prepare('SELECT status FROM prepayment_requests WHERE booking_id=?').get(id).status,'requested');
+  assert.equal((await webhook(body)).status,200);
+  assert.equal(sqlite.prepare('SELECT status FROM prepayment_requests WHERE booking_id=?').get(id).status,'paid');
+  assert.equal((await webhook(body)).status,200,'replayed event is idempotent');
+  assert.equal(sqlite.prepare("SELECT COUNT(*) AS n FROM prepayment_events WHERE booking_id=? AND action='paid'").get(id).n,1);
+  assert.equal((await request('admin/prepayments/refund?id='+id,{amount:1000,note:'bank refund'})).status,409,'card refunds are handled via Stripe');
+  const refunded=JSON.stringify({id:'evt_test2',type:'charge.refunded',data:{object:{id:'ch_test',payment_intent:'pi_test_payment',currency:'eur',amount_refunded:1200}}});
+  assert.equal((await webhook(refunded)).status,200);
+  assert.equal(sqlite.prepare('SELECT refunded_amount FROM prepayment_requests WHERE booking_id=?').get(id).refunded_amount,1200);
+ }finally{globalThis.fetch=original;}
+});

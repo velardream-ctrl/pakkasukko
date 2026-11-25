@@ -5,13 +5,13 @@ function control(parent,title,fn){
   b.disabled=true;try{await fn();}catch(error){alert(error.message);}finally{b.disabled=false;}
  });return b;
 }
-export function prepaymentControls(box,b,request,reload){
+export function prepaymentControls(box,b,request,reload,stripe={enabled:false,mode:'off'}){
  const q=JSON.parse(b.quote_snapshot||'{}'),planned=q.prepayment;
  if(!planned||!planned.amount)return;
  const p=add(box,'details'),summary=add(p,'summary','Предоплата · '+euros(planned.amount));
  const badge=add(p,'p',b.deposit_status==='paid'?'Получено: '+euros(b.deposit_amount-b.deposit_refunded):
   b.deposit_status==='refunded'?'Аванс полностью возвращён':
-  b.deposit_status==='requested'?'Счёт выставлен · ожидается банковский перевод':
+  b.deposit_status==='requested'?'Счёт выставлен · ожидается оплата':
   'Счёт ещё не выставлен, время не зарезервировано');
  const url=op=>'/api/admin/prepayments/'+op+'?id='+encodeURIComponent(b.id);
  if(!b.deposit_number){
@@ -33,6 +33,18 @@ export function prepaymentControls(box,b,request,reload){
    await request(url('send'),'POST',{email:email.value});await reload();
   });
  }
+ if(b.deposit_status==='requested'&&stripe.enabled){
+  const panel=add(p,'div');panel.className='record';
+  const title=add(panel,'p',stripe.mode==='test'?'Stripe подключён в тестовом режиме — не отправляйте ссылку реальным клиентам.':'Оплата онлайн: карты, Apple Pay, Google Pay, MobilePay, PayPal (если активированы в Stripe).');
+  control(panel,stripe.mode==='test'?'Создать тестовую ссылку Stripe':'Создать ссылку для оплаты',async()=>{
+   const {url,expiresAt}=await request('/api/admin/stripe/checkout-link?id='+encodeURIComponent(b.id),'POST',{});
+   const link=add(panel,'a','Открыть защищённую страницу оплаты');link.href=url;link.target='_blank';link.rel='noopener noreferrer';
+   const label=add(panel,'label','Ссылка для отправки клиенту');
+   const field=add(label,'input');field.type='url';field.value=url;field.readOnly=true;field.addEventListener('focus',()=>field.select());
+   control(panel,'Копировать ссылку',async()=>{await navigator.clipboard.writeText(url);});
+   add(panel,'small','Ссылка действует до '+new Date(expiresAt*1000).toLocaleString('ru-RU')+'. Оплату подтверждает Stripe, не клиент.');
+  });
+ }
  if(b.deposit_status==='requested'){
   const label=add(p,'label','Подтверждение банка (дата поступления, выписка или примечание)');
   const note=add(label,'input');note.maxLength=300;note.placeholder='Например: получено по выписке 26.11';
@@ -43,6 +55,7 @@ export function prepaymentControls(box,b,request,reload){
   });
  }
  if(b.deposit_status==='paid'){
+  if(b.stripe_paid){add(p,'p','Этот аванс оплачен через Stripe. Для возврата средств используйте Stripe Dashboard; после возврата через Stripe сумма автоматически обновится на сайте.');return;}
   const remaining=b.deposit_amount-b.deposit_refunded;
   add(p,'p','Получено '+euros(b.deposit_amount)+' · возвращено '+euros(b.deposit_refunded)+' · остаток '+euros(remaining));
   const label=add(p,'label','Сумма фактически выполненного возврата, €');

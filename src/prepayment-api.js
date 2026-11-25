@@ -74,6 +74,8 @@ export async function prepaymentsAPI(req,env,path,reply){
   return reply({ok:true});
  }
  if(path==='paid'&&method==='POST'){
+  const outstanding=await db.prepare("SELECT id FROM stripe_checkouts WHERE booking_id=? AND status='open' AND expires_at>? LIMIT 1").bind(id,Math.floor(Date.now()/1000)).first();
+  if(outstanding)return fail(reply,'Есть активная ссылка Stripe. Дождитесь подтверждения оплаты или окончания срока ссылки.',409);
   const input=await readJSON(req),note=safeNote(input.note);
   if(!note)return fail(reply,'Укажите дату или примечание к банковскому поступлению.');
   const stamp=new Date().toISOString();
@@ -87,6 +89,8 @@ export async function prepaymentsAPI(req,env,path,reply){
   return row.status==='paid'?reply({ok:true}):fail(reply,'Оплата уже обработана.',409);
  }
  if(path==='refund'&&method==='POST'){
+  const stripePayment=await db.prepare("SELECT id FROM stripe_checkouts WHERE booking_id=? AND status='paid' LIMIT 1").bind(id).first();
+  if(stripePayment)return fail(reply,'Возврат по карте оформляется через Stripe. Он поступит в журнал автоматически после подтверждения Stripe.',409);
   const input=await readJSON(req),amount=Number(input.amount),note=safeNote(input.note);
   if(!Number.isInteger(amount)||amount<=0||!note)return fail(reply,'Введите сумму возврата в центах и причину/дату банковского перевода.');
   if(old.status!=='paid'||amount>old.amount-old.refunded_amount)return fail(reply,'Возврат превышает полученный остаток.',409);

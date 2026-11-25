@@ -1,5 +1,6 @@
 import {billing} from './billing.js';
 import {prepaymentsAPI} from './prepayment-api.js';
+import {stripeAdmin,stripeWebhook} from './stripe.js';
 import {serviceCard,deliveryConfig,earliestDelivery} from '../docs/video-service.js';
 import {defaultFare,validFare,prices,quote,describe,visitQuote,euros,performanceRows,performanceChoice,prepaymentForVisit} from '../docs/fares.js';
 import {mediaAPI} from './media.js';
@@ -67,6 +68,7 @@ async function emailOwner(env,subject,body){try{await sendOwnerEmail(env,subject
 function csv(rows,keys,filename){const lines=[keys.map(csvCell).join(';'),...rows.map(row=>keys.map(k=>csvCell(row[k])).join(';'))];return new Response('\uFEFF'+lines.join('\r\n'),{headers:{'Content-Type':'text/csv; charset=utf-8','Content-Disposition':'attachment; filename="'+filename+'"','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});}
 async function api(req,env,ctx,url){
  const path=url.pathname,method=req.method;
+  if(path==='/api/stripe/webhook'&&method==='POST')return stripeWebhook(req,env,reply);
  if(path==='/api/trip'&&method==='GET')return billing(req,env,'share',reply);
  if(path.startsWith('/api/music/'))return musicAPI(req,env,path,reply,false);
  if(path.startsWith('/api/media/'))return mediaAPI(req,env,path,reply,false);
@@ -198,6 +200,7 @@ async function api(req,env,ctx,url){
  if(!await adminOK(req,env))return fail('Необходим вход владельца.',401);
  if(path.startsWith('/api/admin/billing/'))return billing(req,env,path.split('/').pop(),reply);
   if(path.startsWith('/api/admin/prepayments/'))return prepaymentsAPI(req,env,path.split('/').pop(),reply);
+  if(path.startsWith('/api/admin/stripe/'))return stripeAdmin(req,env,path.split('/').pop(),reply);
  if(path.startsWith('/api/admin/music/'))return musicAPI(req,env,path,reply,true);
  if(path.startsWith('/api/admin/media/'))return mediaAPI(req,env,path,reply,true);
  if(path==='/api/admin/travel-fare'&&method==='POST'){
@@ -249,7 +252,7 @@ async function api(req,env,ctx,url){
    return reply(await bookingState(env));
  }
  if(path==='/api/admin/dashboard'&&method==='GET'){
-   const [slots,bookings,messages]=await Promise.all([env.DB.prepare('SELECT * FROM slots ORDER BY start_at LIMIT 1000').all(),env.DB.prepare('SELECT b.*,q.summary AS quote_summary,q.snapshot AS quote_snapshot,t.share,t.participants,i.number AS invoice_number,i.sent_at,p.number AS deposit_number,p.amount AS deposit_amount,p.refunded_amount AS deposit_refunded,p.status AS deposit_status,p.sent_at AS deposit_sent,p.due_date AS deposit_due,s.start_at,s.end_at,d.price,d.notes,d.final_status FROM bookings b JOIN slots s ON s.id=b.slot_id LEFT JOIN booking_details d ON d.booking_id=b.id LEFT JOIN booking_quotes q ON q.booking_id=b.id LEFT JOIN trip_shares t ON t.booking_id=b.id LEFT JOIN invoices i ON i.booking_id=b.id LEFT JOIN prepayment_requests p ON p.booking_id=b.id ORDER BY s.start_at,b.created_at LIMIT 1000').all(),env.DB.prepare('SELECT * FROM messages ORDER BY created_at DESC LIMIT 500').all()]);
+   const [slots,bookings,messages]=await Promise.all([env.DB.prepare('SELECT * FROM slots ORDER BY start_at LIMIT 1000').all(),env.DB.prepare('SELECT b.*,q.summary AS quote_summary,q.snapshot AS quote_snapshot,t.share,t.participants,i.number AS invoice_number,i.sent_at,p.number AS deposit_number,p.amount AS deposit_amount,p.refunded_amount AS deposit_refunded,p.status AS deposit_status,p.sent_at AS deposit_sent,p.due_date AS deposit_due,(SELECT COUNT(*) FROM stripe_checkouts c WHERE c.booking_id=b.id AND c.status=\'paid\') AS stripe_paid,s.start_at,s.end_at,d.price,d.notes,d.final_status FROM bookings b JOIN slots s ON s.id=b.slot_id LEFT JOIN booking_details d ON d.booking_id=b.id LEFT JOIN booking_quotes q ON q.booking_id=b.id LEFT JOIN trip_shares t ON t.booking_id=b.id LEFT JOIN invoices i ON i.booking_id=b.id LEFT JOIN prepayment_requests p ON p.booking_id=b.id ORDER BY s.start_at,b.created_at LIMIT 1000').all(),env.DB.prepare('SELECT * FROM messages ORDER BY created_at DESC LIMIT 500').all()]);
    return reply({fares:await fareSettings(env),slots:slots.results||[],bookings:bookings.results||[],messages:messages.results||[],content:await getContent(env)});
  }
  if(path==='/api/admin/content'&&method==='POST'){const value=normalizeContent(await parse(req));await env.DB.prepare("INSERT INTO content(key,value) VALUES('site',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").bind(JSON.stringify(value)).run();return reply({ok:true,content:value});}
@@ -330,7 +333,7 @@ export default {async fetch(req,env,ctx){
   if(url.pathname.startsWith('/api/')){
     if(!['GET','POST'].includes(req.method))return fail('Метод не разрешён.',405);
     const origin=req.headers.get('Origin');
-    if(req.method==='POST'&&origin!==url.origin)return fail('Недопустимый источник запроса.',403);
+    if(req.method==='POST'&&origin!==url.origin&&url.pathname!=='/api/stripe/webhook')return fail('Недопустимый источник запроса.',403);
     return await api(req,env,ctx,url);
   }
   const response=await env.ASSETS.fetch(req),h=new Headers(response.headers);

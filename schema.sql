@@ -166,3 +166,17 @@ BEGIN SELECT RAISE(ABORT,'booking financial lock'); END;
 CREATE TRIGGER IF NOT EXISTS prepayment_prevent_move BEFORE INSERT ON booking_moves
 WHEN EXISTS(SELECT 1 FROM prepayment_requests WHERE booking_id=NEW.booking_id)
 BEGIN SELECT RAISE(ABORT,'locked booking'); END;
+
+-- Stripe-hosted checkout links are created only after the owner issues an advance invoice.
+-- Multiple attempts are retained for audit; Stripe payment confirmation comes from a signed webhook.
+CREATE TABLE IF NOT EXISTS stripe_checkouts (
+ id TEXT PRIMARY KEY,
+ booking_id TEXT NOT NULL REFERENCES bookings(id),
+ amount INTEGER NOT NULL CHECK(amount>0),
+ checkout_url TEXT NOT NULL, expires_at INTEGER NOT NULL,
+ status TEXT NOT NULL DEFAULT 'open' CHECK(status IN('open','paid')),
+ payment_intent TEXT NOT NULL DEFAULT '',
+ created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS stripe_checkouts_booking_idx ON stripe_checkouts(booking_id,created_at);
+CREATE INDEX IF NOT EXISTS stripe_checkouts_intent_idx ON stripe_checkouts(payment_intent);

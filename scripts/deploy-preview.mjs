@@ -3,7 +3,8 @@ import {randomBytes} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
 const {CLOUDFLARE_ACCOUNT_ID:account,CLOUDFLARE_API_TOKEN:token,PAKKASUKKO_ADMIN_PASSWORD:password,
  PAKKASUKKO_TURNSTILE_SITE_KEY:siteKey='',PAKKASUKKO_TURNSTILE_SECRET:turnstileSecret='',
- PAKKASUKKO_RESEND_API_KEY:resendKey='',PAKKASUKKO_OWNER_EMAIL:ownerEmail='',PAKKASUKKO_FROM_EMAIL:fromEmail=''}=process.env;
+ PAKKASUKKO_RESEND_API_KEY:resendKey='',PAKKASUKKO_OWNER_EMAIL:ownerEmail='',PAKKASUKKO_FROM_EMAIL:fromEmail='',
+ PAKKASUKKO_STRIPE_SECRET_KEY:stripeKey='',PAKKASUKKO_STRIPE_WEBHOOK_SECRET:stripeWebhookSecret=''}=process.env;
 if(!/^[a-f0-9]{32}$/.test(account)||!token||!password||password.length<16)throw Error('Configure the three Pakkasukko repository secrets first.');
 const api='https://api.cloudflare.com/client/v4/accounts/'+account;
 async function call(path,options={}){
@@ -40,6 +41,11 @@ try{
  const secure={ADMIN_PASSWORD:password,SESSION_SECRET:randomBytes(48).toString('hex')};
  if(turnstileSecret)secure.TURNSTILE_SECRET=turnstileSecret;
  if(resendKey)secure.RESEND_API_KEY=resendKey;
+ if(stripeKey&&stripeWebhookSecret){
+  if(!/^sk_(test|live)_[A-Za-z0-9_]+$/.test(stripeKey)||!/^whsec_[A-Za-z0-9_]+$/.test(stripeWebhookSecret))throw Error('Incorrect Stripe key format');
+  secure.STRIPE_SECRET_KEY=stripeKey;
+  secure.STRIPE_WEBHOOK_SECRET=stripeWebhookSecret;
+ }
  writeFileSync(secrets,JSON.stringify(secure),{mode:0o600});
  wrangler('d1','execute',dbName,'--remote','--file=schema.sql');
  wrangler('deploy','--secrets-file',secrets);
