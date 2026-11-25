@@ -65,11 +65,30 @@ export const sleighArt = `<svg viewBox="0 0 300 146" xmlns="http://www.w3.org/20
  <g transform="translate(232 103)" stroke="#ffe3a0" stroke-width="1.2" stroke-linecap="round" fill="none"><path d="M-7 0H7M0-7V7M-5-5 5 5M-5 5 5-5M-5-2l2 2-2 2M5-2 3 0l2 2M-2-5 0-3l2-2M-2 5 0 3l2 2"/></g>
 </g>
 </svg>`;
+// Direct SVG transforms avoid WebKit CSS transform-origin/compositing issues.
+export function sleighFrame(seconds){
+ const stride=Math.sin(seconds*2*Math.PI/0.70),counter=Math.sin(seconds*2*Math.PI/0.70+Math.PI*0.7);
+ const bounce=(1-Math.cos(seconds*2*Math.PI/0.35))/2;
+ const sway=Math.sin(seconds*2*Math.PI/1.4);
+ const n=x=>x.toFixed(2);
+ return {
+  'pk-deer-body':'translate(0 '+n(-7*bounce)+') rotate('+n(3*stride)+' 72 78)',
+  'pk-leg-front':'rotate('+n(37*stride)+' 53 86)',
+  'pk-leg-frontfar':'rotate('+n(-37*stride)+' 55 87)',
+  'pk-leg-back':'rotate('+n(37*counter)+' 101 88)',
+  'pk-leg-backfar':'rotate('+n(-37*counter)+' 98 89)',
+  'pk-sleigh':'translate(0 '+n(-3*(1+sway))+') rotate('+n(1.7*sway)+' 220 111)',
+  'pk-santa':'rotate('+n(4*sway)+' 218 88)',
+  'pk-santa-head':'rotate('+n(5*Math.sin(seconds*2*Math.PI/1.4+.5))+' 215 54)',
+  'pk-reins':'translate(0 '+n(-2*bounce)+')',
+  'pk-sparks':'translate('+n(3*sway)+' 0)'
+ };
+}
 export function createSleighPlayer(box,volume,onPlay,onNext,onVolume){
  const style=document.createElement('style');style.textContent=`
 .pk-music{position:fixed;z-index:900;right:12px;bottom:max(12px,env(safe-area-inset-bottom));width:132px;max-width:calc(100vw - 24px);font:13px system-ui;color:#152b39;isolation:isolate}
 .pk-music button{box-sizing:border-box;margin:0;cursor:pointer;font:inherit;min-height:36px;width:auto;min-width:36px;max-width:none;padding:0;border:0;border-radius:50%;line-height:1;display:grid;place-items:center}
-.pk-music .pk-sleigh-toggle{display:block;position:absolute;right:0;bottom:0;width:132px;height:70px;background:transparent;border-radius:12px;filter:drop-shadow(0 1px 2px #23170d80);-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.pk-music .pk-sleigh-toggle{display:block;position:absolute;right:0;bottom:0;width:132px;height:70px;background:transparent;border-radius:12px;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
 .pk-sleigh-toggle svg{display:block;width:100%;height:100%;overflow:visible;pointer-events:none}
 .pk-music .pk-music-controls{display:none;position:absolute;right:0;bottom:0;align-items:center;gap:7px;padding:7px 8px;border-radius:26px;background:linear-gradient(140deg,#fff4d4,#efd3a0);border:1px solid #c79a52;box-shadow:0 3px 14px #14233244;width:max-content;max-width:calc(100vw - 24px);box-sizing:border-box}
 .pk-music.is-open{width:242px}
@@ -81,34 +100,34 @@ export function createSleighPlayer(box,volume,onPlay,onNext,onVolume){
 .pk-music button:focus-visible,.pk-music input:focus-visible{outline:2px solid #c18b32;outline-offset:3px}
 .pk-music .pk-music-state{position:absolute;right:0;bottom:1px;min-width:16px;height:16px;border-radius:50%;background:#193748;color:#fff3d6;font-size:10px;display:grid;place-items:center;pointer-events:none}
 .pk-music.is-playing .pk-music-state{display:none}
-.pk-music .pk-deer-body{transform-origin:72px 78px}
-.pk-music .pk-leg{transform-box:view-box}
-.pk-music .pk-leg-front,.pk-music .pk-leg-frontfar{transform-origin:53px 86px}
-.pk-music .pk-leg-back,.pk-music .pk-leg-backfar{transform-origin:101px 88px}
-.pk-music .pk-sleigh{transform-origin:220px 111px}
-.pk-music .pk-santa{transform-origin:218px 88px}
-.pk-music .pk-santa-head{transform-origin:215px 54px}
-.pk-music.is-playing .pk-deer-body{animation:pk-deer-run .54s ease-in-out infinite}
-.pk-music.is-playing .pk-leg-front{animation:pk-leg-run .54s ease-in-out infinite}
-.pk-music.is-playing .pk-leg-frontfar{animation:pk-leg-run .54s -.27s ease-in-out infinite}
-.pk-music.is-playing .pk-leg-back{animation:pk-leg-run .54s -.16s ease-in-out infinite reverse}
-.pk-music.is-playing .pk-leg-backfar{animation:pk-leg-run .54s -.43s ease-in-out infinite reverse}
-.pk-music.is-playing .pk-sleigh{animation:pk-sleigh-ride 1.08s ease-in-out infinite}
-.pk-music.is-playing .pk-santa{animation:pk-santa-ride 1.08s ease-in-out infinite}
-.pk-music.is-playing .pk-santa-head{animation:pk-santa-nod 1.08s ease-in-out infinite}
-.pk-music.is-playing .pk-reins{animation:pk-reins-ride .54s ease-in-out infinite}
-.pk-music.is-playing .pk-sparks{animation:pk-sparkle 1.08s ease-in-out infinite}
-@keyframes pk-deer-run{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-4px) rotate(2deg)}}
-@keyframes pk-leg-run{0%,100%{transform:rotate(-24deg)}50%{transform:rotate(25deg)}}
-@keyframes pk-sleigh-ride{0%,100%{transform:translateY(0) rotate(-.7deg)}50%{transform:translateY(-2.3px) rotate(.7deg)}}
-@keyframes pk-santa-ride{0%,100%{transform:rotate(-1.8deg)}50%{transform:rotate(1.8deg)}}
-@keyframes pk-santa-nod{0%,100%{transform:rotate(-2deg)}50%{transform:rotate(2deg)}}
-@keyframes pk-reins-ride{0%,100%{transform:translateY(0)}50%{transform:translateY(-2px)}}
-@keyframes pk-sparkle{0%,100%{opacity:.55}50%{opacity:1;transform:translateX(2px)}}
-@media(prefers-reduced-motion:reduce){.pk-music svg *{animation:none!important}}
+.pk-music .pk-motion-enable{min-width:32px;min-height:36px;background:#f4dfb5;color:#172b37}
+.pk-music .pk-motion-enable[hidden]{display:none}
+
 `;document.head.append(style);
  const make=(tag,cls)=>{const n=document.createElement(tag);n.className=cls;return n;};
  const toggle=make('button','pk-sleigh-toggle');toggle.type='button';toggle.innerHTML=sleighArt;toggle.setAttribute('aria-label','Открыть музыкальный плеер');toggle.setAttribute('aria-expanded','false');
+ const svg=toggle.querySelector('svg'),motionNodes=Object.fromEntries(Object.keys(sleighFrame(0)).map(k=>[k,svg.querySelector('.'+k)]));
+ const reduced=window.matchMedia?.('(prefers-reduced-motion: reduce)');
+ let override=false,requested=true,raf=0,last=-Infinity,startTime=null;
+ function resetPose(){for(const node of Object.values(motionNodes))node?.removeAttribute('transform');motionNodes['pk-sparks']?.removeAttribute('opacity');}
+ function tick(now){
+  raf=0;
+  if(!requested||document.hidden||(reduced?.matches&&!override))return;
+  if(startTime===null)startTime=now;
+  if(now-last>=32){
+   const seconds=(now-startTime)/1000;
+   for(const [name,transform] of Object.entries(sleighFrame(seconds)))motionNodes[name]?.setAttribute('transform',transform);
+   motionNodes['pk-sparks']?.setAttribute('opacity',String(.55+.45*(1+Math.sin(seconds*5))/2));
+   last=now;
+  }
+  raf=requestAnimationFrame(tick);
+ }
+ function syncMotion(){
+  const allowed=requested&&!document.hidden&&(!reduced?.matches||override);
+  if(allowed&&!raf){last=-Infinity;startTime=null;raf=requestAnimationFrame(tick);}
+  if(!allowed){if(raf)cancelAnimationFrame(raf);raf=0;resetPose();}
+ }
+ document.addEventListener('visibilitychange',syncMotion);
  const state=make('span','pk-music-state');state.textContent='♪';state.setAttribute('aria-hidden','true');toggle.append(state);
  const controls=make('div','pk-music-controls');controls.setAttribute('role','group');controls.setAttribute('aria-label','Управление музыкой');
  const button=(label,txt,fn)=>{const b=make('button','');b.type='button';b.setAttribute('aria-label',label);b.title=label;b.textContent=txt;b.onclick=fn;controls.append(b);return b;};
@@ -120,6 +139,8 @@ export function createSleighPlayer(box,volume,onPlay,onNext,onVolume){
  const play=button('Включить музыку','▶',()=>{onPlay();arm();});
  button('Следующая композиция','⏭',()=>{onNext();arm();});
  const slider=make('input','');Object.assign(slider,{type:'range',min:0,max:100,value:volume});slider.setAttribute('aria-label','Громкость музыки');slider.oninput=()=>{onVolume(Number(slider.value));arm();};controls.append(slider);
+ const motion=button('Включить движение упряжки','✧',()=>{override=!override;motion.setAttribute('aria-pressed',String(override));motion.setAttribute('aria-label',override?'Отключить движение упряжки':'Включить движение упряжки');syncMotion();arm();});motion.className='pk-motion-enable';motion.hidden=!reduced?.matches;motion.setAttribute('aria-pressed','false');
+ const onMotionPreference=()=>{motion.hidden=!reduced?.matches;override=false;motion.setAttribute('aria-pressed','false');syncMotion();};if(reduced?.addEventListener)reduced.addEventListener('change',onMotionPreference);else reduced?.addListener?.(onMotionPreference);
  const collapse=button('Свернуть плеер','×',()=>{close();toggle.focus();});collapse.className='pk-music-close';
  controls.addEventListener('focusout',arm);controls.addEventListener('pointerdown',()=>{keyboard=false;arm();});controls.addEventListener('keydown',()=>{keyboard=true;arm();});
  slider.addEventListener('pointerdown',()=>{dragging=true;});
@@ -128,5 +149,6 @@ export function createSleighPlayer(box,volume,onPlay,onNext,onVolume){
  document.addEventListener('pointerdown',e=>{if(!box.contains(e.target))close();});
  box.addEventListener('keydown',e=>{if(e.key==='Escape'){close();toggle.focus();}});
  box.append(toggle,controls);
- return {update(playing){box.classList.toggle('is-playing',playing);play.textContent=playing?'Ⅱ':'▶';play.setAttribute('aria-label',playing?'Выключить музыку':'Включить музыку');play.title=playing?'Выключить музыку':'Включить музыку';}};
+ syncMotion();
+ return {update(playing,animate=playing){requested=animate;syncMotion();box.classList.toggle('is-playing',playing);play.textContent=playing?'Ⅱ':'▶';play.setAttribute('aria-label',playing?'Выключить музыку':'Включить музыку');play.title=playing?'Выключить музыку':'Включить музыку';}};
 }

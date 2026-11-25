@@ -1,4 +1,4 @@
-import {createSleighPlayer} from './sleigh-player.js?v=40';
+import {createSleighPlayer} from './sleigh-player.js?v=41';
 // No audio request until playback is attempted. Owner controls the sequence.
 async function mount(){
  if(location.hostname.endsWith('github.io'))return;
@@ -17,14 +17,14 @@ async function mount(){
  function setVolume(){audio.volume=ctx?1:volume/100;if(gain)gain.gain.value=volume/100;}
  function graph(){if(ctx)return;const C=window.AudioContext||window.webkitAudioContext;if(!C)return;try{ctx=new C();gain=ctx.createGain();source=ctx.createMediaElementSource(audio);source.connect(gain);gain.connect(ctx.destination);setVolume();}catch{ctx=null;gain=null;}}
  function load(){audio.src='/api/music/'+p.tracks[index].id;}
- function ui(){player.update(!audio.paused&&!audio.ended&&!audio.error);}
+ function ui(){player.update(!audio.paused&&!audio.ended&&!audio.error,want);}
  let starting=false;
  async function start(){
   if(!want||starting||!audio.paused)return;starting=true;
   try{graph();setVolume();if(ctx){const resume=ctx.resume();resume.catch(()=>{});const attempt=audio.play();await attempt;if(ctx.state!=='running'){audio.pause();}}else await audio.play();}catch{ /* Browser may require a gesture. */ }finally{starting=false;ui();}
  }
  function advance(){index=(index+1)%p.tracks.length;audio.pause();load();if(want)start();}
- load();setVolume();
+ load();setVolume();ui();
  audio.addEventListener('play',ui);audio.addEventListener('pause',ui);audio.addEventListener('ended',advance);
  audio.addEventListener('error',ui);
  const gesture=e=>{if(want&&!box.contains(e.target)&&audio.paused)start();};
