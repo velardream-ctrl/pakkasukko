@@ -106,28 +106,59 @@ output{font-variant-numeric:tabular-nums;color:#f9deaa}
 "use strict";
 const $=id=>document.getElementById(id),viewer=$('viewer'),world=$('world'),status=$('status');
 const clamp=(n,a,b)=>Math.min(b,Math.max(a,n));
-let flat=false,mode='manual',x=0,y=0,tx=0,ty=0,last=0,blockedUntil=0,orientation=false,neutral=null,ptr=null;
+let flat=false,mode='manual',x=0,y=0,tx=0,ty=0,last=0,blockedUntil=0,orientation=false,neutral=null,gravityNeutral=null,sensorSamples=0,lastOrientationAt=0,ptr=null;
 function message(t){status.textContent=t;}
 function pressed(id,on){$(id).setAttribute('aria-pressed',String(on));}
 function updateButtons(){pressed('depthBtn',!flat);pressed('flatBtn',flat);pressed('manualBtn',mode==='manual');pressed('autoBtn',mode==='auto');pressed('tiltBtn',mode==='tilt');viewer.classList.toggle('flat',flat);$('hint').textContent=flat?'Исходная фотография без движения':'Проведи пальцем — движется только фон';}
-function disableTilt(){if(orientation)window.removeEventListener('deviceorientation',onTilt);orientation=false;neutral=null;}
+function disableTilt(){window.removeEventListener('deviceorientation',onTilt);window.removeEventListener('devicemotion',onMotion);orientation=false;neutral=null;gravityNeutral=null;sensorSamples=0;lastOrientationAt=0;}
 function setMode(m){disableTilt();mode=m;tx=ty=0;updateButtons();}
 $('depthBtn').onclick=()=>{flat=false;updateButtons();message('Новая панорама за неподвижным Дедом Морозом.');};
 $('flatBtn').onclick=()=>{flat=true;disableTilt();updateButtons();message('Оригинальная фотография для сравнения.');};
 $('manualBtn').onclick=()=>{flat=false;setMode('manual');message('Двигай зимнюю сцену пальцем или мышью.');};
 $('autoBtn').onclick=()=>{flat=false;setMode('auto');message('Включено плавное автоматическое движение заднего плана.');};
-const onTilt=e=>{if(!orientation||mode!=='tilt'||flat||ptr||e.beta==null||e.gamma==null)return;if(!neutral)neutral={gamma:e.gamma,beta:e.beta};tx=clamp((e.gamma-neutral.gamma)/20,-1,1);ty=clamp((e.beta-neutral.beta)/27,-1,1);};
+function sensorSeen(){
+  sensorSamples++;
+  if(sensorSamples===1)message('Датчик отвечает! Медленно наклоняй телефон в стороны.');
+}
+const onTilt=e=>{
+  if(!orientation||mode!=='tilt'||flat||ptr||e.beta==null||e.gamma==null)return;
+  if(!neutral)neutral={gamma:e.gamma,beta:e.beta};
+  tx=clamp((e.gamma-neutral.gamma)/17,-1,1);ty=clamp((e.beta-neutral.beta)/23,-1,1);
+  lastOrientationAt=performance.now();sensorSeen();
+};
+const onMotion=e=>{
+  if(!orientation||mode!=='tilt'||flat||ptr||performance.now()-lastOrientationAt<1200)return;
+  const g=e.accelerationIncludingGravity;
+  if(!g||!Number.isFinite(g.x)||!Number.isFinite(g.y)||!Number.isFinite(g.z))return;
+  const gx=Math.atan2(g.x,Math.abs(g.z)+1)*180/Math.PI;
+  const gy=Math.atan2(g.y,Math.abs(g.z)+1)*180/Math.PI;
+  if(!gravityNeutral)gravityNeutral={x:gx,y:gy};
+  tx=clamp((gx-gravityNeutral.x)/17,-1,1);ty=clamp((gy-gravityNeutral.y)/23,-1,1);
+  sensorSeen();
+};
 $('tiltBtn').onclick=async()=>{
   flat=false;setMode('tilt');
-  if(typeof DeviceOrientationEvent==='undefined'){message('Этот браузер не предоставляет датчик наклона. Можно двигать пальцем.');return;}
+  const orient=window.DeviceOrientationEvent,motion=window.DeviceMotionEvent;
+  if(!orient&&!motion){message('Встроенный браузер не предоставляет датчики. Открой страницу в Safari.');return;}
   try{
-    if(typeof DeviceOrientationEvent.requestPermission==='function'){
-      const permission=await DeviceOrientationEvent.requestPermission();
-      if(permission!=='granted'){message('Доступ к датчику не разрешён. Пальцем можно двигать и в этом режиме.');return;}
+    // Request both permissions inside the same user gesture (required on iPhone).
+    const requests=[];
+    for(const sensor of [orient,motion])if(typeof sensor?.requestPermission==='function')requests.push(sensor.requestPermission());
+    if(requests.length){
+      const results=await Promise.allSettled(requests);
+      if(!results.some(v=>v.status==='fulfilled'&&v.value==='granted')){
+        message('Нет разрешения на датчик. Открой ссылку в Safari или двигай пальцем.');return;
+      }
     }
-    orientation=true;neutral=null;window.addEventListener('deviceorientation',onTilt,{passive:true});
-    updateButtons();message('Датчик включён. Медленно наклоняй телефон в стороны.');
-  }catch{message('Датчик недоступен. Для теста используй движение пальцем.');}
+    orientation=true;neutral=null;gravityNeutral=null;sensorSamples=0;lastOrientationAt=0;
+    window.addEventListener('deviceorientation',onTilt,{passive:true});
+    window.addEventListener('devicemotion',onMotion,{passive:true});
+    updateButtons();message('Проверяем датчик. Медленно наклоняй телефон…');
+    setTimeout(()=>{
+      if(orientation&&mode==='tilt'&&sensorSamples===0)
+        message('Браузер не передаёт движение. Открой ссылку в Safari — пальцем можно пользоваться здесь.');
+    },2200);
+  }catch{message('Датчик заблокирован. Попробуй открыть страницу в Safari.');}
 };
 $('resetBtn').onclick=()=>{$('depth').value=84;$('snowLevel').value=72;$('zoom').value=100;$('focus').value=42;tx=ty=x=y=0;flat=false;setMode('manual');updateSliders();message('Настройки теста сброшены.');};
 function updateSliders(){
