@@ -1,7 +1,7 @@
 import {deliveryConfig,deliveryLink} from './video-service.js';
-import {mountFares} from './fare-form.js';
+import {mountFares} from './fare-form.js?v=45';
 import {fitTagline} from './tagline.js';
-import {pageText,initial,bindPage,renderPage,deviceFor} from './site.js';
+import {pageText,initial,bindPage,renderPage,deviceFor} from './site.js?v=45';
 const $=(s)=>document.querySelector(s);
 fitTagline(document);
 $('#year').textContent=new Date().getFullYear();
@@ -27,15 +27,15 @@ async function activate(){
     const currentDevice=()=>deviceFor(innerWidth,innerHeight);
     const boundFields=bindPage(document);
     let ownerPreview=false;
-    const redraw=()=>renderPage(document,model,boundFields,currentDevice(),ownerPreview);
+    const redraw=()=>renderPage(document,model,boundFields,currentDevice(),ownerPreview,config.fares);
     redraw();
     const visitOption=[...$('#service').options].find(o=>deliveryConfig(model,o.value)?.mode==='visit');
     if(deliveryConfig(model,$('#service').value)?.mode==='delivery'&&visitOption)$('#service').value=visitOption.value;
     addEventListener('resize',()=>{redraw();document.dispatchEvent(new Event('pakkasukko:layout'));});
     // Ordinary visitors receive no editing UI. Authentication is validated by the Worker.
     try{
-      const {startInlineEditor}=await import('./inline-editor.js');
-      await startInlineEditor({model,fields:boundFields,currentDevice,onAdmin:()=>{ownerPreview=true;}});
+      const {startInlineEditor}=await import('./inline-editor.js?v=45');
+      await startInlineEditor({model,fields:boundFields,currentDevice,fares:config.fares,onAdmin:()=>{ownerPreview=true;}});
     }catch(err){console.warn('Inline editor unavailable',err?.message);}
     // Open availability is public and needs no login, cookies or Turnstile.
     // Sending personal information is a separate owner-controlled feature.
@@ -118,7 +118,7 @@ async function activate(){
       const signature=JSON.stringify(payload);
       if(signature!==previousSelection){submissionKey=crypto.randomUUID();previousSelection=signature;}
       payload.submissionKey=submissionKey;payload.turnstileToken=form.dataset.captcha;submit.disabled=true;submit.textContent=pageText(model,'sending');
-      try{const r=await fetch('/api/bookings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});const res=await r.json();if(!r.ok){if(res.fares){Object.assign(config,{fares:res.fares,services:res.services});fare.update();}throw Error(res.error||pageText(model,'error'));}previousSelection='';out.textContent=pageText(model,'success')+' '+res.summary;for(const visit of res.receipts||[]){const link=document.createElement('a');link.href='./trip.html#'+visit.id;link.textContent='Расчёт по визиту '+visit.time.replace('T',' ');out.append(document.createElement('br'),link);}form.reset();$('#slotId').value='';$('#dateSelect').dispatchEvent(new Event('change'));window.turnstile?.reset();form.dataset.captcha='';}catch(err){out.textContent=err.message;submit.disabled=false;submit.textContent=pageText(model,'retry');}
+      try{const r=await fetch('/api/bookings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});const res=await r.json();if(!r.ok){if(res.fares){Object.assign(config,{fares:res.fares,services:res.services});fare.update();redraw();}throw Error(res.error||pageText(model,'error'));}previousSelection='';out.textContent=pageText(model,'success')+' '+res.summary;for(const visit of res.receipts||[]){const link=document.createElement('a');link.href='./trip.html#'+visit.id;link.textContent='Расчёт по визиту '+visit.time.replace('T',' ');out.append(document.createElement('br'),link);}form.reset();$('#slotId').value='';$('#dateSelect').dispatchEvent(new Event('change'));window.turnstile?.reset();form.dataset.captcha='';}catch(err){out.textContent=err.message;submit.disabled=false;submit.textContent=pageText(model,'retry');}
     });
   }catch(error){console.warn('Pakkasukko API not ready',error.message);}
 }

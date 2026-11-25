@@ -1,4 +1,5 @@
 import {defaultFare,prices,quote,describe,euros,visitQuote} from './fares.js';
+import {routeCities} from './route-cities.js';
 export function mountFares(form,config){
   const service=form.elements.service,input=form.elements.city;
   const select=document.createElement('select');
@@ -8,7 +9,7 @@ export function mountFares(form,config){
     const cities=(config.fares||defaultFare).km;
     if(source===cities)return;
     const previous=select.value;
-    select.replaceChildren(...['Kitee',...Object.keys(cities).filter(city=>city!=='Kitee'),'Другой город'].map(city=>new Option(city,city)));
+    select.replaceChildren(...[...(routeCities({km:cities})||['Kitee']),'Другой город'].map(city=>new Option(city,city)));
     if(previous)select.value=Object.hasOwn(cities,previous)?previous:'Другой город';
     if(previous && previous!=='Другой город' && !Object.hasOwn(cities,previous))input.value=previous;
     source=cities;

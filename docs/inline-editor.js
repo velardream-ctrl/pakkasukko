@@ -2,7 +2,7 @@ import {deliveryFields} from './delivery-editor.js';
 import {fitTagline,taglineSlider} from './tagline.js';
 import {applySnow} from './snow.js';
 import {snowPanel} from './snow-panel.js';
-import {initial,mediaURL,baseCrop,baseSectionCrop,sectionCrop,cropPhoto,applySectionCrop,renderPage,setField,applyHeroShade,heroShadePercent,applyRoutesShade,routesShadePercent,heroImageId,setHeroDeviceImage} from './site.js';
+import {initial,mediaURL,baseCrop,baseSectionCrop,sectionCrop,cropPhoto,applySectionCrop,renderPage,setField,applyHeroShade,heroShadePercent,applyRoutesShade,routesShadePercent,heroImageId,setHeroDeviceImage} from './site.js?v=45';
 
 // RUN-009: In-page controls are loaded only after the protected /api/admin/editor request succeeds.
 export function editableFields(fields,element){
@@ -53,7 +53,7 @@ function pictureId(el){
   return sectionOf(el);
 }
 function cropBounds(n){return Math.max(-100,Math.min(100,Math.round(n)));}
-export async function startInlineEditor({model,fields,currentDevice,onAdmin}){
+export async function startInlineEditor({model,fields,currentDevice,onAdmin,fares}){
   let result;
   try{
     const r=await fetch('/api/admin/editor',{cache:'no-store',credentials:'same-origin'});
@@ -95,7 +95,7 @@ export async function startInlineEditor({model,fields,currentDevice,onAdmin}){
   baseline=structuredClone(result.model||{});
   replaceModel(baseline);
   onAdmin?.();
-  renderPage(document,model,fields,currentDevice(),true);
+  renderPage(document,model,fields,currentDevice(),true,fares);
   function info(message,isError=false){
     status.textContent=message;status.classList.toggle('pk-error',isError);
     saveButton.classList.toggle('pk-unsaved',dirty);
@@ -105,7 +105,7 @@ export async function startInlineEditor({model,fields,currentDevice,onAdmin}){
     for(const item of pinItems)item.button.remove();
     pinItems=[];
     pins.replaceChildren();
-    renderPage(document,model,fields,currentDevice(),true);
+    renderPage(document,model,fields,currentDevice(),true,fares);
     refreshPins();
     positionDrag();
   }
@@ -126,7 +126,7 @@ export async function startInlineEditor({model,fields,currentDevice,onAdmin}){
       const seen=new Set();
       const selectors='h1,h2,h3,p,nav a,.brand,.top-cta,.hero-actions a,.card-foot strong,.card-foot a,.card-number,.card-icon,.eyebrow,.hero-stats span,.tags span,.portrait-label,.panel-overline,.timezone,.field-label,.preview-banner,.footer-bottom span,.owner-contact,.extra-card strong,.extra-card a,.booking-form label';
       for(const el of section.querySelectorAll(selectors)){
-        if(!el.isConnected||el.closest('[hidden]')||seen.has(el)||isPicture(el))continue;
+        if(!el.isConnected||el.closest('[hidden],[data-route-city]')||seen.has(el)||isPicture(el))continue;
         if(el.closest('.snow')||el.closest('script'))continue;
         if(el.matches('a,span')&&el.closest('h1,h2,h3,p')&&el.closest('h1,h2,h3,p')!==el)continue;
         const related=editableFields(fields,el);

@@ -72,7 +72,7 @@ $('fareForm').onsubmit=async event=>{
    names.add(key);km[entry.city]=entry.km;routes[entry.city]=entry.route;
  }
  const fares={fuel:$('fareFuel').valueAsNumber,consumption:$('fareConsumption').valueAsNumber,km,routes};
- try{await request('/api/admin/travel-fare','POST',fares);state.fares=fares;status('fareStatus','Тариф сохранён.');}
+ try{await request('/api/admin/travel-fare','POST',fares);state.fares=fares;status('fareStatus','Тариф сохранён. Города автоматически обновятся на главной странице и в форме бронирования.');}
  catch(e){status('fareStatus',e.message,true);}
 };
 async function reloadBookingState(){

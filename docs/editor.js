@@ -3,7 +3,7 @@ import {applySnow} from './snow.js';
 import {deliveryFields} from './delivery-editor.js';
 import {BUILTIN_SERVICES} from './video-service.js';
 import {snowPanel} from './snow-panel.js';
-import {applyBrand,setField,devices,baseCrop,baseSectionCrop,sectionCrop,initial,bindPage,renderPage,cropPhoto,applySectionCrop,applyHeroShade,heroShadePercent,applyRoutesShade,routesShadePercent,heroImageId,setHeroDeviceImage,setHeroGlobalImage,mediaURL} from './site.js';
+import {applyBrand,setField,devices,baseCrop,baseSectionCrop,sectionCrop,initial,bindPage,renderPage,cropPhoto,applySectionCrop,applyHeroShade,heroShadePercent,applyRoutesShade,routesShadePercent,heroImageId,setHeroDeviceImage,setHeroGlobalImage,mediaURL} from './site.js?v=45';
 const $=id=>document.getElementById(id);
 const frame=document.querySelector('iframe'), panel=document.querySelector('main');
 const names={header:'Шапка',top:'Первый экран',intro:'Вступление',programs:'Программы',about:'Об артисте',routes:'Города',booking:'Календарь',contact:'Контакты',privacy:'Конфиденциальность',footer:'Подвал'};
@@ -72,9 +72,10 @@ const displayTarget=()=>{
   if(target()==='top')doc.defaultView.scrollTo(0,0);
   else doc.getElementById(target())?.scrollIntoView({block:'start'});
 };
+let publishedFares=null;
 function draw(){
   applyBrand(document,model.logo,true);
-  renderPage(doc,model,fields,device(),true);
+  renderPage(doc,model,fields,device(),true,publishedFares);
   for(const key of ['x','y','zoom'])$(key).value=crop()[key];
   $('photo').value=source();
   $('photoFit').value=sectionCrop(model,target(),device()).fit==='cover'?'cover':'contain';
@@ -238,7 +239,7 @@ async function init(){
   data=await api('editor');
   const page=new DOMParser().parseFromString(await (await fetch('./index.html')).text(),'text/html');
   page.querySelectorAll('script').forEach(s=>s.remove());
-  const config=await (await fetch('/api/public-config')).json();
+  const config=await (await fetch('/api/public-config',{cache:'no-store'})).json();publishedFares=config.fares;
   for(const [id,key] of Object.entries({priceGift:'giftPrice',priceHome:'homePrice',priceEvent:'eventPrice',bio:'bio',travel:'travel'}))if(config.content?.[key])page.getElementById(id).textContent=config.content[key];
   const loaded=new Promise(resolve=>frame.onload=resolve);frame.srcdoc=page.documentElement.outerHTML;await loaded;
   doc=frame.contentDocument;fields=bindPage(doc);doc.addEventListener('click',previewClick,true);
