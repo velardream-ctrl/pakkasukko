@@ -74,9 +74,9 @@ function appendHolidayRule(rule={}){
  const endISO=endAnnualISO(startISO,rule.endDate||'25.12');
  for(const [key,title,type,fallback] of [
   ['name','Название праздника','text','Новый праздник'],
-  ['startDate','Дата начала (календарь)','date','24.12'],
+  ['startDate','Дата начала','date','24.12'],
   ['startTime','Начало','time','20:00'],
-  ['endDate','Дата окончания (календарь)','date','25.12'],
+  ['endDate','Дата окончания','date','25.12'],
   ['endTime','Окончание','time','09:00'],
   ['percent','Надбавка, %','number',50]
  ]){
