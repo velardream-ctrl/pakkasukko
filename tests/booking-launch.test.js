@@ -221,3 +221,26 @@ test('RUN-038: explicit service modes override names and support original cards'
  await login();assert.equal((await request('admin/video-orders')).status,200);
  }finally{globalThis.fetch=original;}
 });
+
+test('holiday tariff edits persist across separate admin dashboard reads, and invalid dates do not overwrite saved rules',async()=>{
+ const {request,login}=fixture();
+ await login();
+ const current=(await (await request('admin/dashboard')).json()).fares;
+ const rules=[
+  {name:'Рождество, вечер',startDate:'24.12',startTime:'20:00',endDate:'24.12',endTime:'23:00',percent:50},
+  {name:'Рождество, ночь',startDate:'24.12',startTime:'23:00',endDate:'25.12',endTime:'03:00',percent:100},
+  {name:'Дополнительный праздник',startDate:'07.01',startTime:'20:00',endDate:'08.01',endTime:'09:00',percent:75}
+ ];
+ const changed={...current,holidayRules:rules,holidaySort:'percent_desc'};
+ const response=await request('admin/travel-fare',changed);
+ assert.equal(response.status,200);
+ const stored=(await (await request('admin/dashboard')).json()).fares;
+ assert.deepEqual(stored.holidayRules,rules);
+ assert.equal(stored.holidaySort,'percent_desc');
+ const publicFare=(await (await request('public-config')).json()).fares;
+ assert.deepEqual(publicFare.holidayRules,rules);
+ const invalid={...stored,holidayRules:rules.map((rule,i)=>i===2?{...rule,endDate:'25.12'}:rule)};
+ assert.equal((await request('admin/travel-fare',invalid)).status,400);
+ const afterError=(await (await request('admin/dashboard')).json()).fares;
+ assert.deepEqual(afterError.holidayRules,rules,'invalid form must not wipe previously saved intervals');
+});

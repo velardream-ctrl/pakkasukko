@@ -1,8 +1,8 @@
 import {sellerForm,invoiceControls} from './billing-panel.js';
 import {applyBrand} from './site.js';
 import {musicAdmin} from './music-admin.js';
-import {holidayRules,validFare} from './fares.js?v=58';
-import {nextAnnualISO,endAnnualISO,isoToAnnual,compareHolidayRules} from './holiday-calendar.js?v=58';
+import {holidayRules,validFare,validHolidayRule} from './fares.js?v=58';
+import {nextAnnualISO,endAnnualISO,isoToAnnual,compareHolidayRules,shiftEndForNewStart} from './holiday-calendar.js?v=59';
 import {renderVideoOrders} from './video-admin.js';
 import {moveControls,slotControls} from './reschedule-panel.js';
 
@@ -88,16 +88,21 @@ function appendHolidayRule(rule={}){
   if(key==='percent'){input.min='0';input.max='300';input.step='1';}
   label.append(input);grid.append(label);fields[key]=input;
  }
+ let previousStartISO=startISO;
  fields.startDate.addEventListener('change',()=>{
-  const endAnnual=isoToAnnual(fields.endDate.value);
-  if(endAnnual){const next=endAnnualISO(fields.startDate.value,endAnnual);if(next)fields.endDate.value=next;}
+  const shifted=shiftEndForNewStart(previousStartISO,fields.endDate.value,fields.startDate.value);
+  if(shifted)fields.endDate.value=shifted;
+  previousStartISO=fields.startDate.value;
  });
  item.append(grid);
  const preview=el('p',undefined,'muted');
  const sample=()=>{const percent=fields.percent.valueAsNumber;preview.textContent=Number.isInteger(percent)&&percent>=0?'Пример: программа 100 € → '+(100*(1+percent/100)).toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2})+' €':'Проверьте процент надбавки';};
  fields.percent.oninput=sample;sample();item.append(preview);
+ const rowWarning=el('p',undefined,'holiday-row-error');rowWarning.hidden=true;rowWarning.setAttribute('role','alert');item.append(rowWarning);
+ item.showIssue=message=>{rowWarning.textContent=message;rowWarning.hidden=!message;item.classList.toggle('holiday-invalid',Boolean(message));};
+ item.addEventListener('input',()=>{item.showIssue('');holidayFeedback('Есть несохранённые изменения. Нажмите «Сохранить праздничные интервалы».');});
  const actions=el('div',undefined,'admin-actions');
- button(actions,'Удалить этот интервал',()=>item.remove(),'decline');
+ button(actions,'Удалить этот интервал',()=>{item.remove();holidayFeedback('Интервал удалён из редактора. Для сохранения нажмите «Сохранить праздничные интервалы».');},'decline');
  item.append(actions);
  item.readHoliday=()=>({
   name:fields.name.value.trim(),startDate:isoToAnnual(fields.startDate.value),
@@ -106,6 +111,10 @@ function appendHolidayRule(rule={}){
  });
  $('holidayRows').append(item);
  return fields.name;
+}
+function holidayFeedback(message,isError=false){
+ status('holidayStatus',message,isError);
+ status('holidayStatusTop',message,isError);
 }
 function sortHolidayRows(){
  const parent=$('holidayRows'),today=new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Helsinki'}).format(new Date());
@@ -119,26 +128,48 @@ function renderHoliday(){
  $('holidaySort').value=state.fares.holidaySort||'date';
  sortHolidayRows();
 }
-$('holidaySort').onchange=sortHolidayRows;
+$('holidaySort').onchange=()=>{sortHolidayRows();holidayFeedback('Порядок изменён. Нажмите «Сохранить праздничные интервалы».');};
 $('holidaySortApply').onclick=sortHolidayRows;
 $('holidayAdd').onclick=()=>{
  if($('holidayRows').children.length>=60){status('holidayStatus','Можно добавить не более 60 интервалов.',true);return;}
  appendHolidayRule().focus({preventScroll:true});
+ holidayFeedback('Новый интервал добавлен в редактор. Заполните даты и нажмите «Сохранить праздничные интервалы».');
 };
 $('holidayForm').onsubmit=async event=>{
  event.preventDefault();
+ const submit=$('holidayForm').querySelector('button[type="submit"]');
+ if(submit.disabled)return;
  sortHolidayRows();
- const sortedRules=[...$('holidayRows').children].map(row=>row.readHoliday());
+ const rows=[...$('holidayRows').children],sortedRules=rows.map(row=>row.readHoliday());
+ const invalid=[];
+ for(let i=0;i<rows.length;i++){
+  const ok=validHolidayRule(sortedRules[i]);
+  rows[i].showIssue(ok?'':'Проверьте название, дату окончания и длительность (от 15 минут до 72 часов). При переходе через полночь выберите следующий день.');
+  if(!ok)invalid.push(i);
+ }
+ if(invalid.length){
+  holidayFeedback('Не сохранено: ошибка в '+invalid.length+' интервале(ах). Исправьте выделенные строки и повторите сохранение.',true);
+  rows[invalid[0]].scrollIntoView({behavior:'smooth',block:'center'});
+  return;
+ }
  const fares={...state.fares,holidayRules:sortedRules,holidaySort:$('holidaySort').value};
  if(!validFare(fares)){
-   status('holidayStatus','Проверьте название, выбранные даты, часы, надбавку 0–300% и длительность интервала (от 15 минут до 72 часов).',true);
-   return;
+  holidayFeedback('Не сохранено: обнаружена ошибка в параметрах тарифа. Проверьте стоимость поездки и интервалы.',true);
+  return;
  }
+ submit.disabled=true;
+ holidayFeedback('Сохраняем интервалы и проверяем запись в базе…');
  try{
   await request('/api/admin/travel-fare','POST',fares);
-  state.fares=fares;
-  status('holidayStatus','Сохранено: '+sortedRules.length+' интервалов и порядок сортировки. Новые тарифы действуют для следующих заявок.');
- }catch(e){status('holidayStatus',e.message,true);}
+  const verified=await request('/api/public-config');
+  const stored=verified.fares;
+  if(!stored||JSON.stringify(stored.holidayRules)!==JSON.stringify(sortedRules)||stored.holidaySort!==fares.holidaySort)
+   throw Error('Сервер не подтвердил сохранение после повторного чтения. Изменения оставлены в редакторе для повторной попытки.');
+  state.fares=stored;
+  holidayFeedback('Сохранено и проверено: '+sortedRules.length+' интервалов. Изменения останутся после обновления страницы.');
+ }catch(e){
+  holidayFeedback('Ошибка сохранения: '+e.message+'. Исправьте проблему и повторите попытку, не обновляя страницу.',true);
+ }finally{submit.disabled=false;}
 };
 $('fareForm').onsubmit=async event=>{
  event.preventDefault();

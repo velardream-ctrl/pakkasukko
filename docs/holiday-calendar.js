@@ -35,3 +35,12 @@ export function compareHolidayRules(a,b,mode='date',todayISO='2026-01-01'){
  if(mode==='name')return String(a.name||'').localeCompare(String(b.name||''),'ru')||byDate;
  return byDate;
 }
+
+export function shiftEndForNewStart(previousStartISO,previousEndISO,newStartISO){
+ const parse=iso=>/^20\d{2}-\d{2}-\d{2}$/.test(String(iso||''))?Date.parse(iso+'T12:00:00Z'):NaN;
+ const oldStart=parse(previousStartISO),oldEnd=parse(previousEndISO),newStart=parse(newStartISO);
+ if(![oldStart,oldEnd,newStart].every(Number.isFinite))return '';
+ const days=(oldEnd-oldStart)/86400000;
+ if(!Number.isInteger(days)||days<0||days>3)return '';
+ return new Date(newStart+days*86400000).toISOString().slice(0,10);
+}

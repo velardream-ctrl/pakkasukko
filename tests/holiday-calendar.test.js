@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {annualToISO,nextAnnualISO,endAnnualISO,isoToAnnual,compareHolidayRules} from '../docs/holiday-calendar.js';
+import {annualToISO,nextAnnualISO,endAnnualISO,isoToAnnual,compareHolidayRules,shiftEndForNewStart} from '../docs/holiday-calendar.js';
 test('holiday date picker preserves annually recurring dates without storing a specific year',()=>{
  assert.equal(nextAnnualISO('24.12','2026-11-25'),'2026-12-24');
  assert.equal(endAnnualISO('2026-12-24','25.12'),'2026-12-25');
@@ -26,4 +26,11 @@ test('sorting prefers the next annual occurrence and supports price and name ord
  assert.deepEqual(sort('percent_desc'),['Новый год','Рождество','Старый Новый год','Новогодняя ночь поздняя']);
  assert.deepEqual(sort('percent_asc'),['Новогодняя ночь поздняя','Старый Новый год','Рождество','Новый год']);
  assert.deepEqual(sort('name'),['Новогодняя ночь поздняя','Новый год','Рождество','Старый Новый год']);
+});
+
+test('moving a festive period start also moves its end by the original number of days',()=>{
+ assert.equal(shiftEndForNewStart('2026-12-24','2026-12-25','2027-01-07'),'2027-01-08');
+ assert.equal(shiftEndForNewStart('2026-12-31','2027-01-01','2027-01-13'),'2027-01-14');
+ assert.equal(shiftEndForNewStart('2026-12-24','2026-12-24','2027-01-07'),'2027-01-07');
+ assert.equal(shiftEndForNewStart('2026-12-24','2027-12-25','2027-01-07'),'');
 });
