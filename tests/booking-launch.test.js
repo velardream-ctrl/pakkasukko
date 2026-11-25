@@ -3,10 +3,12 @@ import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {readFileSync} from 'node:fs';
 import worker from '../src/worker.js';
+import {defaultFare,quote,prices,prepaymentForVisit,visitQuote} from '../docs/fares.js';
 
 const schema=readFileSync(new URL('../schema.sql',import.meta.url),'utf8');
 function fixture(){
  const sqlite=new DatabaseSync(':memory:');sqlite.exec(schema);
+  sqlite.prepare("INSERT INTO booking_settings(key,value) VALUES('travel_fare',?)").run(JSON.stringify({...defaultFare,prepayments:{...defaultFare.prepayments,enabled:false}}));
  function prepare(sql,args=[]){
   const statement=sqlite.prepare(sql);
   return {bind:(...values)=>prepare(sql,values),first:()=>statement.get(...args),all:()=>({results:statement.all(...args)}),
@@ -277,5 +279,48 @@ test('owner-set performer rates persist; quotes are server-priced and require a 
   assert.equal(snapshot.base,25000);
   assert.equal(snapshot.durationMinutes,60);
   assert.equal(snapshot.performerCast,'duo');
+ }finally{globalThis.fetch=original;}
+});
+
+test('advance invoice reserves a slot, bank confirmation is manual, final quote deducts paid advance and refund',async()=>{
+ const {request,login,sqlite,env}=fixture();
+ env.DB.batch=async statements=>{sqlite.exec('BEGIN');try{for(const statement of statements)statement.run();sqlite.exec('COMMIT');}catch(error){sqlite.exec('ROLLBACK');throw error;}};
+ Object.assign(env,{TURNSTILE_SITE_KEY:'site',TURNSTILE_SECRET:'secret',OWNER_EMAIL:'owner@example.test',FROM_EMAIL:'from@example.test',RESEND_API_KEY:'test'});
+ for(const key of ['enabled','mail_test','mail_received','privacy_confirmed'])sqlite.prepare("INSERT INTO booking_settings(key,value) VALUES(?,?)").run(key,'true');
+ sqlite.prepare("INSERT INTO booking_settings(key,value) VALUES('billing_profile',?)").run(JSON.stringify({name:'Karjalas',owner:'Artist',businessId:'3445587-1',address:'Kitee Finland',iban:'FI0000',bic:'ABCDFIHH',contact:'',vatRate:'0',vatId:'',vatNote:'No VAT',terms:'14',logo:''}));
+ await login();
+ const tariff={...defaultFare,prepayments:{enabled:true,dueDays:14,defaultRule:{mode:'fixed',percent:0,amount:5000},rules:{}}};
+ assert.equal((await request('admin/travel-fare',tariff)).status,200);
+ await request('admin/slots',{startAt:'2099-12-21T18:00',minutes:30});
+ const slot=sqlite.prepare('SELECT id FROM slots').get();
+ const config=await (await request('public-config')).json();
+ const input={service:'home',city:'Joensuu',slotId:slot.id,name:'Семья',address:'Winter street 1',phone:'1234567',
+  turnstileToken:'abc',prepaymentTerms:'accepted',quoteToken:JSON.stringify(quote(config.fares,config.services.home,'Joensuu',false,['2099-12-21T18:00']))};
+ const original=globalThis.fetch;
+ try{
+  globalThis.fetch=async()=>Response.json({success:true});
+  const booked=await request('bookings',input);assert.equal(booked.status,201);
+  const {id}=await booked.json();
+  const saved=JSON.parse(sqlite.prepare('SELECT snapshot FROM booking_quotes WHERE booking_id=?').get(id).snapshot);
+  assert.equal(saved.prepayment.amount,5000);
+  assert.equal((await request('admin/bookings/status',{id,status:'confirmed'})).status,409,'deposit cannot be silently skipped');
+  assert.equal((await request('admin/prepayments/request?id='+id,{})).status,200);
+  assert.equal(sqlite.prepare('SELECT status FROM slots WHERE id=?').get(slot.id).status,'reserved');
+  const advance=sqlite.prepare('SELECT * FROM prepayment_requests WHERE booking_id=?').get(id);
+  assert.equal(advance.amount,5000);
+  assert.equal(advance.status,'requested');
+  assert.equal((await request('admin/prepayments/view?id='+id)).status,200);
+  assert.match(await (await request('admin/prepayments/view?id='+id)).text(),/Ennakkolasku/);
+  assert.equal((await request('admin/prepayments/paid?id='+id,{note:''})).status,400);
+  assert.equal((await request('admin/prepayments/paid?id='+id,{note:'Bank statement checked'})).status,200);
+  assert.equal(sqlite.prepare('SELECT status FROM prepayment_requests WHERE booking_id=?').get(id).status,'paid');
+  const draft=await request('admin/billing/preview?id='+id,{buyer:'Семья',address:'Kitee'});
+  assert.equal(draft.status,200);
+  assert.match(await draft.text(),/Полученная предоплата/);
+  assert.match(await (await request('admin/billing/preview?id='+id,{buyer:'Семья',address:'Kitee'})).text(),/79,48 €/, '129.48 minus 50 deposit');
+  assert.equal((await request('admin/prepayments/refund?id='+id,{amount:1500,note:'Partial refund bank checked'})).status,200);
+  const newDraft=await request('admin/billing/preview?id='+id,{buyer:'Семья',address:'Kitee'});
+  assert.match(await newDraft.text(),/94,48 €/, 'new balance subtracts only 35 euro after partial refund');
+  assert.equal((await request('admin/bookings/delete',{id})).status,409,'financial documents block deletion');
  }finally{globalThis.fetch=original;}
 });

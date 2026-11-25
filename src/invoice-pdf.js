@@ -31,24 +31,27 @@ export async function makePDF(d,number,env,origin){
  const money=n=>(n/100).toFixed(2).replace('.',',')+' €';
  const p=d.seller;
  if(d.preview){line('TESTI — EI MAKSETTAVAKSI',18);line('ТЕСТ — НЕ ОПЛАЧИВАТЬ');line('Даты и суммы предварительные.');if(d.pendingTrip)line('Стоимость дороги уточняется после фиксации выезда.');}
- line('LASKU / СЧЁТ № '+number,21);line(p.name+' · '+p.owner,14,415);
+ line((d.advance?'ENNAKKOLASKU / АВАНСОВЫЙ СЧЁТ № ':'LASKU / СЧЁТ № ')+number,21);line(p.name+' · '+p.owner,14,415);
  line('Y-tunnus '+p.businessId);line(p.address);if(p.contact)line(p.contact);
  if(p.vatId)line('VAT ID: '+p.vatId);
  y-=10;line('Asiakas / Клиент: '+d.buyer,13);line(d.address);
  line('Laskun päivä / Дата счёта: '+d.issued);
  line('Palvelupäivä / Дата услуги: '+d.date+' · '+d.city);
- y-=12;line('Palvelun kuvaus / Описание услуги:',13);line(d.serviceFi||d.service);if(d.serviceRu)line(d.serviceRu);line('Palvelu / Услуга (1 kpl / 1 шт.): '+money(d.base));
- if(d.participants){
+ y-=12;line('Palvelun kuvaus / Описание услуги:',13);line(d.serviceFi||d.service);if(d.serviceRu)line(d.serviceRu);if(d.advance)line('Ennakkomaksu / Предоплата: '+money(d.total));
+ else line('Palvelu / Услуга (1 kpl / 1 шт.): '+money(d.base));
+ if(!d.advance&&d.participants){
    if(d.quote?.mode==='rail')line('Поезд, билеты туда и обратно');
    else if(d.quote?.km!=null)line('Автомобиль, путь туда и обратно: '+d.quote.km+' км');
    line('Общие расходы на поездку: '+money(d.pool)+' · Заказов: '+d.participants);
  }
- line('Matkakulut / Транспортные расходы: '+money(d.travel));
- if(d.maximum!=null)line('Максимум при бронировании: '+money(d.maximum));
+ if(!d.advance)line('Matkakulut / Транспортные расходы: '+money(d.travel));
+ if(!d.advance&&d.maximum!=null)line('Максимум при бронировании: '+money(d.maximum));
  const rate=Number(p.vatRate.replace(',','.')),net=Math.round(d.total/(1+rate/100));
  line('Veroton / Без налога: '+money(net)+' · ALV '+rate+'%: '+money(d.total-net));
  if(p.vatNote)line(p.vatNote);
- y-=8;line('Maksettava / К оплате: '+money(d.total),17);
+ y-=8;if(d.advancePaid)line('Maksettu ennakko / Полученная предоплата: −'+money(d.advancePaid));
+ if(d.advanceRefund)line('Palautettava liikamaksu / Возврат переплаты: '+money(d.advanceRefund));
+ line('Maksettava / К оплате: '+money(d.advance?d.total:d.remaining??d.total),17);
  line('Eräpäivä / Оплатить до: '+d.due);line('IBAN: '+p.iban);if(p.bic)line('BIC / SWIFT: '+p.bic);if(!d.preview)line('Viesti / Сообщение к платежу: Lasku '+number);
  if(d.preview)for(const p of pdf.getPages())p.drawText('TESTI — EI MAKSETTAVAKSI / ТЕСТ — НЕ ОПЛАЧИВАТЬ',{x:46,y:25,size:10,font,color:rgb(.65,.1,.1)});
  return pdf.save();

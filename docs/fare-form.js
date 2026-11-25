@@ -1,4 +1,4 @@
-import {defaultFare,prices,quote,describe,euros,visitQuote,performanceRows,performanceChoice} from './fares.js?v=60';
+import {defaultFare,prices,quote,describe,euros,visitQuote,performanceRows,performanceChoice,prepaymentForVisit} from './fares.js?v=62';
 import {routeCities} from './route-cities.js';
 export function mountFares(form,config){
   const service=form.elements.service,input=form.elements.city;
@@ -19,7 +19,12 @@ export function mountFares(form,config){
   const note=document.createElement('p');
   note.textContent='При бронировании фиксируется максимальная сумма. Если в день выезда будут другие подтверждённые заказы в ваш город на ту же поездку, расходы разделятся и ваша сумма может уменьшиться. Для нескольких адресов в одном городе выберите отдельное время для каждого.';
   const output=document.createElement('strong');output.setAttribute('aria-live','polite');
-  block.append(note,output);input.closest('.form-row').after(block);
+  const paymentBox=document.createElement('div');paymentBox.className='prepayment-summary';paymentBox.hidden=true;
+  const paymentText=document.createElement('p'),paymentLabel=document.createElement('label');
+  const paymentConsent=document.createElement('input');paymentConsent.type='checkbox';paymentConsent.name='prepaymentTerms';paymentConsent.value='accepted';
+  const terms=document.createElement('span');terms.append('Я ознакомился(-ась) с ');const link=document.createElement('a');link.href='./prepayment.html';link.target='_blank';link.rel='noopener';link.textContent='условиями предоплаты и отмены';terms.append(link,'. Предоплата входит в общую стоимость заказа.');
+  paymentLabel.append(paymentConsent,terms);paymentBox.append(paymentText,paymentLabel);
+  block.append(note,output,paymentBox);input.closest('.form-row').after(block);
   // Rates are optional: an unconfigured program keeps the original booking form.
   const choices=document.createElement('div');choices.className='performer-options';choices.hidden=true;
   const durationLabel=document.createElement('label');durationLabel.textContent='Продолжительность выступления';
@@ -59,6 +64,11 @@ export function mountFares(form,config){
     const times=selectedSlots.map(s=>s.start_at).sort();
     current=quote(config.fares||defaultFare,items[service.value]||{label:'По запросу',remote:false},other?input.value.trim():select.value,count>1,times,selectedPerformance);
     output.textContent=describe(visitQuote(current,1,0));
+    const visitsForPay=Array.from({length:count},(_,i)=>visitQuote(current,count,i));
+    const payments=visitsForPay.map(v=>prepaymentForVisit(config.fares||defaultFare,v)).filter(Boolean);
+    const advance=payments.reduce((sum,p)=>sum+p.amount,0);
+    paymentBox.hidden=!advance;paymentConsent.required=Boolean(advance);paymentConsent.disabled=!advance;
+    paymentText.textContent=advance?'Предоплата после личного согласования и выставления счёта: '+euros(advance)+'. Оплата банковским переводом; оставшаяся сумма оплачивается позднее.':'';
     if(count>1){
       const visits=Array.from({length:count},(_,i)=>visitQuote(current,count,i));
       const total=visits.every(v=>v.total!==null)?visits.reduce((sum,v)=>sum+v.total,0):null;

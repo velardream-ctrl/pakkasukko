@@ -1,7 +1,8 @@
 import {sellerForm,invoiceControls} from './billing-panel.js';
+import {prepaymentControls} from './prepayment-panel.js?v=62';
 import {applyBrand} from './site.js';
 import {musicAdmin} from './music-admin.js';
-import {holidayRules,validFare,validHolidayRule} from './fares.js?v=60';
+import {holidayRules,validFare,validHolidayRule} from './fares.js?v=62';
 import {nextAnnualISO,endAnnualISO,isoToAnnual,compareHolidayRules,shiftEndForNewStart} from './holiday-calendar.js?v=59';
 import {renderVideoOrders} from './video-admin.js';
 import {moveControls,slotControls} from './reschedule-panel.js';
@@ -22,7 +23,7 @@ function textBlock(parent,tag,text,cls){const child=el(tag,text,cls);parent.appe
 function button(parent,label,cb,cls){const b=el('button',label,cls);b.type='button';b.addEventListener('click',cb);parent.append(b);return b;}
 function format(stamp){return (stamp||'').replace('T',' ');}
 async function reload(){
- try{state=await request('/api/admin/dashboard');try{publicServices=(await request('/api/public-config')).services||{};}catch{publicServices={};}$('loginBox').classList.add('hidden');$('dashboard').classList.remove('hidden');$('logout').classList.remove('hidden');render();renderFare();renderPerformance();await reloadInvoices();await reloadBookingState();await renderVideoOrders($('videoOrderList'),request);}
+ try{state=await request('/api/admin/dashboard');try{publicServices=(await request('/api/public-config')).services||{};}catch{publicServices={};}$('loginBox').classList.add('hidden');$('dashboard').classList.remove('hidden');$('logout').classList.remove('hidden');render();renderFare();renderPrepayments();renderPerformance();await reloadInvoices();await reloadBookingState();await renderVideoOrders($('videoOrderList'),request);}
  catch(e){$('dashboard').classList.add('hidden');$('loginBox').classList.remove('hidden');$('logout').classList.add('hidden');}
 }
 async function reloadInvoices(){
@@ -30,6 +31,12 @@ async function reloadInvoices(){
  try{const {invoices}=await request('/api/admin/billing/list');if(!invoices.length)textBlock(box,'p','Счетов пока нет.');
  for(const i of invoices){const item=el('article',undefined,'record');textBlock(item,'h3','Счёт № '+i.number+' · '+i.buyer);textBlock(item,'p',i.issued+' · '+(i.total/100).toFixed(2)+' € · '+(i.sent_at?'Письмо принято почтовым сервисом':'Не отправлен'));const actions=el('div',undefined,'admin-actions');for(const [op,label] of [['view','Открыть счёт'],['pdf','Открыть PDF']]){const a=el('a',label);a.href='/api/admin/billing/'+op+'?id='+encodeURIComponent(i.id);actions.append(a);}item.append(actions);box.append(item);}
  }catch(e){textBlock(box,'p','Не удалось загрузить счета: '+e.message,'error');}
+ try{const {prepayments}=await request('/api/admin/prepayments/list');
+ for(const p of prepayments){const item=el('article',undefined,'record');textBlock(item,'h3','Авансовый счёт A-'+p.number+' · '+p.name);
+ textBlock(item,'p',p.city+' · '+(p.amount/100).toFixed(2)+' € · '+({requested:'Ожидает оплаты',paid:'Оплачено',refunded:'Возвращено'}[p.status]||p.status));
+ const actions=el('div',undefined,'admin-actions');for(const [op,label] of [['view','Открыть аванс'],['pdf','PDF']]){const link=el('a',label);link.href='/api/admin/prepayments/'+op+'?id='+encodeURIComponent(p.booking_id);actions.append(link);}item.append(actions);box.append(item);
+ }
+ }catch(e){textBlock(box,'p','Не удалось получить авансовые счета: '+e.message,'error');}
 }
 function fareNumber(parent,title,value,max,step='0.01'){
  const label=el('label',title),input=el('input');
@@ -65,7 +72,48 @@ function renderFare(){
  fareNumber(box,'Расход, л/100 км',f.consumption,100,'0.1').id='fareConsumption';
  for(const [city,km] of Object.entries(f.km))if(city!=='Kitee')addFareCity(city,km,f.routes?.[city]);
 }
-// Each duration has two independent prices. Stored values are integer euro cents.
+// City-by-city advance payment: persisted together with fares but edited independently.
+function renderPrepayments(){
+ const p=state.fares.prepayments||{enabled:true,dueDays:14,defaultRule:{mode:'fixed',percent:0,amount:5000},rules:{}};
+ $('prepaymentEnabled').checked=p.enabled===true;
+ $('prepaymentDue').value=p.dueDays||14;
+ $('prepaymentBase').value=((p.defaultRule?.amount??5000)/100).toFixed(2);
+ const list=$('prepaymentCities');list.replaceChildren();
+ for(const city of Object.keys(state.fares.km)){
+  const row=el('fieldset',undefined,'record'),grid=el('div',undefined,'admin-grid');
+  const title=textBlock(row,'h3',city);
+  const modeLabel=el('label','Способ предоплаты'),mode=el('select');
+  for(const [label,key] of [['Как в общем тарифе','inherit'],['Без предоплаты','none'],['Стоимость дороги','travel'],['Процент от полной суммы','percent'],['Фиксированная сумма','fixed']])mode.add(new Option(label,key));
+  const rule=p.rules?.[city]||{mode:'inherit',percent:0,amount:0};mode.value=rule.mode;
+  modeLabel.append(mode);grid.append(modeLabel);
+  const percent=fareNumber(grid,'Процент от заказа, %',rule.percent||0,100,'1');
+  const amount=fareNumber(grid,'Фиксированная предоплата, €',(rule.amount/100||0).toFixed(2),100000);
+  const refresh=()=>{percent.parentElement.hidden=mode.value!=='percent';amount.parentElement.hidden=mode.value!=='fixed';};
+  mode.addEventListener('change',refresh);refresh();row.append(grid);
+  row.readPayment=()=>[city,{mode:mode.value,percent:Math.round(percent.valueAsNumber),amount:Math.round(amount.valueAsNumber*100)}];
+  list.append(row);
+ }
+ status('prepaymentStatus',p.enabled?'Предоплата включена для настроенных городов.':'Предоплата пока выключена. Сохраните и включите после настройки реквизитов.');
+}
+$('prepaymentForm').onsubmit=async event=>{
+ event.preventDefault();
+ const submit=$('prepaymentForm').querySelector('[type="submit"]'),rules=Object.fromEntries([...$('prepaymentCities').children].map(row=>row.readPayment()));
+ const prepayments={enabled:$('prepaymentEnabled').checked,dueDays:Number($('prepaymentDue').value),defaultRule:{mode:'fixed',percent:0,amount:Math.round(Number($('prepaymentBase').value)*100)},rules};
+ const next={...state.fares,prepayments};
+ if(!validFare(next)){status('prepaymentStatus','Проверьте процент (0–100), сумму и срок (1–30 дней).',true);return;}
+ submit.disabled=true;
+ try{
+  status('prepaymentStatus','Сохраняем…');
+  await request('/api/admin/travel-fare','POST',next);
+  const verified=(await request('/api/public-config')).fares;
+  if(JSON.stringify(verified.prepayments)!==JSON.stringify(prepayments))throw Error('Настройки не подтвердились после сохранения.');
+  state.fares=verified;status('prepaymentStatus','Условия предоплаты сохранены. Изменения применяются только к новым заявкам.');
+ }catch(e){status('prepaymentStatus','Не сохранено: '+e.message,true);}
+ finally{submit.disabled=false;}
+};
+$('prepaymentForm').addEventListener('input',()=>status('prepaymentStatus','Есть несохранённые изменения.'));
+
+ // Each duration has two independent prices. Stored values are integer euro cents.
 function performanceRow(parent,rate={minutes:30,solo:null,duo:null}){
  const row=el('fieldset',undefined,'record performance-rate'),grid=el('div',undefined,'admin-grid');
  const minutes=fareNumber(grid,'Длительность, минуты',rate.minutes,480,'5');
@@ -247,8 +295,8 @@ $('fareForm').onsubmit=async event=>{
    if(!key||names.has(key)){status('fareStatus','Введите уникальное название для каждого города.',true);return;}
    names.add(key);km[entry.city]=entry.km;routes[entry.city]=entry.route;
  }
- const fares={...state.fares,fuel:$('fareFuel').valueAsNumber,consumption:$('fareConsumption').valueAsNumber,km,routes};
- try{await request('/api/admin/travel-fare','POST',fares);state.fares=fares;status('fareStatus','Тариф сохранён. Города автоматически обновятся на главной странице и в форме бронирования.');}
+ const fares={...state.fares,fuel:$('fareFuel').valueAsNumber,consumption:$('fareConsumption').valueAsNumber,km,routes,prepayments:{...(state.fares.prepayments||{enabled:true,dueDays:14,defaultRule:{mode:'fixed',percent:0,amount:5000}}),rules:Object.fromEntries(Object.entries(state.fares.prepayments?.rules||{}).filter(([city])=>Object.hasOwn(km,city)))}};
+ try{await request('/api/admin/travel-fare','POST',fares);state.fares=fares;renderPrepayments();status('fareStatus','Тариф сохранён. Города автоматически обновятся на главной странице и в форме бронирования.');}
  catch(e){status('fareStatus',e.message,true);}
 };
 async function reloadBookingState(){
@@ -306,14 +354,14 @@ function render(){
  if(!state.bookings.length)textBlock(b,'p','Заявок пока нет.','muted');
  for(const v of state.bookings){
   const item=el('article',undefined,'record');textBlock(item,'h3',format(v.start_at)+' — '+format(v.end_at));
-  textBlock(item,'span',({pending:'Ожидает',confirmed:'Подтверждено',declined:'Отклонено',completed:'Выполнено',cancelled:'Отменено'}[v.final_status||v.status]||v.status),'pill '+v.status);
+  textBlock(item,'span',v.final_status?({completed:'Выполнено',cancelled:'Отменено'}[v.final_status]||v.final_status):v.deposit_status==='requested'?'Резерв · ожидает предоплату':v.deposit_status==='paid'?'Предоплата получена':({pending:'Ожидает',confirmed:'Подтверждено',declined:'Отклонено'}[v.status]||v.status),'pill '+v.status);
   textBlock(item,'p',v.name+' · '+v.service);
   textBlock(item,'p','Телефон: '+v.phone+' · Email: '+(v.email||'—'));
   textBlock(item,'p','Адрес: '+v.city+', '+v.address);
   if(v.quote_summary)textBlock(item,'p','Зафиксировано при отправке · '+v.quote_summary);
   if(v.message)textBlock(item,'p',v.message);
   textBlock(item,'small','Заявка: '+v.id+' · '+v.created_at);
-  if(!v.final_status&&v.status==='pending')for(const [label,next,cls] of [['Подтвердить','confirmed','confirm'],['Отклонить','declined','decline']]){
+  if(!v.final_status&&v.status==='pending')for(const [label,next,cls] of [...(JSON.parse(v.quote_snapshot||'{}').prepayment?.amount?[]:[['Подтвердить','confirmed','confirm']]),['Отклонить','declined','decline']]){
    button(item,label,async()=>{if(!confirm('Обработать заявку: '+label+'?'))return;try{await request('/api/admin/bookings/status','POST',{id:v.id,status:next});await reload();}catch(e){alert(e.message);}},cls);
   }
   if(!v.final_status&&['pending','confirmed'].includes(v.status)){
@@ -327,7 +375,7 @@ function render(){
    button(item,'Сохранить детали',async()=>{try{await request('/api/admin/bookings/details','POST',{id:v.id,...Object.fromEntries(Object.entries(values).map(([k,i])=>[k,i.value]))});await reload();}catch(e){alert(e.message);}});
   }
   if(v.final_status==='cancelled'||v.status==='declined'){
-   if(v.invoice_number!=null||v.share!=null)textBlock(item,'p','Удаление недоступно: сохранены финансовые документы или расчёт поездки.','muted');
+   if(v.invoice_number!=null||v.deposit_number!=null||v.share!=null)textBlock(item,'p','Удаление недоступно: сохранены финансовые документы или расчёт поездки.','muted');
    else{
     const remove=button(item,'Удалить заказ',async()=>{
      if(!confirm('Окончательно удалить отменённый/отклонённый заказ от «'+v.name+'»? История этого заказа будет удалена, календарь и другие заказы сохранятся.'))return;
@@ -336,7 +384,8 @@ function render(){
    }
   }
   moveControls(item,v,state.slots,request,reload);
-  invoiceControls(item,v,request,reload);
+  prepaymentControls(item,v,request,reload);
+   invoiceControls(item,v,request,reload);
   b.append(item);
  }
  if(!state.messages.length)textBlock(m,'p','Сообщений пока нет.','muted');

@@ -69,6 +69,8 @@ export async function billing(req,env,path,reply){
    try{input=preview&&req.headers.get('Content-Type')?.includes('application/x-www-form-urlencoded')?JSON.parse((await req.formData()).get('document')):await req.json();}catch{return fail('Неверные данные счёта.');}
    if(!input||typeof input!=='object')return fail('Неверные данные счёта.');
    const base=q.base??cents(input.base),travel=b.share??q.travel??cents(input.travel);
+   const paid=await db.prepare("SELECT amount,refunded_amount FROM prepayment_requests WHERE booking_id=? AND status IN('paid','refunded')").bind(id).first();
+   const advancePaid=paid?paid.amount-paid.refunded_amount:0;
    if(base==null||travel==null)return fail('Укажите согласованные суммы в евро.');
    const buyer=String(input.buyer||b.name).trim().slice(0,200),address=String(input.address||b.address+', '+b.city).trim().slice(0,350);
    const issued=preview&&day()<b.start_at.slice(0,10)?b.start_at.slice(0,10):day(),due=new Date(issued+'T12:00:00Z');due.setUTCDate(due.getUTCDate()+Number(p.terms));
@@ -77,7 +79,7 @@ export async function billing(req,env,path,reply){
    const serviceFi=description(input.serviceFi,defaults.fi),serviceRu=description(input.serviceRu,defaults.ru);
    if(!serviceFi||serviceFi.length>220||serviceRu===null||serviceRu.length>220)return fail('Проверьте наименование услуги (до 220 символов).');
    const doc={seller:p,buyer,address,service:serviceFi,serviceFi,serviceRu,
-     date:b.start_at.slice(0,10),city:b.city,issued,due:due.toISOString().slice(0,10),base,travel,total:base+travel,
+     date:b.start_at.slice(0,10),city:b.city,issued,due:due.toISOString().slice(0,10),base,travel,total:base+travel,advancePaid,remaining:Math.max(0,base+travel-advancePaid),advanceRefund:Math.max(0,advancePaid-base-travel),
      maximum:q.total??null,participants:b.participants,pool:b.pool,quote:q};
    if(preview){
      doc.preview=true;doc.pendingTrip=pendingTrip;

@@ -140,3 +140,29 @@ CREATE TABLE IF NOT EXISTS video_orders (
  submission_key TEXT UNIQUE, fingerprint TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS video_orders_delivery_idx ON video_orders(delivery_date,status);
+ 
+
+-- Advance invoices: separate consecutive series A-n, never confuse a bank promise with money received.
+CREATE TABLE IF NOT EXISTS prepayment_requests (
+ number INTEGER PRIMARY KEY AUTOINCREMENT,
+ booking_id TEXT NOT NULL UNIQUE REFERENCES bookings(id),
+ amount INTEGER NOT NULL CHECK(amount>0 AND amount<=10000000),
+ refunded_amount INTEGER NOT NULL DEFAULT 0 CHECK(refunded_amount>=0 AND refunded_amount<=amount),
+ status TEXT NOT NULL DEFAULT 'requested' CHECK(status IN('requested','paid','refunded')),
+ document TEXT NOT NULL,
+ issued_at TEXT NOT NULL, due_date TEXT NOT NULL,
+ paid_at TEXT, refunded_at TEXT, sent_at TEXT, bank_note TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS prepayment_requests_status_idx ON prepayment_requests(status);
+CREATE TABLE IF NOT EXISTS prepayment_events (
+ id INTEGER PRIMARY KEY AUTOINCREMENT,
+ booking_id TEXT NOT NULL REFERENCES bookings(id),
+ action TEXT NOT NULL CHECK(action IN('requested','paid','refunded')),
+ amount INTEGER NOT NULL, note TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL
+);
+CREATE TRIGGER IF NOT EXISTS prepayment_prevent_delete BEFORE DELETE ON bookings
+WHEN EXISTS(SELECT 1 FROM prepayment_requests WHERE booking_id=OLD.id)
+BEGIN SELECT RAISE(ABORT,'booking financial lock'); END;
+CREATE TRIGGER IF NOT EXISTS prepayment_prevent_move BEFORE INSERT ON booking_moves
+WHEN EXISTS(SELECT 1 FROM prepayment_requests WHERE booking_id=NEW.booking_id)
+BEGIN SELECT RAISE(ABORT,'locked booking'); END;

@@ -1,6 +1,7 @@
 import {billing} from './billing.js';
+import {prepaymentsAPI} from './prepayment-api.js';
 import {serviceCard,deliveryConfig,earliestDelivery} from '../docs/video-service.js';
-import {defaultFare,validFare,prices,quote,describe,visitQuote,euros,performanceRows,performanceChoice} from '../docs/fares.js';
+import {defaultFare,validFare,prices,quote,describe,visitQuote,euros,performanceRows,performanceChoice,prepaymentForVisit} from '../docs/fares.js';
 import {mediaAPI} from './media.js';
 import {musicAPI} from './music.js';
 import {reschedule} from './reschedule.js';
@@ -144,13 +145,17 @@ async function api(req,env,ctx,url){
    // Recalculate with trusted slot timestamps. The client cannot choose its own holiday prices.
    const snapshot=quote(fares,services[serviceId],b.city,orders.length>1||(!input.visits&&input.group===true),slots.map(s=>s.start_at),choice);
    if(JSON.stringify(snapshot)!==input.quoteToken)return reply({error:'Тариф изменился. Проверьте новый расчёт и отправьте заявку ещё раз.',fares,services},409);
+    if(slots.some((_,i)=>prepaymentForVisit(fares,visitQuote(snapshot,slots.length,i)))&&input.prepaymentTerms!=='accepted')return fail('Ознакомьтесь с условиями предоплаты и отмены перед отправкой заявки.');
    const groupId=crypto.randomUUID(),statements=[],receipts=[];
    for(const [index,slot] of slots.entries()){
      const order=orders.find(o=>o.slotId===slot.id),id=crypto.randomUUID();
-     const saved={...visitQuote(snapshot,slots.length,index),groupId};
+     const visit=visitQuote(snapshot,slots.length,index);
+     const payment=prepaymentForVisit(fares,visit);
+     const saved={...visit,...(payment?{prepayment:payment}:{}),groupId};
      const holiday=saved.holidayName?' · '+saved.holidayName+' +'+saved.holidayPercent+'% ('+(saved.holidayExtra===null?'стоимость по согласованию':euros(saved.holidayExtra))+')':'';
      const artists=saved.durationMinutes?' · '+(saved.performerCast==='duo'?'Дед Мороз и Снегурочка':'Дед Мороз')+' · '+saved.durationMinutes+' минут':'';
-     const detail=slots.length===1?describe(saved):'Визит '+(index+1)+'/'+slots.length+artists+holiday+' · Программа '+(saved.base==null?'по согласованию':euros(saved.base))+' · Доля дороги '+(saved.travel==null?'по согласованию':euros(saved.travel))+' · Итого '+(saved.total==null?'по согласованию':euros(saved.total));
+     const detailCore=slots.length===1?describe(saved):'Визит '+(index+1)+'/'+slots.length+artists+holiday+' · Программа '+(saved.base==null?'по согласованию':euros(saved.base))+' · Доля дороги '+(saved.travel==null?'по согласованию':euros(saved.travel))+' · Итого '+(saved.total==null?'по согласованию':euros(saved.total));
+     const detail=detailCore+(saved.prepayment?' · Предоплата '+euros(saved.prepayment.amount):'');
      statements.push(env.DB.prepare("INSERT INTO bookings(id,slot_id,service,name,phone,email,city,address,message,status,created_at) VALUES(?,(SELECT id FROM slots WHERE id=? AND status='open'),?,?,?,?,?,?,?,'pending',?)").bind(id,slot.id,b.service,b.name,b.phone,b.email,b.city,order.address,b.message,now()),
        env.DB.prepare("INSERT INTO booking_quotes(booking_id,snapshot,summary) VALUES(?,?,?)").bind(id,JSON.stringify(saved),detail));
      receipts.push({id,time:slot.start_at,address:order.address,summary:detail});
@@ -192,13 +197,14 @@ async function api(req,env,ctx,url){
  }
  if(!await adminOK(req,env))return fail('Необходим вход владельца.',401);
  if(path.startsWith('/api/admin/billing/'))return billing(req,env,path.split('/').pop(),reply);
+  if(path.startsWith('/api/admin/prepayments/'))return prepaymentsAPI(req,env,path.split('/').pop(),reply);
  if(path.startsWith('/api/admin/music/'))return musicAPI(req,env,path,reply,true);
  if(path.startsWith('/api/admin/media/'))return mediaAPI(req,env,path,reply,true);
  if(path==='/api/admin/travel-fare'&&method==='POST'){
    const f=await parse(req);
    if(!validFare(f))return fail('Проверьте цену топлива, расход и километраж.');
    const km=f.km,routes=f.routes;
-   await setSetting(env,'travel_fare',JSON.stringify({fuel:f.fuel,consumption:f.consumption,km,routes,holidayPercent:f.holidayPercent??50,...(f.holidayRules!==undefined?{holidayRules:f.holidayRules}:{}),holidaySort:f.holidaySort||'date',...(f.performance!==undefined?{performance:f.performance}:{})}));
+   await setSetting(env,'travel_fare',JSON.stringify({fuel:f.fuel,consumption:f.consumption,km,routes,holidayPercent:f.holidayPercent??50,...(f.holidayRules!==undefined?{holidayRules:f.holidayRules}:{}),holidaySort:f.holidaySort||'date',...(f.performance!==undefined?{performance:f.performance}:{}),...(f.prepayments!==undefined?{prepayments:f.prepayments}:{})}));
    return reply({ok:true});
  }
  if(path==='/api/admin/editor')return await editorAPI(req,env,path,reply);
@@ -243,7 +249,7 @@ async function api(req,env,ctx,url){
    return reply(await bookingState(env));
  }
  if(path==='/api/admin/dashboard'&&method==='GET'){
-   const [slots,bookings,messages]=await Promise.all([env.DB.prepare('SELECT * FROM slots ORDER BY start_at LIMIT 1000').all(),env.DB.prepare('SELECT b.*,q.summary AS quote_summary,q.snapshot AS quote_snapshot,t.share,t.participants,i.number AS invoice_number,i.sent_at,s.start_at,s.end_at,d.price,d.notes,d.final_status FROM bookings b JOIN slots s ON s.id=b.slot_id LEFT JOIN booking_details d ON d.booking_id=b.id LEFT JOIN booking_quotes q ON q.booking_id=b.id LEFT JOIN trip_shares t ON t.booking_id=b.id LEFT JOIN invoices i ON i.booking_id=b.id ORDER BY s.start_at,b.created_at LIMIT 1000').all(),env.DB.prepare('SELECT * FROM messages ORDER BY created_at DESC LIMIT 500').all()]);
+   const [slots,bookings,messages]=await Promise.all([env.DB.prepare('SELECT * FROM slots ORDER BY start_at LIMIT 1000').all(),env.DB.prepare('SELECT b.*,q.summary AS quote_summary,q.snapshot AS quote_snapshot,t.share,t.participants,i.number AS invoice_number,i.sent_at,p.number AS deposit_number,p.amount AS deposit_amount,p.refunded_amount AS deposit_refunded,p.status AS deposit_status,p.sent_at AS deposit_sent,p.due_date AS deposit_due,s.start_at,s.end_at,d.price,d.notes,d.final_status FROM bookings b JOIN slots s ON s.id=b.slot_id LEFT JOIN booking_details d ON d.booking_id=b.id LEFT JOIN booking_quotes q ON q.booking_id=b.id LEFT JOIN trip_shares t ON t.booking_id=b.id LEFT JOIN invoices i ON i.booking_id=b.id LEFT JOIN prepayment_requests p ON p.booking_id=b.id ORDER BY s.start_at,b.created_at LIMIT 1000').all(),env.DB.prepare('SELECT * FROM messages ORDER BY created_at DESC LIMIT 500').all()]);
    return reply({fares:await fareSettings(env),slots:slots.results||[],bookings:bookings.results||[],messages:messages.results||[],content:await getContent(env)});
  }
  if(path==='/api/admin/content'&&method==='POST'){const value=normalizeContent(await parse(req));await env.DB.prepare("INSERT INTO content(key,value) VALUES('site',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").bind(JSON.stringify(value)).run();return reply({ok:true,content:value});}
@@ -268,6 +274,10 @@ async function api(req,env,ctx,url){
  if(path==='/api/admin/bookings/status'&&method==='POST'){
    const b=await parse(req),id=clean(b.id,80),status=clean(b.status,15);
    if(['confirmed','declined'].includes(status)){
+     if(status==='confirmed'){
+       const q=await env.DB.prepare('SELECT snapshot FROM booking_quotes WHERE booking_id=?').bind(id).first();
+       if(q&&JSON.parse(q.snapshot).prepayment?.amount>0)return fail('Для этой заявки сначала выставьте авансовый счёт и проверьте оплату.',409);
+     }
      try{const r=await env.DB.prepare("UPDATE bookings SET status=? WHERE id=? AND status='pending' AND NOT EXISTS(SELECT 1 FROM booking_details WHERE booking_id=? AND final_status IS NOT NULL)").bind(status,id,id).run();
        return r.meta.changes?reply({ok:true}):fail('Статус уже изменён.',409);
      }catch{return fail('Этот интервал уже занят.',409);}

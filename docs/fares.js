@@ -25,7 +25,7 @@ export function validHolidayRule(rule){
  return Boolean(holidayWindow(rule))&&typeof rule.name==='string'&&rule.name.length>=1&&rule.name.length<=80&&rule.name===rule.name.trim()
    &&Number.isInteger(rule.percent)&&rule.percent>=0&&rule.percent<=300;
 }
-export const defaultFare={fuel:2.20,consumption:10,holidayPercent:50,km:{Kitee:0,Puhos:15,'Tohmajärvi':20,Joensuu:67},routes:{}};
+export const defaultFare={fuel:2.20,consumption:10,holidayPercent:50,km:{Kitee:0,Puhos:15,'Tohmajärvi':20,Joensuu:67},routes:{},prepayments:{enabled:true,dueDays:14,defaultRule:{mode:'fixed',percent:0,amount:5000},rules:{}}};
 // Rates are stored in integer cents. An empty price means that artist combination
 // cannot be booked for that duration. Older tariffs continue to work unchanged.
 export function validPerformanceConfig(value){
@@ -57,13 +57,46 @@ export function performanceChoice(fare,service,minutes,cast){
  const row=performanceRows(fare,service).find(r=>r.minutes===minutes);
  return row&&Number.isInteger(row[cast])?{minutes,cast,amount:row[cast]}:null;
 }
+
+// Prepayment is part of the agreed service price; no automatic no-show fine.
+// Per-city tariffs are frozen inside each booking snapshot on submission.
+export function validPrepayments(value,km){
+ if(value===undefined)return true;
+ if(!value||typeof value!=='object'||Array.isArray(value)||typeof value.enabled!=='boolean'
+   ||!Number.isInteger(value.dueDays)||value.dueDays<1||value.dueDays>30
+   ||!value.rules||typeof value.rules!=='object'||Array.isArray(value.rules))return false;
+ if(Object.keys(value.rules).length>100)return false;
+ const base=value.defaultRule||{mode:'fixed',percent:0,amount:5000};
+ if(!['none','travel','percent','fixed'].includes(base.mode)||!Number.isInteger(base.percent)||base.percent<0||base.percent>100||!Number.isInteger(base.amount)||base.amount<0||base.amount>10000000)return false;
+ for(const [city,rule] of Object.entries(value.rules)){
+  if(!Object.hasOwn(km,city)||!rule||typeof rule!=='object'||Array.isArray(rule))return false;
+  if(!['inherit','none','travel','percent','fixed'].includes(rule.mode))return false;
+  if(!Number.isInteger(rule.percent)||rule.percent<0||rule.percent>100
+    ||!Number.isInteger(rule.amount)||rule.amount<0||rule.amount>10000000)return false;
+ }
+ return true;
+}
+export function prepaymentForVisit(fare,visit){
+ const settings=fare?.prepayments||defaultFare.prepayments;
+ if(settings?.enabled!==true||visit.remote)return null;
+ const override=settings.rules?.[visit.city];
+ const rule=override&&override.mode!=='inherit'?override:(settings.defaultRule||defaultFare.prepayments.defaultRule);
+ if(rule.mode==='none')return null;
+ const total=visit.total;
+ if(total===null&&rule.mode!=='fixed')return null;
+ const raw=rule.mode==='travel'?visit.travel:
+   rule.mode==='percent'?Math.round(total*rule.percent/100):rule.amount;
+ const amount=total===null?Math.max(0,raw||0):Math.min(total,Math.max(0,raw||0));
+ return amount>0?{mode:rule.mode,amount,city:visit.city,dueDays:settings.dueDays,
+   ...(rule.mode==='percent'?{percent:rule.percent}:{})}:null;
+}
 export function validFare(f){
   const number=(n,min,max)=>typeof n==='number'&&Number.isFinite(n)&&n>=min&&n<=max;
   if(!number(f?.fuel,0.001,20)||!number(f?.consumption,0.1,100)||f.km?.Kitee!==0)return false;
   if(f.holidayPercent!==undefined&&(!Number.isInteger(f.holidayPercent)||!number(f.holidayPercent,0,300)))return false;
   if(f.holidayRules!==undefined&&(!Array.isArray(f.holidayRules)||f.holidayRules.length>60||!f.holidayRules.every(validHolidayRule)))return false;
   if(f.holidaySort!==undefined&&!['date','percent_desc','percent_asc','name'].includes(f.holidaySort))return false;
-  if(!validPerformanceConfig(f.performance))return false;
+  if(!validPerformanceConfig(f.performance)||!validPrepayments(f.prepayments,f.km))return false;
   const cities=Object.keys(f.km),seen=new Set();
   if(cities.length>100 || !f.routes || typeof f.routes!=='object' || Array.isArray(f.routes))return false;
   if(Object.keys(f.routes).some(city=>!Object.hasOwn(f.km,city)))return false;

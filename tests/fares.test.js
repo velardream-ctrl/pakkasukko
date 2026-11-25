@@ -46,3 +46,22 @@ test('configurable performer prices are in cents, tied to duration and respect h
  assert.equal(visitQuote(holiday,1,0).total,24000,'50 percent applies to the full artist performance, not travel');
  assert.equal(quote(defaultFare,prices().home,'Kitee').base,10000,'legacy tariffs remain unchanged');
 });
+
+test('prepayment is flexible per city, includes base 50 euro and never adds to quoted price',async()=>{
+ const {prepaymentForVisit,visitQuote}=await import('../docs/fares.js');
+ const rates={...defaultFare,prepayments:{enabled:true,dueDays:14,defaultRule:{mode:'fixed',percent:0,amount:5000},
+  rules:{Kitee:{mode:'none',percent:0,amount:0},Joensuu:{mode:'percent',percent:30,amount:0},Puhos:{mode:'travel',percent:0,amount:0},
+  Tohmajärvi:{mode:'fixed',percent:0,amount:6000}}}};
+ assert.equal(validFare(rates),true);
+ const home=prices().home;
+ const visit=city=>visitQuote(quote(rates,home,city,false,['2099-11-30T10:00']),1,0);
+ assert.equal(prepaymentForVisit(rates,visit('Kitee')),null);
+ assert.equal(prepaymentForVisit(rates,visit('Puhos')).amount,660,'full round-trip cost');
+ assert.equal(prepaymentForVisit(rates,visit('Joensuu')).amount,Math.round(12948*.3));
+ assert.equal(prepaymentForVisit(rates,visit('Tohmajärvi')).amount,6000);
+ assert.equal(prepaymentForVisit(rates,visit('Tampere')).amount,5000,'unknown city still gets default fixed 50');
+ assert.equal(prepaymentForVisit(defaultFare,visitQuote(quote(defaultFare,prices().gift,'Kitee'),1,0)).amount,5000);
+ assert.equal(prepaymentForVisit(defaultFare,visitQuote(quote(defaultFare,prices().gift,'Joensuu'),1,0)).amount,5000);
+ assert.equal(validFare({...rates,prepayments:{...rates.prepayments,rules:{Ghost:{mode:'fixed',percent:0,amount:5000}}}}),false);
+ assert.equal(validFare({...rates,prepayments:{...rates.prepayments,defaultRule:{mode:'fixed',percent:0,amount:-1}}}),false);
+});

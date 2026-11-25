@@ -16,7 +16,15 @@ body{background:#f2f4f5;color:#243747}.admin-top{background:#0a1b2a;color:#fff;p
 <section class="admin-box admin-login" id="loginBox"><h2>Вход владельца</h2><p>Закрытая административная часть. Пароль хранится только в секретах отдельного Cloudflare Worker Pakkasukko.</p><div id="previewNotice" class="preview-warning hidden">Здесь опубликован только визуальный макет GitHub Pages. Для настоящей админки подключите собственный Cloudflare Worker и D1-базу проекта Pakkasukko.</div><form id="loginForm"><label>Пароль<input type="password" name="password" required autocomplete="current-password"></label><button class="btn btn-dark" type="submit">Войти ↗</button><p id="loginStatus" class="status" role="status"></p></form></section>
 <div id="dashboard" class="hidden"><details class="admin-box" id="musicSettings"><summary>Музыка зимней сказки</summary><div id="musicForm"></div></details><details class="admin-box" id="billingSettings"><summary>Реквизиты для счетов и PDF</summary><div id="sellerForm"></div></details>
 <details class="admin-box" id="travelSettings"><summary>Стоимость поездки</summary><p>Kitee — точка выезда. Для автомобиля укажите расстояние в одну сторону, для поезда — общую цену билетов туда и обратно. Изменения действуют для новых заявок.</p><form id="fareForm"><div id="fareInputs" class="admin-grid"></div><div id="fareCities"></div><button type="button" id="addFareCity">Добавить город</button> <button class="btn btn-dark">Сохранить тариф</button><p id="fareStatus" role="status"></p></form></details>
-<details class="admin-box" id="performanceSettings">
+<details class="admin-box" id="prepaymentSettings">
+ <summary>Предоплата по городам</summary>
+ <p>Выберите для каждого города: без предоплаты, полную рассчитанную стоимость поездки, процент от максимальной суммы заказа или фиксированную сумму в евро. Предоплата входит в цену заказа, не прибавляется сверху. Для нового города сначала сохраните тариф дороги.</p>
+ <p class="preview-warning">Выписка авансового счёта и подтверждение фактического поступления денег — отдельные действия в карточке заявки. Время резервируется при выставлении счёта. Условия отмены должны быть разумными: установленного законом штрафа 73,70 € за неявку Деда Мороза нет.</p>
+ <form id="prepaymentForm" novalidate><label class="performance-toggle"><input id="prepaymentEnabled" type="checkbox"> Показывать и использовать предоплату при новых бронированиях</label>
+ <label>Срок для оплаты счёта, дней (если выступление раньше, срок ограничен его датой)<input type="number" id="prepaymentDue" min="1" max="30" step="1" value="14"></label><label>Базовая предоплата на каждое бронирование, €<input type="number" id="prepaymentBase" min="0" max="100000" step="0.01" value="50.00"></label>
+ <div id="prepaymentCities" class="records"></div><button type="submit" class="btn btn-dark">Сохранить условия предоплаты</button><p id="prepaymentStatus" class="status" role="status"></p></form>
+ </details>
+ <details class="admin-box" id="performanceSettings">
 <summary>Артисты и длительность выступлений</summary>
 <p>Задайте стоимость Деда Мороза и дуэта со Снегурочкой для каждой программы и продолжительности. Пустая цена означает, что этот вариант нельзя выбрать. Чтобы предлагать дуэт посетителям, заполните его стоимость и включите переключатель.</p>
 <p class="preview-warning">Важно: 30-минутные интервалы календаря остаются на месте. Выступление на 45–60 минут можно заказать только внутри открытого интервала не короче этого времени. Для более длинной программы создайте подходящее свободное окно в разделе «Календарь и переезды». Соседние 30-минутные интервалы автоматически не объединяются.</p>
@@ -64,4 +72,4 @@ body{background:#f2f4f5;color:#243747}.admin-top{background:#0a1b2a;color:#fff;p
 <section class="admin-box"><h2>Заказы по дате получения</h2><p>Видеопоздравления и другие услуги без бронирования часов. Дата — желаемый день получения.</p><div id="videoOrderList" class="records"></div></section><section class="admin-box"><h2>Сообщения</h2><div class="admin-actions"><a href="/api/admin/export-messages">Выгрузить сообщения CSV ↓</a></div><div id="messageList" class="records"></div></section>
 
 </div>
-</main><script type="module" src="./admin.js?v=60"></script></body></html>
+</main><script type="module" src="./admin.js?v=62"></script></body></html>
