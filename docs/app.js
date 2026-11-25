@@ -1,5 +1,5 @@
 import {deliveryConfig,deliveryLink} from './video-service.js';
-import {mountFares} from './fare-form.js?v=55';
+import {mountFares} from './fare-form.js?v=56';
 import {holidayInfo} from './fares.js?v=55';
 import {fitTagline} from './tagline.js';
 import {pageText,initial,bindPage,renderPage,deviceFor} from './site.js?v=45';
@@ -28,6 +28,10 @@ async function activate(){
     $('#service').addEventListener('change',()=>{const id=$('#service').value;if(deliveryConfig(model,id)?.mode==='delivery')location.assign(deliveryLink(id));});
     const currentDevice=()=>deviceFor(innerWidth,innerHeight);
     const boundFields=bindPage(document);
+    // Add the fare explanation after binding legacy text keys, preserving saved edits.
+    // It must exist before the inline editor scans the page for editable elements.
+    const fare=mountFares($('#bookingForm'),config);
+    boundFields.push({group:'booking',key:'booking:fare-explanation',node:fare.note,original:fare.note.textContent});
     let ownerPreview=false;
     const redraw=()=>renderPage(document,model,boundFields,currentDevice(),ownerPreview,config.fares);
     redraw();
@@ -44,7 +48,6 @@ async function activate(){
     // Sending personal information is a separate owner-controlled feature.
     const selectable=Boolean(config.bookingsEnabled&&config.turnstileSiteKey);
     const select=$('#dateSelect'),area=$('#slots'),form=$('#bookingForm'),submit=$('#bookingSubmit');
-    const fare=mountFares(form,config);
     if(!visitOption){$('#bookingMode').textContent='Все услуги заказываются по дате получения. Выберите нужную карточку выше.';form.hidden=true;select.hidden=true;area.hidden=true;return;}
     // Keep the calculator available even while the booking calendar is closed.
     $('#bookingFields').disabled=false;

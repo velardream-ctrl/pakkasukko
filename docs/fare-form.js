@@ -16,9 +16,9 @@ export function mountFares(form,config){
   }
   input.before(select);input.required=false;
   const block=document.createElement('div');block.className='fare-summary';
-  const note=document.createElement('p');note.textContent='Дед Мороз выезжает из Kitee. Стоимость дороги рассчитана за путь туда и обратно.';
-  const output=document.createElement('strong');output.setAttribute('aria-live','polite');
+  const note=document.createElement('p');
   note.textContent='При бронировании фиксируется максимальная сумма. Если в день выезда будут другие подтверждённые заказы в ваш город на ту же поездку, расходы разделятся и ваша сумма может уменьшиться. Для нескольких адресов в одном городе выберите отдельное время для каждого.';
+  const output=document.createElement('strong');output.setAttribute('aria-live','polite');
   block.append(note,output);input.closest('.form-row').after(block);
   let count=1;
   let selectedSlots=[];
@@ -44,5 +44,5 @@ export function mountFares(form,config){
   service.addEventListener('change',update);
   form.addEventListener('reset',()=>queueMicrotask(update));
   update();
-  return {update,setCount(n){count=Math.max(1,n);selectedSlots=[];update();},setSlots(slots){selectedSlots=[...(slots||[])].sort((a,b)=>a.start_at.localeCompare(b.start_at));count=Math.max(1,selectedSlots.length);update();},payload(){update();return {city:current.city,group:count>1,quoteToken:JSON.stringify(current)};}};
+  return {note,update,setCount(n){count=Math.max(1,n);selectedSlots=[];update();},setSlots(slots){selectedSlots=[...(slots||[])].sort((a,b)=>a.start_at.localeCompare(b.start_at));count=Math.max(1,selectedSlots.length);update();},payload(){update();return {city:current.city,group:count>1,quoteToken:JSON.stringify(current)};}};
 }

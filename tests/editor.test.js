@@ -21,7 +21,7 @@ function fixture(){
   return {request,sqlite,login:()=>request('admin/login',{password:env.ADMIN_PASSWORD})};
 }
 test('draft publication, revision conflict, restoration, session revocation and public isolation',async()=>{
-  const {request,login}=fixture(),model=initial();model.texts['top-1']='Зима';model.snow={enabled:false,intensity:0,area:'hero'};
+  const {request,login}=fixture(),model=initial();model.texts['top-1']='Зима';model.texts['booking:fare-explanation']='Уточнённые условия расчёта стоимости';model.snow={enabled:false,intensity:0,area:'hero'};
   assert.equal((await request('admin/editor')).status,401);
   assert.equal((await login()).status,200);
   assert.equal((await request('admin/editor',{id:0,model},'https://other.test')).status,403);
