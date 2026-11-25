@@ -1,5 +1,5 @@
 import {deliveryConfig,deliveryLink} from './video-service.js';
-import {mountFares} from './fare-form.js?v=60';
+import {mountFares} from './fare-form.js?v=61';
 import {holidayInfo} from './fares.js?v=60';
 import {fitTagline} from './tagline.js';
 import {pageText,initial,bindPage,renderPage,deviceFor} from './site.js?v=45';
@@ -32,6 +32,7 @@ async function activate(){
     // It must exist before the inline editor scans the page for editable elements.
     const fare=mountFares($('#bookingForm'),config);
     boundFields.push({group:'booking',key:'booking:fare-explanation',node:fare.note,original:fare.note.textContent});
+    boundFields.push({group:'booking',key:'booking:performer-prompt',node:fare.castTitle,original:fare.castTitle.textContent});
     let ownerPreview=false;
     const redraw=()=>renderPage(document,model,boundFields,currentDevice(),ownerPreview,config.fares);
     redraw();

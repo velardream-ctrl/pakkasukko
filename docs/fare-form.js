@@ -25,9 +25,10 @@ export function mountFares(form,config){
   const durationLabel=document.createElement('label');durationLabel.textContent='Продолжительность выступления';
   const durationSelect=document.createElement('select');durationSelect.setAttribute('aria-label','Продолжительность выступления');
   durationLabel.append(durationSelect);
-  const castLabel=document.createElement('label');castLabel.textContent='Состав артистов';
-  const castSelect=document.createElement('select');castSelect.setAttribute('aria-label','Состав артистов');
-  castLabel.append(castSelect);choices.append(durationLabel,castLabel);
+  const castLabel=document.createElement('label');
+  const castTitle=document.createElement('span');castTitle.textContent='Выберите, кто придёт к вам в гости?';
+  const castSelect=document.createElement('select');
+  castLabel.append(castTitle,castSelect);choices.append(durationLabel,castLabel);
   const hint=document.createElement('p');hint.className='performer-hint';hint.textContent='При изменении длительности свободное время в календаре выше обновится. Выберите подходящий интервал.';choices.append(hint);
   service.closest('label').after(choices);
   let onSelectionChange=()=>{};
@@ -72,5 +73,5 @@ export function mountFares(form,config){
   for(const control of [durationSelect,castSelect])control.addEventListener('change',()=>{update();onSelectionChange();});
   form.addEventListener('reset',()=>queueMicrotask(update));
   update();
-  return {note,update,onSelectionChange(fn){onSelectionChange=fn;},durationMinutes(){return selectedPerformance?.minutes||0;},setCount(n){count=Math.max(1,n);selectedSlots=[];update();},setSlots(slots){selectedSlots=[...(slots||[])].sort((a,b)=>a.start_at.localeCompare(b.start_at));count=Math.max(1,selectedSlots.length);update();},payload(){update();return {city:current.city,group:count>1,quoteToken:JSON.stringify(current),...(selectedPerformance?{performanceMinutes:selectedPerformance.minutes,performerCast:selectedPerformance.cast}:{})};}};
+  return {note,castTitle,update,onSelectionChange(fn){onSelectionChange=fn;},durationMinutes(){return selectedPerformance?.minutes||0;},setCount(n){count=Math.max(1,n);selectedSlots=[];update();},setSlots(slots){selectedSlots=[...(slots||[])].sort((a,b)=>a.start_at.localeCompare(b.start_at));count=Math.max(1,selectedSlots.length);update();},payload(){update();return {city:current.city,group:count>1,quoteToken:JSON.stringify(current),...(selectedPerformance?{performanceMinutes:selectedPerformance.minutes,performerCast:selectedPerformance.cast}:{})};}};
 }

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {initial} from '../docs/site.js';
+import {readFileSync} from 'node:fs';
+import {initial,setField} from '../docs/site.js';
 import {photoState,editableFields} from '../docs/inline-editor.js';
 
 test('inline editor photo adjustments are independent by section and device',()=>{
@@ -24,4 +25,17 @@ test('editable field selection excludes detached content',()=>{
  const node={isConnected:true};
  const target={contains:(x)=>x===node};
  assert.deepEqual(editableFields([{key:'yes',node},{key:'no',node:{isConnected:false}},{key:'other'}],target),[{key:'yes',node}]);
+});
+
+test('fairy-tale performer prompt stays editable without replacing the booking select',()=>{
+ const fareForm=readFileSync(new URL('../docs/fare-form.js',import.meta.url),'utf8');
+ const app=readFileSync(new URL('../docs/app.js',import.meta.url),'utf8');
+ assert.match(fareForm,/castTitle\.textContent='Выберите, кто придёт к вам в гости\?'/);
+ assert.match(fareForm,/castLabel\.append\(castTitle,castSelect\)/);
+ assert.match(app,/key:'booking:performer-prompt',node:fare\.castTitle/);
+ const node={isConnected:true,textContent:'Выберите, кто придёт к вам в гости?',parentElement:null};
+ const wrapper={contains:target=>target===node};
+ assert.equal(editableFields([{group:'booking',key:'booking:performer-prompt',node}],wrapper).length,1);
+ setField({node},'Кто придёт в вашу сказку?');
+ assert.equal(node.textContent,'Кто придёт в вашу сказку?');
 });
