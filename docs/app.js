@@ -2,6 +2,7 @@ import {deliveryConfig,deliveryLink} from './video-service.js';
 import {mountFares} from './fare-form.js?v=45';
 import {fitTagline} from './tagline.js';
 import {pageText,initial,bindPage,renderPage,deviceFor} from './site.js?v=45';
+import {mountSpatialPhoto} from './spatial-gallery.js?v=1';
 const $=(s)=>document.querySelector(s);
 fitTagline(document);
 $('#year').textContent=new Date().getFullYear();
@@ -29,6 +30,7 @@ async function activate(){
     let ownerPreview=false;
     const redraw=()=>renderPage(document,model,boundFields,currentDevice(),ownerPreview,config.fares);
     redraw();
+    mountSpatialPhoto({model,currentDevice});
     const visitOption=[...$('#service').options].find(o=>deliveryConfig(model,o.value)?.mode==='visit');
     if(deliveryConfig(model,$('#service').value)?.mode==='delivery'&&visitOption)$('#service').value=visitOption.value;
     addEventListener('resize',()=>{redraw();document.dispatchEvent(new Event('pakkasukko:layout'));});

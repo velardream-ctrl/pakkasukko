@@ -13,7 +13,8 @@ export async function mediaAPI(req,env,path,reply,admin){
     if(!/^[a-f0-9-]{36}$/.test(id))return reply({},404);
     if(!admin){
       const site=await published(env);
-      if(site.logo!==id&&!Object.values(site.crops||{}).some(c=>c.image===id)&&!Object.values(site.pictures||{}).some(p=>p.id===id))return reply({},404);
+      const spatialUsed=Array.isArray(site.spatial?.scenes)&&site.spatial.scenes.some(scene=>scene&&[scene.foregroundId,scene.backgroundId,scene.groundId].includes(id));
+      if(site.logo!==id&&!Object.values(site.crops||{}).some(c=>c.image===id)&&!Object.values(site.pictures||{}).some(p=>p.id===id)&&!spatialUsed)return reply({},404);
     }
     const item=await env.MEDIA.get(id) || await env.MEDIA.get(id+'-original');
     return item?new Response(item.body,{headers:{'Content-Type':item.httpMetadata.contentType,'X-Content-Type-Options':'nosniff','Cache-Control':'no-store','Content-Security-Policy':"default-src 'none'"}}):reply({},404);

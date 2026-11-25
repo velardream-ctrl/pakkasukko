@@ -1,0 +1,32 @@
+/* Main-site spatial photograph: three visual layers and editor-only mode selection. */
+.hero-photo.pk-space-active{z-index:0;pointer-events:auto}
+.hero-photo.pk-space-active>img:not(.pk-space-layer){opacity:0;visibility:hidden}
+.pk-space-scene{position:absolute;inset:0;z-index:1;overflow:hidden;touch-action:pan-y;cursor:grab;user-select:none;-webkit-user-select:none;background:#0a1827}
+.pk-space-scene[hidden]{display:none!important}
+.pk-space-bg,.pk-space-figure{position:absolute;inset:0;background-repeat:no-repeat;pointer-events:none;will-change:transform}
+.pk-space-bg{background-size:cover;background-position:42% 50%;transform-origin:50% 95%}
+.pk-space-base{z-index:1;transform:scale(1.34)}
+.pk-space-moving{
+ z-index:2;
+ transform:translate3d(var(--pk-space-x,0px),var(--pk-space-y,0px),0)
+   perspective(1400px) rotateY(var(--pk-space-bg-yaw,0deg))
+   rotateX(var(--pk-space-bg-pitch,0deg)) scale(1.34);
+ -webkit-mask-image:linear-gradient(to bottom,#000 0%,#000 84%,#000e 87%,#000a 90%,#0005 93%,transparent 96%);
+ mask-image:linear-gradient(to bottom,#000 0%,#000 84%,#000e 87%,#000a 90%,#0005 93%,transparent 96%);
+}
+.pk-space-shadow{position:absolute;z-index:3;left:50%;bottom:2.4%;width:min(36%,260px);height:4%;border-radius:50%;background:#0206148e;filter:blur(15px);transform:translateX(-50%);pointer-events:none}
+.pk-space-figure{
+ z-index:4;background-size:auto 100%;background-position:center bottom;
+ transform-origin:50% 95%;
+ transform:perspective(1100px) rotateY(var(--pk-space-fg-yaw,0deg))
+   rotateX(var(--pk-space-fg-pitch,0deg)) rotateZ(var(--pk-space-fg,0deg));
+ filter:drop-shadow(0 8px 14px #050a1780);
+}
+@media(max-width:1100px){.pk-space-bg{background-position:43% 48%}}
+@media(max-width:980px){.hero-photo.pk-space-active{-webkit-mask-image:linear-gradient(to bottom,#000 0%,#000 96%,#000d 98%,transparent 100%);mask-image:linear-gradient(to bottom,#000 0%,#000 96%,#000d 98%,transparent 100%)}}
+@media(max-width:600px){
+ .pk-space-bg{background-position:45% 48%}
+ .pk-space-shadow{width:42%;filter:blur(10px)}
+}
+@supports not ((-webkit-mask-image:linear-gradient(to bottom,#000,transparent)) or (mask-image:linear-gradient(to bottom,#000,transparent))){.pk-space-moving{display:none}}
+@media(prefers-reduced-motion:reduce){.pk-space-scene,.pk-space-bg,.pk-space-figure{transition:none!important}}
