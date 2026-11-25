@@ -1,4 +1,4 @@
-import {defaultFare,prices,quote,describe,euros,visitQuote} from './fares.js?v=54';
+import {defaultFare,prices,quote,describe,euros,visitQuote} from './fares.js?v=55';
 import {routeCities} from './route-cities.js';
 export function mountFares(form,config){
   const service=form.elements.service,input=form.elements.city;

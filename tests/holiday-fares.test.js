@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {defaultFare,prices,quote,visitQuote,holidayNight,validFare} from '../docs/fares.js';
+import {defaultFare,defaultHolidayRules,prices,quote,visitQuote,holidayNight,holidayInfo,validFare} from '../docs/fares.js';
 
 const price=(time,city='Joensuu',fare=defaultFare)=>{
  const q=quote(fare,prices().gift,city,false,[time]);
@@ -64,4 +64,49 @@ test('negotiated program prices never claim a fictitious zero-euro holiday surch
  assert.equal(festive.base,null);
  assert.equal(festive.holidayExtra,null);
  assert.equal(festive.total,null);
+});
+
+test('owner can split the same holiday night into different pricing intervals',()=>{
+ const rules=[
+  {name:'Ранний вечер',startDate:'24.12',startTime:'20:00',endDate:'24.12',endTime:'23:00',percent:50},
+  {name:'Пик праздника',startDate:'24.12',startTime:'23:00',endDate:'25.12',endTime:'03:00',percent:100},
+  {name:'Раннее утро',startDate:'25.12',startTime:'03:00',endDate:'25.12',endTime:'09:00',percent:30}
+ ];
+ const fare={...defaultFare,holidayRules:rules};
+ assert.equal(validFare(fare),true);
+ for(const [time,price,name] of [
+  ['2026-12-24T19:59',10000,null],
+  ['2026-12-24T20:00',15000,'Ранний вечер'],
+  ['2026-12-24T23:00',20000,'Пик праздника'],
+  ['2026-12-25T02:59',20000,'Пик праздника'],
+  ['2026-12-25T03:00',13000,'Раннее утро'],
+  ['2026-12-25T09:00',10000,null]
+ ]){
+  const result=visitQuote(quote(fare,prices().home,'Kitee',false,[time]),1,0);
+  assert.equal(result.base,price,time);
+  assert.equal(result.holidayName,name,time);
+ }
+ const q=quote(fare,prices().home,'Joensuu',true,['2026-12-24T22:00','2026-12-24T23:30']);
+ const first=visitQuote(q,2,0),second=visitQuote(q,2,1);
+ assert.equal(first.base,15000);
+ assert.equal(second.base,20000);
+ assert.equal(first.travel,1474);
+ assert.equal(second.travel,1474);
+ assert.equal(first.total+second.total,37948);
+});
+
+test('annual rules support New Year crossing, overlap priority and removing all surcharges',()=>{
+ const extra={name:'Повышенный час',startDate:'31.12',startTime:'23:00',endDate:'01.01',endTime:'01:00',percent:125};
+ const fare={...defaultFare,holidayRules:[...defaultHolidayRules,extra]};
+ assert.equal(validFare(fare),true);
+ assert.deepEqual(holidayInfo('2027-01-01T00:30',fare),{name:'Повышенный час',percent:125});
+ assert.equal(holidayInfo('2027-01-01T01:00',fare).percent,50);
+ assert.equal(holidayInfo('2027-01-01T09:00',fare),null);
+ assert.equal(holidayInfo('2027-01-01T00:30',{...fare,holidayRules:[]}),null);
+ for(const rule of [
+  {...extra,startDate:'31.02'},
+  {...extra,percent:301},
+  {...extra,endDate:'31.12',endTime:'22:00'},
+  {...extra,name:' '}
+ ])assert.equal(validFare({...fare,holidayRules:[rule]}),false);
 });

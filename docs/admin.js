@@ -1,6 +1,7 @@
 import {sellerForm,invoiceControls} from './billing-panel.js';
 import {applyBrand} from './site.js';
 import {musicAdmin} from './music-admin.js';
+import {holidayRules,validFare} from './fares.js?v=55';
 import {renderVideoOrders} from './video-admin.js';
 import {moveControls,slotControls} from './reschedule-panel.js';
 
@@ -58,19 +59,66 @@ function addFareCity(city='',km=0,r={}){
 }
 function renderFare(){
  const f=state.fares,box=$('fareInputs');box.replaceChildren();$('fareCities').replaceChildren();
- $('holidayPercent').value=f.holidayPercent??50;
+ renderHoliday();
  fareNumber(box,'Цена бензина, €/л',f.fuel,20,'0.001').id='fareFuel';
  fareNumber(box,'Расход, л/100 км',f.consumption,100,'0.1').id='fareConsumption';
  for(const [city,km] of Object.entries(f.km))if(city!=='Kitee')addFareCity(city,km,f.routes?.[city]);
 }
 $('addFareCity').onclick=()=>addFareCity().focus();
+function appendHolidayRule(rule={}){
+ const item=el('div',undefined,'record holiday-rule'),grid=el('div',undefined,'holiday-grid');
+ const fields={};
+ for(const [key,title,type,fallback] of [
+  ['name','Название праздника','text','Новый праздник'],
+  ['startDate','Дата начала (ДД.ММ)','text','24.12'],
+  ['startTime','Начало','time','20:00'],
+  ['endDate','Дата окончания (ДД.ММ)','text','25.12'],
+  ['endTime','Окончание','time','09:00'],
+  ['percent','Надбавка, %','number',50]
+ ]){
+  const label=el('label',title),input=el('input');
+  input.type=type;input.required=true;input.value=String(rule[key]??fallback);
+  if(key==='name')input.maxLength=80;
+  if(key.endsWith('Date')){input.maxLength=5;input.placeholder='24.12';input.inputMode='numeric';}
+  if(key==='percent'){input.min='0';input.max='300';input.step='1';}
+  label.append(input);grid.append(label);fields[key]=input;
+ }
+ item.append(grid);
+ const preview=el('p',undefined,'muted');
+ const sample=()=>{const percent=fields.percent.valueAsNumber;preview.textContent=Number.isInteger(percent)&&percent>=0?'Пример: программа 100 € → '+(100*(1+percent/100)).toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2})+' €':'Проверьте процент надбавки';};
+ fields.percent.oninput=sample;sample();item.append(preview);
+ const actions=el('div',undefined,'admin-actions');
+ button(actions,'Удалить этот интервал',()=>item.remove(),'decline');
+ item.append(actions);
+ item.readHoliday=()=>({
+  name:fields.name.value.trim(),startDate:fields.startDate.value.trim(),
+  startTime:fields.startTime.value,endDate:fields.endDate.value.trim(),
+  endTime:fields.endTime.value,percent:fields.percent.valueAsNumber
+ });
+ $('holidayRows').append(item);
+ return fields.name;
+}
+function renderHoliday(){
+ const parent=$('holidayRows');parent.replaceChildren();
+ for(const rule of holidayRules(state.fares))appendHolidayRule(rule);
+}
+$('holidayAdd').onclick=()=>{
+ if($('holidayRows').children.length>=60){status('holidayStatus','Можно добавить не более 60 интервалов.',true);return;}
+ appendHolidayRule().focus({preventScroll:true});
+};
 $('holidayForm').onsubmit=async event=>{
  event.preventDefault();
- const holidayPercent=$('holidayPercent').valueAsNumber;
- if(!Number.isInteger(holidayPercent)||holidayPercent<0||holidayPercent>300){status('holidayStatus','Укажите надбавку от 0 до 300%.',true);return;}
- const fares={...state.fares,holidayPercent};
- try{await request('/api/admin/travel-fare','POST',fares);state.fares=fares;status('holidayStatus','Праздничный тариф сохранён. Новая цена применяется к новым заявкам.');}
- catch(e){status('holidayStatus',e.message,true);}
+ const holidayRules=[...$('holidayRows').children].map(row=>row.readHoliday());
+ const fares={...state.fares,holidayRules};
+ if(!validFare(fares)){
+   status('holidayStatus','Проверьте название, даты ДД.ММ, часы, надбавку 0–300% и длительность интервала (от 15 минут до 72 часов).',true);
+   return;
+ }
+ try{
+  await request('/api/admin/travel-fare','POST',fares);
+  state.fares=fares;
+  status('holidayStatus','Сохранено: '+holidayRules.length+' интервалов. Новые тарифы действуют для следующих заявок.');
+ }catch(e){status('holidayStatus',e.message,true);}
 };
 $('fareForm').onsubmit=async event=>{
  event.preventDefault();
@@ -80,7 +128,7 @@ $('fareForm').onsubmit=async event=>{
    if(!key||names.has(key)){status('fareStatus','Введите уникальное название для каждого города.',true);return;}
    names.add(key);km[entry.city]=entry.km;routes[entry.city]=entry.route;
  }
- const fares={fuel:$('fareFuel').valueAsNumber,consumption:$('fareConsumption').valueAsNumber,km,routes,holidayPercent:state.fares.holidayPercent??50};
+ const fares={...state.fares,fuel:$('fareFuel').valueAsNumber,consumption:$('fareConsumption').valueAsNumber,km,routes};
  try{await request('/api/admin/travel-fare','POST',fares);state.fares=fares;status('fareStatus','Тариф сохранён. Города автоматически обновятся на главной странице и в форме бронирования.');}
  catch(e){status('fareStatus',e.message,true);}
 };

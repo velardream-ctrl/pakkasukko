@@ -1,9 +1,36 @@
 import {deliveryConfig} from './video-service.js';
+export const defaultHolidayRules=[
+  {name:'Рождественская ночь',startDate:'24.12',startTime:'20:00',endDate:'25.12',endTime:'09:00',percent:50},
+  {name:'Новогодняя ночь',startDate:'31.12',startTime:'20:00',endDate:'01.01',endTime:'09:00',percent:50},
+  {name:'Старый Новый год',startDate:'13.01',startTime:'20:00',endDate:'14.01',endTime:'09:00',percent:50}
+];
+const YEAR_MINUTES=365*24*60;
+function dayMinute(date,time){
+ const d=/^(0[1-9]|[12]\d|3[01])\.(0[1-9]|1[0-2])$/.exec(String(date||''));
+ const h=/^([01]\d|2[0-3]):([0-5]\d)$/.exec(String(time||''));
+ if(!d||!h)return null;
+ const stamp=Date.UTC(2025,Number(d[2])-1,Number(d[1]));
+ const correct=new Date(stamp);
+ if(correct.getUTCDate()!==Number(d[1])||correct.getUTCMonth()+1!==Number(d[2]))return null;
+ return Math.round((stamp-Date.UTC(2025,0,1))/60000)+Number(h[1])*60+Number(h[2]);
+}
+function holidayWindow(rule){
+ if(!rule||typeof rule!=='object'||Array.isArray(rule))return null;
+ const start=dayMinute(rule.startDate,rule.startTime),rawEnd=dayMinute(rule.endDate,rule.endTime);
+ if(start===null||rawEnd===null)return null;
+ const end=rawEnd<=start?rawEnd+YEAR_MINUTES:rawEnd;
+ return end-start>=15&&end-start<=72*60?{start,end}:null;
+}
+export function validHolidayRule(rule){
+ return Boolean(holidayWindow(rule))&&typeof rule.name==='string'&&rule.name.length>=1&&rule.name.length<=80&&rule.name===rule.name.trim()
+   &&Number.isInteger(rule.percent)&&rule.percent>=0&&rule.percent<=300;
+}
 export const defaultFare={fuel:2.20,consumption:10,holidayPercent:50,km:{Kitee:0,Puhos:15,'Tohmajärvi':20,Joensuu:67},routes:{}};
 export function validFare(f){
   const number=(n,min,max)=>typeof n==='number'&&Number.isFinite(n)&&n>=min&&n<=max;
   if(!number(f?.fuel,0.001,20)||!number(f?.consumption,0.1,100)||f.km?.Kitee!==0)return false;
   if(f.holidayPercent!==undefined&&(!Number.isInteger(f.holidayPercent)||!number(f.holidayPercent,0,300)))return false;
+  if(f.holidayRules!==undefined&&(!Array.isArray(f.holidayRules)||f.holidayRules.length>60||!f.holidayRules.every(validHolidayRule)))return false;
   const cities=Object.keys(f.km),seen=new Set();
   if(cities.length>100 || !f.routes || typeof f.routes!=='object' || Array.isArray(f.routes))return false;
   if(Object.keys(f.routes).some(city=>!Object.hasOwn(f.km,city)))return false;
@@ -27,25 +54,30 @@ export function prices(site={},content={}){
   return items;
 }
 export const euros=cents=>(cents/100).toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2})+' €';
-// Finland local time (slot timestamps are stored as YYYY-MM-DDTHH:mm in Helsinki).
-// Every interval is annual: Christmas Eve, New Year's Eve and Old New Year's Eve.
-const festiveNights=[
-  {month:'12',eve:'24',morning:'25',name:'Рождественская ночь'},
-  {month:'12',eve:'31',nextMonth:'01',morning:'01',name:'Новогодняя ночь'},
-  {month:'01',eve:'13',morning:'14',name:'Старый Новый год'}
-];
-export function holidayNight(startAt){
-  const m=/^\d{4}-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(String(startAt||''));
-  if(!m)return null;
-  const [,month,day,hour,minute]=m;
-  if(Number(hour)>23||Number(minute)>59)return null;
-  for(const night of festiveNights){
-    if(month===night.month&&day===night.eve&&Number(hour)>=20)return night.name;
-    if(month===(night.nextMonth||night.month)&&day===night.morning&&Number(hour)<9)return night.name;
-  }
-  return null;
-}
+// All recurring rules are compared in Finland's local calendar, not UTC.
+// When rules overlap, the highest percentage is used; ties keep the first rule.
 export const holidayRate=fare=>Number.isInteger(fare?.holidayPercent)&&fare.holidayPercent>=0&&fare.holidayPercent<=300?fare.holidayPercent:50;
+export function holidayRules(fare=defaultFare){
+ if(Array.isArray(fare?.holidayRules))return fare.holidayRules;
+ const rate=holidayRate(fare);
+ return defaultHolidayRules.map(rule=>({...rule,percent:rate}));
+}
+export function holidayInfo(startAt,fare=defaultFare){
+ const m=/^\d{4}-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(String(startAt||''));
+ if(!m)return null;
+ const point=dayMinute(m[2]+'.'+m[1],m[3]+':'+m[4]);
+ if(point===null)return null;
+ let best=null;
+ for(const rule of holidayRules(fare)){
+   if(!validHolidayRule(rule))continue;
+   const {start,end}=holidayWindow(rule);
+   if((point>=start&&point<end)||(point+YEAR_MINUTES>=start&&point+YEAR_MINUTES<end)){
+     if(!best||rule.percent>best.percent)best={name:rule.name,percent:rule.percent};
+   }
+ }
+ return best?.percent>0?best:null;
+}
+export const holidayNight=(startAt,fare=defaultFare)=>holidayInfo(startAt,fare)?.name||null;
 export function quote(fare,item,city,group=false,visitTimes=[]){
   const match=String(item.label).trim().match(/^(?:от\s*)?(\d+(?:[.,]\d{1,2})?)\s*(?:€|евро)?$/iu);
   const base=match?Math.round(Number(match[1].replace(',','.'))*100):null;
@@ -59,7 +91,8 @@ export function quote(fare,item,city,group=false,visitTimes=[]){
   const travel=transport===null?null:transport+hotel+meals;
   return {city,group,remote:item.remote,label:item.label,base,mode:rail?'rail':'car',km,fuel:fare.fuel,consumption:fare.consumption,
     transport,nights,nightly,hotel,meals,travel,total:base===null||travel===null?null:base+travel,
-    holidayPercent:holidayRate(fare),visitTimes:[...visitTimes].sort()};
+    holidayPercent:holidayRate(fare),visitTimes:[...visitTimes].sort(),
+    holidayVisits:[...visitTimes].sort().map(time=>holidayInfo(time,fare))};
 }
 export function describe(q){
   let ride;
@@ -79,8 +112,9 @@ export function describe(q){
 
 // Distribute integer cents in chronological order, without losing a rounding cent.
 export function visitQuote(q,count,index){
- const holidayName=q.remote?null:holidayNight(q.visitTimes?.[index]);
- const holidayPercent=holidayName?(q.holidayPercent??50):0;
+ const holiday=q.remote?null:q.holidayVisits?.[index];
+ const holidayName=holiday?.name||(q.holidayVisits?null:holidayNight(q.visitTimes?.[index]));
+ const holidayPercent=holidayName?(holiday?.percent??q.holidayPercent??50):0;
  const holidayExtra=holidayName?(q.base===null?null:Math.round(q.base*holidayPercent/100)):0;
  const base=q.base===null?null:q.base+holidayExtra;
  const travel=count===1?q.travel:q.travel===null?null:Math.floor(q.travel/count)+(index<q.travel%count?1:0);

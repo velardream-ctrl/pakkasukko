@@ -1,6 +1,6 @@
 import {deliveryConfig,deliveryLink} from './video-service.js';
-import {mountFares} from './fare-form.js?v=54';
-import {holidayNight,holidayRate} from './fares.js?v=54';
+import {mountFares} from './fare-form.js?v=55';
+import {holidayInfo} from './fares.js?v=55';
 import {fitTagline} from './tagline.js';
 import {pageText,initial,bindPage,renderPage,deviceFor} from './site.js?v=45';
 import {mountSpatialPhoto} from './spatial-gallery.js?v=8';
@@ -97,7 +97,8 @@ async function activate(){
         const element=document.createElement(selectable?'button':'span');
         element.className=selectable?'slot':'slot slot-readonly';
         element.textContent=slot.start_at.slice(11,16)+'–'+slot.end_at.slice(11,16);
-        if(holidayRate(config.fares)>0&&holidayNight(slot.start_at))element.textContent+=' · ✦ +'+holidayRate(config.fares)+'%';
+        const special=holidayInfo(slot.start_at,config.fares);
+        if(special?.percent>0)element.textContent+=' · ✦ +'+special.percent+'%';
         if(selectable){
           element.type='button';
           element.addEventListener('click',()=>{
