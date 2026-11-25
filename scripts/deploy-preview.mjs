@@ -61,8 +61,9 @@ try{
  let cookie=login.headers.get('set-cookie')?.split(';')[0];
  if(!cookie)throw Error('Session cookie missing');
  let editorOk=false,lastStatus='not started';
- // D1 writes may not become visible to subsequent reads immediately in another request.
- for(let attempt=0;attempt<6;attempt++){
+ // Worker edges may briefly disagree on a newly rotated SESSION_SECRET.
+ // Re-authenticate after a 401 and allow extra time for the new deployment to propagate.
+ for(let attempt=0;attempt<14;attempt++){
    const editor=await fetch(url+'/api/admin/editor',{headers:{Cookie:cookie},cache:'no-store'});
    lastStatus='HTTP '+editor.status;
    if(editor.ok){
@@ -70,7 +71,12 @@ try{
      if(Array.isArray(data?.history)){editorOk=true;break;}
      lastStatus+=' (unexpected response)';
    }
-   if(attempt<5)await new Promise(resolve=>setTimeout(resolve,800*(attempt+1)));
+   if(editor.status===401){
+     const again=await fetch(url+'/api/admin/login',{method:'POST',redirect:'error',
+       headers:{Origin:url,'Content-Type':'application/json'},body:JSON.stringify({password})});
+     if(again.ok)cookie=again.headers.get('set-cookie')?.split(';')[0]||cookie;
+   }
+   if(attempt<13)await new Promise(resolve=>setTimeout(resolve,700*Math.min(attempt+1,4)));
  }
  if(!editorOk)throw Error('Editor check failed after retries: '+lastStatus);
  // During deployment different Cloudflare edges can briefly serve older sessions.
