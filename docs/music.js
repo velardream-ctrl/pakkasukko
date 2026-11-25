@@ -1,4 +1,4 @@
-import {createSleighPlayer} from './sleigh-player.js?v=41';
+import {createSleighPlayer} from './sleigh-player.js?v=42';
 // No audio request until playback is attempted. Owner controls the sequence.
 async function mount(){
  if(location.hostname.endsWith('github.io'))return;
@@ -12,7 +12,7 @@ async function mount(){
  const box=document.createElement('div');box.className='pk-music';box.setAttribute('role','group');box.setAttribute('aria-label','Музыка зимней сказки');
  const player=createSleighPlayer(box,volume,()=>{
    if(!audio.paused){want=false;put('choice','off');audio.pause();}else{want=true;put('choice','on');start();}
- },()=>{want=true;put('choice','on');advance();},value=>{volume=value;put('volume',String(volume));setVolume();});
+ },value=>{volume=value;put('volume',String(volume));setVolume();});
  document.body.append(box);
  function setVolume(){audio.volume=ctx?1:volume/100;if(gain)gain.gain.value=volume/100;}
  function graph(){if(ctx)return;const C=window.AudioContext||window.webkitAudioContext;if(!C)return;try{ctx=new C();gain=ctx.createGain();source=ctx.createMediaElementSource(audio);source.connect(gain);gain.connect(ctx.destination);setVolume();}catch{ctx=null;gain=null;}}

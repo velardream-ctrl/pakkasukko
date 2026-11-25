@@ -15,7 +15,7 @@ test('RUN-040: independent animated artwork and stationary controls, no track ti
  assert.match(music,/createSleighPlayer\(box,volume/);
  assert.doesNotMatch(music,/p\.tracks\[index\]\.title/);
  assert.match(music,/audio\.addEventListener\('ended',advance\)/);
- for(const f of ['index.html','contact.html','privacy.html','video.html','trip.html'])assert.match(read(f),/music\.js\?v=41/);
+ for(const f of ['index.html','contact.html','privacy.html','video.html','trip.html'])assert.match(read(f),/music\.js\?v=42/);
 });
 
 test('RUN-041: frame transforms actually change legs, Santa and sleigh independently',()=>{
@@ -26,3 +26,5 @@ test('RUN-041: frame transforms actually change legs, Santa and sleigh independe
  assert.equal(Object.keys(a).some(k=>k.includes('controls')),false);
  assert.match(read('music.js'),/player\.update\(!audio\.paused&&!audio\.ended&&!audio\.error,want\)/);
 });
+
+test('RUN-042: remove manual track skip while preserving automatic cycling',()=>{const p=read('sleigh-player.js'),m=read('music.js');assert.doesNotMatch(p,/Следующая композиция|onNext|⏭/);assert.match(p,/createSleighPlayer\(box,volume,onPlay,onVolume\)/);assert.match(m,/audio\.addEventListener\('ended',advance\)/);assert.match(m,/index=\(index\+1\)%p\.tracks\.length/);});

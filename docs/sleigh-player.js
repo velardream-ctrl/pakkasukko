@@ -84,14 +84,14 @@ export function sleighFrame(seconds){
   'pk-sparks':'translate('+n(3*sway)+' 0)'
  };
 }
-export function createSleighPlayer(box,volume,onPlay,onNext,onVolume){
+export function createSleighPlayer(box,volume,onPlay,onVolume){
  const style=document.createElement('style');style.textContent=`
 .pk-music{position:fixed;z-index:900;right:12px;bottom:max(12px,env(safe-area-inset-bottom));width:132px;max-width:calc(100vw - 24px);font:13px system-ui;color:#152b39;isolation:isolate}
 .pk-music button{box-sizing:border-box;margin:0;cursor:pointer;font:inherit;min-height:36px;width:auto;min-width:36px;max-width:none;padding:0;border:0;border-radius:50%;line-height:1;display:grid;place-items:center}
 .pk-music .pk-sleigh-toggle{display:block;position:absolute;right:0;bottom:0;width:132px;height:70px;background:transparent;border-radius:12px;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
 .pk-sleigh-toggle svg{display:block;width:100%;height:100%;overflow:visible;pointer-events:none}
 .pk-music .pk-music-controls{display:none;position:absolute;right:0;bottom:0;align-items:center;gap:7px;padding:7px 8px;border-radius:26px;background:linear-gradient(140deg,#fff4d4,#efd3a0);border:1px solid #c79a52;box-shadow:0 3px 14px #14233244;width:max-content;max-width:calc(100vw - 24px);box-sizing:border-box}
-.pk-music.is-open{width:242px}
+.pk-music.is-open{width:190px}
 .pk-music.is-open .pk-sleigh-toggle{bottom:49px;width:156px;height:76px}
 .pk-music.is-open .pk-music-controls{display:flex}
 .pk-music-controls button{background:linear-gradient(#f3d291,#d4a34d);color:#172b37;min-width:36px;min-height:36px}
@@ -137,7 +137,6 @@ export function createSleighPlayer(box,volume,onPlay,onNext,onVolume){
  function open(){box.classList.add('is-open');toggle.setAttribute('aria-expanded','true');toggle.setAttribute('aria-label','Свернуть музыкальный плеер');arm();}
  toggle.onclick=()=>{if(box.classList.contains('is-open'))close();else open();};
  const play=button('Включить музыку','▶',()=>{onPlay();arm();});
- button('Следующая композиция','⏭',()=>{onNext();arm();});
  const slider=make('input','');Object.assign(slider,{type:'range',min:0,max:100,value:volume});slider.setAttribute('aria-label','Громкость музыки');slider.oninput=()=>{onVolume(Number(slider.value));arm();};controls.append(slider);
  const motion=button('Включить движение упряжки','✧',()=>{override=!override;motion.setAttribute('aria-pressed',String(override));motion.setAttribute('aria-label',override?'Отключить движение упряжки':'Включить движение упряжки');syncMotion();arm();});motion.className='pk-motion-enable';motion.hidden=!reduced?.matches;motion.setAttribute('aria-pressed','false');
  const onMotionPreference=()=>{motion.hidden=!reduced?.matches;override=false;motion.setAttribute('aria-pressed','false');syncMotion();};if(reduced?.addEventListener)reduced.addEventListener('change',onMotionPreference);else reduced?.addListener?.(onMotionPreference);
