@@ -20,9 +20,9 @@ main{max-width:1080px;margin:0 auto;padding:10px 15px 45px}
 .viewer{position:relative;width:100%;max-width:480px;aspect-ratio:2/3;overflow:hidden;border:1px solid #536776;border-radius:19px;background:#0a1a26;box-shadow:0 14px 65px #000a;touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none}
 .viewer.dragging{cursor:grabbing}
 .world{position:absolute;inset:0;overflow:hidden;isolation:isolate;--focus:42%;--bgsize:100%;--move-x:0px;--move-y:0px;--bg-yaw:0deg;--bg-pitch:0deg}
-.back{position:absolute;inset:-5% -4%;background-image:url('./assets/spatial-lab-panorama.png');background-repeat:no-repeat;background-size:auto var(--bgsize);background-position:var(--focus) top;pointer-events:none}
+.back{position:absolute;inset:-5% -12%;background-image:url('./assets/spatial-lab-panorama.png');background-repeat:no-repeat;background-size:auto var(--bgsize);background-position:var(--focus) top;pointer-events:none}
 .back.fixed{z-index:1}
-.back.moving{z-index:2;will-change:transform;transform:translate3d(var(--move-x),var(--move-y),0) perspective(1400px) rotateY(var(--bg-yaw)) rotateX(var(--bg-pitch));transform-origin:50% 94%;-webkit-mask-image:linear-gradient(to bottom,#000 0%,#000 86%,#000c 91%,#0005 95%,transparent 98%);mask-image:linear-gradient(to bottom,#000 0%,#000 86%,#000c 91%,#0005 95%,transparent 98%)}
+.back.moving{z-index:2;will-change:transform;transform:translate3d(var(--move-x),var(--move-y),0) perspective(1400px) rotateY(var(--bg-yaw)) rotateX(var(--bg-pitch));transform-origin:50% 94%;-webkit-mask-image:linear-gradient(to bottom,#000 0%,#000 72%,#000c 77%,#0005 82%,transparent 87%);mask-image:linear-gradient(to bottom,#000 0%,#000 72%,#000c 77%,#0005 82%,transparent 87%)}
 .contact{z-index:3;position:absolute;left:50%;bottom:1.8%;width:31%;height:3.7%;border-radius:50%;transform:translateX(-50%);background:#050b1880;filter:blur(9px);pointer-events:none}
 .santa{z-index:4;position:absolute;inset:0;width:100%;height:100%;object-fit:contain;object-position:center top;display:block;transform:none!important;filter:drop-shadow(0 4px 8px #020b1880);pointer-events:none;-webkit-user-drag:none}
 .original{z-index:5;position:absolute;inset:0;width:100%;height:100%;object-fit:contain;object-position:center top;opacity:0;pointer-events:none;transition:opacity .25s}
@@ -87,7 +87,8 @@ output{font-variant-numeric:tabular-nums;color:#f9deaa}
 <button id="tiltBtn" aria-pressed="false" type="button">Наклон телефона</button>
 <button id="resetBtn" type="button">Сброс</button>
 </div>
-<label>Глубина движения <output id="depthOut">68%</output><input id="depth" type="range" min="0" max="100" value="68"></label>
+<label>Глубина движения <output id="depthOut">84%</output><input id="depth" type="range" min="0" max="100" value="84"></label>
+<label>Уровень неподвижного снега <output id="snowLevelOut">72%</output><input id="snowLevel" type="range" min="62" max="85" value="72"></label>
 <label>Размер церкви и фона <output id="zoomOut">100%</output><input id="zoom" type="range" min="95" max="135" value="100"></label>
 <label>Положение церкви <output id="focusOut">42%</output><input id="focus" type="range" min="32" max="54" value="42"></label>
 <div id="status" class="status" role="status" aria-live="polite">Сцена готова к просмотру. Переключай оригинал и объёмную фотографию для сравнения.</div>
@@ -128,15 +129,20 @@ $('tiltBtn').onclick=async()=>{
     updateButtons();message('Датчик включён. Медленно наклоняй телефон в стороны.');
   }catch{message('Датчик недоступен. Для теста используй движение пальцем.');}
 };
-$('resetBtn').onclick=()=>{$('depth').value=68;$('zoom').value=100;$('focus').value=42;tx=ty=x=y=0;flat=false;setMode('manual');updateSliders();message('Настройки теста сброшены.');};
+$('resetBtn').onclick=()=>{$('depth').value=84;$('snowLevel').value=72;$('zoom').value=100;$('focus').value=42;tx=ty=x=y=0;flat=false;setMode('manual');updateSliders();message('Настройки теста сброшены.');};
 function updateSliders(){
   $('depthOut').textContent=$('depth').value+'%';
+  $('snowLevelOut').textContent=$('snowLevel').value+'%';
+  const snowStart=Number($('snowLevel').value);
+  const snowMask='linear-gradient(to bottom,#000 0%,#000 '+snowStart+'%,#000c '+(snowStart+5)+'%,#0005 '+(snowStart+10)+'%,transparent '+(snowStart+15)+'%)';
+  const moving=viewer.querySelector('.back.moving');
+  moving.style.webkitMaskImage=snowMask;moving.style.maskImage=snowMask;
   $('zoomOut').textContent=$('zoom').value+'%';
   $('focusOut').textContent=$('focus').value+'%';
   world.style.setProperty('--focus',$('focus').value+'%');
   world.style.setProperty('--bgsize',$('zoom').value+'%');
 }
-['depth','zoom','focus'].forEach(id=>$(id).addEventListener('input',updateSliders));
+['depth','snowLevel','zoom','focus'].forEach(id=>$(id).addEventListener('input',updateSliders));
 updateSliders();
 viewer.addEventListener('pointerdown',e=>{
  if(flat||e.pointerType==='mouse'&&e.button!==0)return;
@@ -146,8 +152,8 @@ viewer.addEventListener('pointerdown',e=>{
 });
 viewer.addEventListener('pointermove',e=>{
  if(!ptr||ptr.id!==e.pointerId||flat)return;
- tx=clamp(ptr.baseX+(e.clientX-ptr.startX)/Math.max(140,viewer.clientWidth*.38),-1,1);
- ty=clamp(ptr.baseY+(e.clientY-ptr.startY)/Math.max(190,viewer.clientHeight*.50),-1,1);
+ tx=clamp(ptr.baseX+(e.clientX-ptr.startX)/Math.max(115,viewer.clientWidth*.29),-1,1);
+ ty=clamp(ptr.baseY+(e.clientY-ptr.startY)/Math.max(150,viewer.clientHeight*.40),-1,1);
 });
 function up(e){if(ptr?.id===e.pointerId){ptr=null;viewer.classList.remove('dragging');blockedUntil=performance.now()+4500;}}
 for(const ev of ['pointerup','pointercancel','lostpointercapture'])viewer.addEventListener(ev,up);
@@ -155,15 +161,15 @@ window.addEventListener('pagehide',disableTilt);
 function tick(now){
  const dt=Math.min(65,now-last||16);last=now;
  if(mode==='auto'&&!flat&&!ptr&&now>blockedUntil){
-  tx=Math.sin(now*.00034)*.57;ty=Math.cos(now*.00028)*.34;
+  tx=Math.sin(now*.00045)*.72;ty=Math.cos(now*.00037)*.44;
  }
- const ease=1-Math.exp(-dt/135);x+=(tx-x)*ease;y+=(ty-y)*ease;
+ const ease=1-Math.exp(-dt/82);x+=(tx-x)*ease;y+=(ty-y)*ease;
  const strength=Number($('depth').value)/100;
- const px=Math.min(viewer.clientWidth*.07,33)*strength,py=Math.min(viewer.clientHeight*.022,15)*strength;
+ const px=Math.min(viewer.clientWidth*.105,46)*strength,py=Math.min(viewer.clientHeight*.038,24)*strength;
  world.style.setProperty('--move-x',(-x*px).toFixed(2)+'px');
  world.style.setProperty('--move-y',(-y*py).toFixed(2)+'px');
- world.style.setProperty('--bg-yaw',(-x*1.55*strength).toFixed(2)+'deg');
- world.style.setProperty('--bg-pitch',(y*.95*strength).toFixed(2)+'deg');
+ world.style.setProperty('--bg-yaw',(-x*2.35*strength).toFixed(2)+'deg');
+ world.style.setProperty('--bg-pitch',(y*1.45*strength).toFixed(2)+'deg');
  requestAnimationFrame(tick);
 }
 requestAnimationFrame(tick);
