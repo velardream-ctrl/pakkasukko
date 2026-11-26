@@ -9,6 +9,8 @@ on:
       - 'docs/**'
       - 'src/**'
       - 'tests/**'
+      - 'test/**'
+      - 'package.json'
       - 'schema.sql'
   workflow_dispatch:
 permissions:
@@ -23,8 +25,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - run: npm test
       - run: npm install --no-save --no-package-lock wrangler@4.167.0 sharp@0.34.5
+      - run: npm test
       - run: node scripts/optimize-spatial.mjs
       - run: node scripts/deploy-preview.mjs
         env:
