@@ -1,3 +1,4 @@
+import {styleElement,styleField,legacyHeadingParts,validHeadingParts} from './text-presentation.js';
 import {performanceRows} from './fares.js';
 import {deliveryConfig,deliveryNotice,deliveryLink} from './video-service.js';
 export const devices = {desktop:[1440,900],tablet:[820,1180],phone:[390,844]};
@@ -61,7 +62,7 @@ export function applySectionCrop(doc,model,section,device,editing=false){
   img.style.transform='translate('+Math.max(-100,Math.min(100,Number(crop.x)||0))+'%, '+Math.max(-100,Math.min(100,Number(crop.y)||0))+'%) scale('+Math.max(.35,Math.min(3,(Number(crop.zoom)||100)/100))+')';
 }
 
-export const initial = () => ({sections:[],headingOverrides:{},texts:{},crops:{},sectionCrops:{},shades:{},routesShades:{},hidden:[],order:[],cards:[],pictures:{},seo:{},logo:"",contacts:{},durations:{},deliveryModes:{}});
+export const initial = () => ({sections:[],headingOverrides:{},headingParts:{},textStyles:{},texts:{},crops:{},sectionCrops:{},shades:{},routesShades:{},hidden:[],order:[],cards:[],pictures:{},seo:{},logo:"",contacts:{},durations:{},deliveryModes:{}});
 // Additional programs use the same visual structure as the three original cards.
 // Presentation defaults are derived at render time, so old D1 drafts stay intact.
 export function programPresentation(card,index){
@@ -180,7 +181,7 @@ import {applySnow} from './snow.js';
 import {renderRouteCities} from './route-cities.js';
 export function renderPage(doc,model,fields,device,editing=false,fares=null){
   applySnow(doc,model.snow,device);
-  for(const f of fields)setField(f,model.texts[f.key]??f.original);
+  for(const f of fields){setField(f,model.texts[f.key]??f.original);styleField(f,model.textStyles?.[f.key]);}
   renderRouteCities(doc,fares);
   fitTagline(doc,model.taglineWidth);
   for(const heading of doc.querySelectorAll('[data-heading-display]'))heading.remove();
@@ -192,13 +193,16 @@ export function renderPage(doc,model,fields,device,editing=false,fares=null){
     const section=doc.createElement('section');section.id=block.id;section.dataset.created='';section.className='intro section';
     const wrap=doc.createElement('div');wrap.className='container';
     const title=doc.createElement('h2'),body=doc.createElement('p');
-    title.textContent=block.title;body.textContent=block.body;body.style.whiteSpace='pre-line';
+    title.textContent=block.title;body.textContent=block.body;styleElement(title,model.textStyles?.[block.id+':title']);styleElement(body,model.textStyles?.[block.id+':body']);body.style.whiteSpace='pre-line';
     wrap.append(title,body);section.append(wrap);doc.querySelector('main').append(section);
   }
-  for(const [id,text] of Object.entries(model.headingOverrides||{})){
+  for(const id of new Set([...Object.keys(model.headingOverrides||{}),...Object.keys(model.headingParts||{})])){
     const original=doc.getElementById(id)?.querySelector('h1,h2');
     if(!original)continue;
-    const replacement=doc.createElement(original.localName);replacement.dataset.headingDisplay='';replacement.className=original.className;replacement.textContent=text;
+    const replacement=doc.createElement(original.localName);replacement.dataset.headingDisplay='';replacement.className=original.className;
+    const parts=legacyHeadingParts(model,id,original);
+    if(!validHeadingParts(parts))continue;
+    for(const [index,part] of parts.entries()){if(index)replacement.append(doc.createElement('br'));const span=doc.createElement('span');span.textContent=part.text;styleElement(span,part);replacement.append(span);}
     original.dataset.headingOriginal='';original.hidden=true;original.after(replacement);
   }
   for(const id of model.order){const section=doc.getElementById(id);if(section?.parentElement?.tagName==='MAIN')section.parentElement.append(section);}
