@@ -426,3 +426,16 @@ test('owner issues a gift and it is redeemed atomically with a free booking',asy
   assert.throws(()=>sqlite.prepare('INSERT INTO gift_redemptions VALUES(?,?,?)').run(code,'another','now'),/UNIQUE/);
  }finally{globalThis.fetch=original;}
 });
+
+test('only the owner can hide and customize the public gift workshop',async()=>{
+ const {request,login}=fixture();
+ assert.equal((await (await request('public-config')).json()).giftWorkshop.enabled,true);
+ assert.equal((await request('admin/gift-workshop')).status,401);
+ await login();
+ const settings={enabled:false,title:'Зимний подарок',description:'Подарите поздравление.',button:'Выбрать'};
+ assert.equal((await request('admin/gift-workshop',settings)).status,200);
+ assert.deepEqual((await (await request('public-config')).json()).giftWorkshop,settings);
+ assert.equal((await request('admin/gift-workshop',{...settings,title:' '})).status,400);
+ assert.equal((await request('admin/gift-workshop',{...settings,enabled:true})).status,200);
+ assert.equal((await (await request('public-config')).json()).giftWorkshop.enabled,true);
+});

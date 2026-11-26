@@ -4,18 +4,50 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
+<meta name="theme-color" content="#101d2a">
 <title>Подарочная мастерская Деда Мороза · Pakkasukko</title>
-<link rel="stylesheet" href="./style.css?v=73">
+<link rel="stylesheet" href="./gifts.css">
 </head>
 <body>
-<main class="container">
-<p><a href="./">На главную Pakkasukko</a></p>
-<h1>Подарочная мастерская Деда Мороза</h1>
-<p>Хотите подарить встречу с Дедом Морозом? Напишите нам, чтобы согласовать программу, город и номинал подарочного сертификата. Организатор сообщит условия оплаты и выдаст код после поступления денег. Сертификат используется за один визит стоимостью от его номинала.</p>
-<p><a href="./contact.html?topic=certificate">Запросить подарочный сертификат</a></p>
-<h2>Уже есть код?</h2>
-<p>Выберите один визит, город и время. Введите код в форме бронирования и нажмите «Применить код». Перед отправкой проверьте итоговую сумму и условия предоплаты.</p>
-<p><a href="./#booking">Выбрать визит и применить код</a></p>
+<header class="workshop-header shell">
+  <a class="brand" href="./"><img src="./assets/pakkasukko-medallion.png" width="38" height="38" alt=""> PAKKASUKKO</a>
+  <a href="./">На главную</a>
+</header>
+<main class="shell">
+  <section class="hero" aria-labelledby="workshop-title">
+    <div>
+      <p class="eyebrow">Подарочная мастерская Деда Мороза</p>
+      <h1 id="workshop-title">Подарите встречу с Дедом Морозом</h1>
+      <p class="intro">Подарочный сертификат Pakkasukko — приглашение на праздник с песнями, играми и поздравлением у ёлки.</p>
+      <div class="actions">
+        <a class="button primary" href="./contact.html?topic=certificate">Заказать сертификат</a>
+        <a class="button secondary" href="#redeem">У меня есть код</a>
+      </div>
+    </div>
+    <figure class="gift-preview">
+      <div class="gift-card">
+        <img class="portrait" src="./assets/pakkasukko-ded-moroz.webp" width="800" height="1200" alt="Илья Дмитриев в костюме Деда Мороза со светящимся посохом">
+        <div class="card-copy">
+          <span class="card-brand">PAKKASUKKO</span>
+          <span class="card-title">Подарочный<br> сертификат</span>
+          <span class="card-note">На встречу с Дедом Морозом</span>
+        </div>
+      </div>
+      <figcaption>Образец подарочной карты</figcaption>
+    </figure>
+  </section>
+  <div class="details">
+    <section aria-labelledby="order-title">
+      <h2 id="order-title">Как заказать сертификат</h2>
+      <p>Напишите нам, чтобы согласовать программу, город и номинал. Мы сообщим условия оплаты и выдадим код после её получения.</p>
+      <p>Сертификат действует на один визит стоимостью от его номинала.</p>
+    </section>
+    <section id="redeem" aria-labelledby="redeem-title">
+      <h2 id="redeem-title">Как применить код</h2>
+      <p>Выберите город и время одного визита. Введите промокод или код сертификата в форме, нажмите «Применить код» и проверьте итоговую сумму.</p>
+      <a class="booking-link" href="./#booking">Перейти к бронированию</a>
+    </section>
+  </div>
 </main>
 </body>
 </html>

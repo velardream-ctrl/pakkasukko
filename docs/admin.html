@@ -14,7 +14,14 @@ body{background:#f2f4f5;color:#243747}.admin-top{background:#0a1b2a;color:#fff;p
 <header class="admin-top"><div class="container"><a class="brand" href="./index.html"><img class="owner-logo" src="./assets/pakkasukko-medallion.png" width="40" height="40" alt=""><span class="brand-flake" hidden aria-hidden="true">✧</span> PAKKASUKKO</a><div><a href="./index.html">На сайт ↗</a> <button id="logout" class="hidden">Выйти</button></div></div></header>
 <main class="admin-main container"><p class="section-kicker" style="color:#97703f">УПРАВЛЕНИЕ ПРАЗДНИКАМИ</p><h1>Мастерская <em>Деда Мороза</em></h1>
 <section class="admin-box admin-login" id="loginBox"><h2>Вход владельца</h2><p>Закрытая административная часть. Пароль хранится только в секретах отдельного Cloudflare Worker Pakkasukko.</p><div id="previewNotice" class="preview-warning hidden">Здесь опубликован только визуальный макет GitHub Pages. Для настоящей админки подключите собственный Cloudflare Worker и D1-базу проекта Pakkasukko.</div><form id="loginForm"><label>Пароль<input type="password" name="password" required autocomplete="current-password"></label><button class="btn btn-dark" type="submit">Войти ↗</button><p id="loginStatus" class="status" role="status"></p></form></section>
-<div id="dashboard" class="hidden"><details class="admin-box" id="giftCodes"><summary>Промокоды и сертификаты</summary>
+<div id="dashboard" class="hidden"><details class="admin-box" id="giftWorkshopSettings"><summary>Подарочная мастерская на главной</summary>
+<form id="giftWorkshopForm">
+  <label><input type="checkbox" name="enabled"> Показывать раздел после программ</label>
+  <label>Заголовок<input name="title" maxlength="100" required></label>
+  <label>Описание<textarea name="description" maxlength="400" required></textarea></label>
+  <label>Текст кнопки<input name="button" maxlength="45" required></label>
+  <button type="submit" disabled>Сохранить раздел</button>
+</form><p role="status"></p></details><details class="admin-box" id="giftCodes"><summary>Промокоды и сертификаты</summary>
 <form><label>Тип<select name="kind"></select></label>
 <label>Размер скидки (% или €, по типу)<input type="number" name="value" min="0" step="0.01" value="0" required></label>
 <label>Действует до включительно<input type="date" name="expires"></label>
@@ -78,4 +85,4 @@ body{background:#f2f4f5;color:#243747}.admin-top{background:#0a1b2a;color:#fff;p
 <section class="admin-box"><h2>Заказы по дате получения</h2><p>Видеопоздравления и другие услуги без бронирования часов. Дата — желаемый день получения.</p><div id="videoOrderList" class="records"></div></section><section class="admin-box"><h2>Сообщения</h2><div class="admin-actions"><a href="/api/admin/export-messages">Выгрузить сообщения CSV ↓</a></div><div id="messageList" class="records"></div></section>
 
 </div>
-</main><script type="module" src="./admin.js?v=74"></script></body></html>
+</main><script type="module" src="./admin.js?v=75"></script></body></html>

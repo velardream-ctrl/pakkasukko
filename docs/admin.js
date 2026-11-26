@@ -485,3 +485,30 @@ giftForm.addEventListener('submit',async event=>{
   await refreshGifts();
  }catch(error){giftMessage.textContent=error.message;}
 });
+
+const workshopPanel=$('giftWorkshopSettings');
+const workshopForm=$('giftWorkshopForm');
+const workshopSave=workshopForm.querySelector('button');
+const workshopStatus=workshopPanel.querySelector('[role=status]');
+workshopPanel.addEventListener('toggle',async()=>{
+ if(!workshopPanel.open||workshopForm.dataset.ready)return;
+ try{
+  const workshop=await request('/api/admin/gift-workshop');
+  workshopForm.elements.enabled.checked=workshop.enabled;
+  for(const field of ['title','description','button'])workshopForm.elements[field].value=workshop[field];
+  workshopForm.dataset.ready='true';
+  workshopStatus.textContent='';
+  workshopSave.disabled=false;
+ }catch(error){workshopStatus.textContent=error.message;}
+});
+workshopForm.addEventListener('submit',async event=>{
+ event.preventDefault();
+ workshopSave.disabled=true;
+ try{
+  const values=Object.fromEntries(new FormData(workshopForm));
+  values.enabled=workshopForm.elements.enabled.checked;
+  await request('/api/admin/gift-workshop','POST',values);
+  workshopStatus.textContent='Настройки сохранены.';
+ }catch(error){workshopStatus.textContent=error.message;}
+ finally{workshopSave.disabled=false;}
+});

@@ -28,6 +28,16 @@ async function setting(env,key){
 async function setSetting(env,key,value){
  await env.DB.prepare('INSERT INTO booking_settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').bind(key,value).run();
 }
+const giftWorkshopDefaults={
+ enabled:true,
+ title:'Подарите встречу с Дедом Морозом',
+ description:'Подарочный сертификат на поздравление с песнями, играми и встречей у ёлки.',
+ button:'Выбрать сертификат'
+};
+async function giftWorkshopSettings(env){
+ const saved=await setting(env,'gift_workshop');
+ return saved?{...giftWorkshopDefaults,...JSON.parse(saved)}:giftWorkshopDefaults;
+}
 async function fareSettings(env){
  const saved=await setting(env,'travel_fare');
  return saved?JSON.parse(saved):defaultFare;
@@ -87,7 +97,7 @@ async function api(req,env,ctx,url){
  if(path==='/api/public-config'&&method==='GET'){
    const state=await bookingState(env);
    const site=await published(env),content=await getContent(env);
-   return reply({site,content,fares:await fareSettings(env),services:prices(site,content),turnstileSiteKey:state.enabled?env.TURNSTILE_SITE_KEY:'',bookingsEnabled:state.enabled,distanceLookup:await distanceSettings(env)});
+   return reply({site,content,fares:await fareSettings(env),services:prices(site,content),turnstileSiteKey:state.enabled?env.TURNSTILE_SITE_KEY:'',bookingsEnabled:state.enabled,distanceLookup:await distanceSettings(env),giftWorkshop:await giftWorkshopSettings(env)});
  }
  if(path==='/api/gift-code'&&method==='POST'){
   if(!env.DB)return fail('Проверка кода временно недоступна.',503);
@@ -248,6 +258,15 @@ async function api(req,env,ctx,url){
  if(path==='/api/admin/editor/intro-copy-2026'&&method==='POST')return reply(await applyIntroCopy(env.DB));
  if(path==='/api/admin/tariffs/doorstep-2026'&&method==='POST')return reply(await applyDoorstepTariffs(env.DB));
  if(path==='/api/admin/tariffs/competitive-2026'&&method==='POST')return reply(await applyCompetitiveTariffs(env.DB));
+ if(path==='/api/admin/gift-workshop'){
+  if(method==='GET')return reply(await giftWorkshopSettings(env));
+  const body=await parse(req);
+  const title=clean(body?.title,100),description=clean(body?.description,400),button=clean(body?.button,45);
+  if(typeof body?.enabled!=='boolean'||!title||!description||!button)return fail('Заполните заголовок, описание и текст кнопки.');
+  const workshop={enabled:body.enabled,title,description,button};
+  await setSetting(env,'gift_workshop',JSON.stringify(workshop));
+  return reply(workshop);
+ }
  if(path==='/api/admin/gift-codes')return giftAdmin(req,env.DB,reply);
  if(path==='/api/admin/distance-settings'&&method==='GET')return reply(await distanceSettings(env));
  if(path==='/api/admin/distance-settings'&&method==='POST')return await saveDistanceSettings(env,await parse(req))?reply({ok:true}):fail('Проверьте настройки и наличие ключей Google Maps и Routes.');

@@ -21,6 +21,13 @@ async function activate(){
     const configResp=await fetch('/api/public-config',{cache:'no-store'});
     if(!configResp.ok) return;
     const config=await configResp.json();
+    const workshop=config.giftWorkshop;
+    if(workshop?.enabled){
+      $('#giftWorkshopTitle').textContent=workshop.title;
+      $('#giftWorkshopDescription').textContent=workshop.description;
+      $('#giftWorkshopButton').textContent=workshop.button;
+      $('#giftWorkshop').hidden=false;
+    }
     for(const [id,key] of [['priceGift','giftPrice'],['priceHome','homePrice'],['priceEvent','eventPrice'],['bio','bio'],['travel','travel']]){
       if(config.content&&typeof config.content[key]==='string'&&config.content[key])document.getElementById(id).textContent=config.content[key];
     }
