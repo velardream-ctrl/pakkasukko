@@ -33,7 +33,7 @@ export function prepaymentControls(box,b,request,reload,stripe={enabled:false,mo
    await request(url('send'),'POST',{email:email.value});await reload();
   });
  }
- if(b.deposit_status==='requested'&&stripe.enabled){
+ if(b.deposit_status==='requested'&&stripe.enabled&&planned.paymentMethod!=='bank'){
   const panel=add(p,'div');panel.className='record';
   const title=add(panel,'p',stripe.mode==='test'?'Stripe подключён в тестовом режиме — не отправляйте ссылку реальным клиентам.':'Оплата онлайн: карты, Apple Pay, Google Pay, MobilePay, PayPal (если активированы в Stripe).');
   control(panel,stripe.mode==='test'?'Создать тестовую ссылку Stripe':'Создать ссылку для оплаты',async()=>{
@@ -45,7 +45,7 @@ export function prepaymentControls(box,b,request,reload,stripe={enabled:false,mo
    add(panel,'small','Ссылка действует до '+new Date(expiresAt*1000).toLocaleString('ru-RU')+'. Оплату подтверждает Stripe, не клиент.');
   });
  }
- if(b.deposit_status==='requested'){
+ if(b.deposit_status==='requested'&&planned.paymentMethod!=='stripe'){
   const label=add(p,'label','Подтверждение банка (дата поступления, выписка или примечание)');
   const note=add(label,'input');note.maxLength=300;note.placeholder='Например: получено по выписке 26.11';
   control(p,'Деньги поступили — отметить оплачено',async()=>{
