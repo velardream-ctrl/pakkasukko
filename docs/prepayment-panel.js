@@ -26,7 +26,7 @@ export function prepaymentControls(box,b,request,reload,stripe={enabled:false,mo
   const a=add(actions,'a',label);a.href=url(path);a.target='_blank';a.rel='noopener noreferrer';
  }
  const meta=add(p,'p','Номер A-'+b.deposit_number+' · Срок '+b.deposit_due+' · '+(b.deposit_sent?'Отправлено клиенту':'Не отправлено клиенту'));
- if(!b.deposit_sent){
+ if(!b.deposit_sent&&planned.paymentMethod!=='stripe'){
   const label=add(p,'label','Email клиента для отправки');const email=add(label,'input');email.type='email';email.value=b.email||'';email.placeholder='name@example.com';
   control(p,'Отправить авансовый счёт',async()=>{
    if(!email.reportValidity()||!email.value||!confirm('Отправить авансовый счёт '+email.value+'?'))return;
