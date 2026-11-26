@@ -47,7 +47,7 @@ export function mountFares(form,config){
     if(!rows.length){selectedPerformance=null;return;}
     const previous=durationSelect.value;
     durationSelect.replaceChildren(...rows.map(row=>new Option(row.minutes+' минут',String(row.minutes))));
-    durationSelect.value=rows.some(r=>String(r.minutes)===previous)?previous:String(rows.find(r=>r.minutes===30)?.minutes??rows[0].minutes);
+    durationSelect.value=rows.some(r=>String(r.minutes)===previous)?previous:String(rows[0].minutes);
     const row=rows.find(r=>String(r.minutes)===durationSelect.value);
     const oldCast=castSelect.value;
     const available=[...(Number.isInteger(row.solo)?[new Option('Дед Мороз','solo')]:[]),...(Number.isInteger(row.duo)?[new Option('Дед Мороз и Снегурочка','duo')]:[])];
