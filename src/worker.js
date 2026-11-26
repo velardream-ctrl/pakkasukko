@@ -1,3 +1,4 @@
+import {bankProfile,autoAdvanceDocument,advanceStatements,expireBankHolds,publicAdvance} from './automatic-advance.js';
 import {billing} from './billing.js';
 import {prepaymentsAPI} from './prepayment-api.js';
 import {stripeAdmin,stripeWebhook} from './stripe.js';
@@ -69,6 +70,7 @@ function csv(rows,keys,filename){const lines=[keys.map(csvCell).join(';'),...row
 async function api(req,env,ctx,url){
  const path=url.pathname,method=req.method;
   if(path==='/api/stripe/webhook'&&method==='POST')return stripeWebhook(req,env,reply);
+ if(path.startsWith('/api/advance/'))return publicAdvance(req,env,url,reply,mac,same,emailOwner);
  if(path==='/api/trip'&&method==='GET')return billing(req,env,'share',reply);
  if(path.startsWith('/api/music/'))return musicAPI(req,env,path,reply,false);
  if(path.startsWith('/api/media/'))return mediaAPI(req,env,path,reply,false);
@@ -81,7 +83,7 @@ async function api(req,env,ctx,url){
    const site=await published(env),content=await getContent(env);
    return reply({site,content,fares:await fareSettings(env),services:prices(site,content),turnstileSiteKey:state.enabled?env.TURNSTILE_SITE_KEY:'',bookingsEnabled:state.enabled});
  }
- if(path==='/api/slots'&&method==='GET'){if(!env.DB)return reply({slots:[],timezone:'Europe/Helsinki'});const s=await env.DB.prepare('SELECT id,start_at,end_at,status FROM slots WHERE start_at>=? ORDER BY start_at LIMIT 500').bind(fiNow().slice(0,10)+'T00:00').all();return reply({slots:s.results||[],timezone:'Europe/Helsinki'});}
+ if(path==='/api/slots'&&method==='GET'){if(!env.DB)return reply({slots:[],timezone:'Europe/Helsinki'});await expireBankHolds(env.DB);const s=await env.DB.prepare('SELECT id,start_at,end_at,status FROM slots WHERE start_at>=? ORDER BY start_at LIMIT 500').bind(fiNow().slice(0,10)+'T00:00').all();return reply({slots:s.results||[],timezone:'Europe/Helsinki'});}
  if(path==='/api/video-orders'&&method==='POST'){
    if(!(await bookingState(env)).enabled)return fail('Приём заявок пока не включён.',503);
    const b=await parse(req),site=await published(env),card=serviceCard(site,b.service),deliveryMode=deliveryConfig(site,b.service);
@@ -137,6 +139,7 @@ async function api(req,env,ctx,url){
    b.service=cards.find(c=>c.id===serviceId)?.title||serviceId;
    if(!await human(b.turnstileToken,req,env))return fail('Пройдите проверку от спама.',403);
    if(!await rateLimit(req,env,'booking',5,60))return fail('Слишком много запросов.',429);
+   await expireBankHolds(env.DB);
    const placeholders=orders.map(()=>'?').join(',');
    const {results:slots}=await env.DB.prepare('SELECT * FROM slots WHERE id IN ('+placeholders+') ORDER BY start_at').bind(...orders.map(o=>o.slotId)).all();
    if(slots.length!==orders.length||slots.some(s=>s.status!=='open'||s.start_at<=fiNow()||s.start_at.slice(0,10)!==slots[0].start_at.slice(0,10)))return fail('Один из интервалов недоступен. Выберите свободное время в один день.',409);
@@ -151,6 +154,12 @@ async function api(req,env,ctx,url){
    const snapshot=quote(fares,services[serviceId],b.city,orders.length>1||(!input.visits&&input.group===true),slots.map(s=>s.start_at),choice);
    if(JSON.stringify(snapshot)!==input.quoteToken)return reply({error:'Тариф изменился. Проверьте новый расчёт и отправьте заявку ещё раз.',fares,services},409);
     if(slots.some((_,i)=>prepaymentForVisit(fares,visitQuote(snapshot,slots.length,i)))&&input.prepaymentTerms!=='accepted')return fail('Ознакомьтесь с условиями предоплаты и отмены перед отправкой заявки.');
+   const auto=methodForBooking==='bank'&&fares.prepayments?.automaticBank===true;
+   const planned=slots.map((_,i)=>prepaymentForVisit(fares,visitQuote(snapshot,slots.length,i)));
+   if(auto&&JSON.stringify(planned)!==input.paymentQuote)return reply({error:'Предоплата изменилась. Проверьте сумму и отправьте заявку снова.',fares,services},409);
+   const autoEligible=auto&&planned.some(Boolean)&&slots.every((_,i)=>Number.isInteger(visitQuote(snapshot,slots.length,i).total));
+   const seller=autoEligible?await bankProfile(env.DB):null;
+   if(autoEligible&&(!seller||!env.SESSION_SECRET))return fail('Автоматический счёт временно недоступен. Свяжитесь с организатором.',503);
    const groupId=crypto.randomUUID(),statements=[],receipts=[];
    for(const [index,slot] of slots.entries()){
      const order=orders.find(o=>o.slotId===slot.id),id=crypto.randomUUID();
@@ -163,7 +172,9 @@ async function api(req,env,ctx,url){
      const detail=detailCore+(saved.prepayment?' · Предоплата '+euros(saved.prepayment.amount):'');
      statements.push(env.DB.prepare("INSERT INTO bookings(id,slot_id,service,name,phone,email,city,address,message,status,created_at) VALUES(?,(SELECT id FROM slots WHERE id=? AND status='open'),?,?,?,?,?,?,?,'pending',?)").bind(id,slot.id,b.service,b.name,b.phone,b.email,b.city,order.address,b.message,now()),
        env.DB.prepare("INSERT INTO booking_quotes(booking_id,snapshot,summary) VALUES(?,?,?)").bind(id,JSON.stringify(saved),detail));
-     receipts.push({id,time:slot.start_at,address:order.address,summary:detail});
+     let paymentUrl;
+     if(autoEligible&&payment){const doc=autoAdvanceDocument({seller,order,serviceId,slot,quote:saved,hours:fares.prepayments.holdHours||24});statements.push(...advanceStatements(env.DB,id,doc,now()));paymentUrl='/api/advance/view?id='+id+'&token='+await mac(env.SESSION_SECRET,'advance:'+id);}
+     receipts.push({id,time:slot.start_at,address:order.address,summary:detail,...(paymentUrl?{paymentUrl}:{} )});
    }
    const result={id:receipts[0].id,receipts,status:'pending',summary:receipts.map(v=>v.summary).join(' / ')};
    if(key)statements.unshift(env.DB.prepare('INSERT INTO booking_submissions VALUES(?,?,?)').bind(key,fingerprint,JSON.stringify(result)));
@@ -210,6 +221,7 @@ async function api(req,env,ctx,url){
    const f=await parse(req);
    if(!validFare(f))return fail('Проверьте цену топлива, расход, километраж и режим оплаты.');
    if(f.prepayments?.paymentMethod==='stripe'&&!(String(env.STRIPE_SECRET_KEY||'').startsWith('sk_live_')&&String(env.STRIPE_WEBHOOK_SECRET||'').startsWith('whsec_')))return fail('Для онлайн-оплаты необходимо подключить Stripe в рабочем режиме.',409);
+   if(f.prepayments?.paymentMethod==='bank'&&f.prepayments.automaticBank&&(!env.SESSION_SECRET||!await bankProfile(env.DB)))return fail('Для автоматического счёта заполните и проверьте финский IBAN, имя получателя и налоговые реквизиты.',409);
    const km=f.km,routes=f.routes;
    await setSetting(env,'travel_fare',JSON.stringify({fuel:f.fuel,consumption:f.consumption,km,routes,holidayPercent:f.holidayPercent??50,...(f.holidayRules!==undefined?{holidayRules:f.holidayRules}:{}),holidaySort:f.holidaySort||'date',...(f.performance!==undefined?{performance:f.performance}:{}),...(f.prepayments!==undefined?{prepayments:f.prepayments}:{})}));
    return reply({ok:true});
@@ -280,6 +292,10 @@ async function api(req,env,ctx,url){
  }
  if(path==='/api/admin/bookings/status'&&method==='POST'){
    const b=await parse(req),id=clean(b.id,80),status=clean(b.status,15);
+   if(status==='declined'){
+     const auto=await env.DB.prepare("SELECT 1 FROM prepayment_requests WHERE booking_id=? AND json_extract(document,'$.automatic')=1").bind(id).first();
+     if(auto)return fail('Для финансового резерва используйте «Отменить», чтобы освободить время и сохранить счёт.',409);
+   }
    if(['confirmed','declined'].includes(status)){
      if(status==='confirmed'){
        const q=await env.DB.prepare('SELECT snapshot FROM booking_quotes WHERE booking_id=?').bind(id).first();
