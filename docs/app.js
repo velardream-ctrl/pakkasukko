@@ -81,6 +81,7 @@ async function activate(){
     let submissionKey='',previousSelection='';
     const chosen=new Map(),addressInputs=new Map(),originalAddress=form.elements.address;
     const addressLabel=originalAddress.closest('label'),addressList=document.createElement('div');
+    originalAddress.addEventListener('input',()=>fare.addressChanged());
     fare.bindAddress(()=>chosen.size===1?addressInputs.get([...chosen.keys()][0])||'':originalAddress.value,v=>{if(chosen.size===1){addressInputs.set([...chosen.keys()][0],v);const field=addressList.querySelector('input');if(field)field.value=v;}else originalAddress.value=v;});
     addressLabel.after(addressList);
     function syncVisits(){
@@ -91,7 +92,7 @@ async function activate(){
         const label=document.createElement('label'),field=document.createElement('input');
         label.textContent='Адрес на '+slot.start_at.slice(11,16);field.required=true;field.maxLength=200;field.minLength=3;
         field.value=addressInputs.get(slot.id)||'';field.placeholder='Улица и дом';
-        field.oninput=()=>addressInputs.set(slot.id,field.value);label.append(field);addressList.append(label);
+        field.oninput=()=>{addressInputs.set(slot.id,field.value);fare.addressChanged();};label.append(field);addressList.append(label);
       }
       $('#slotId').value=list[0]?.id||'';fare.setSlots(list);
       submit.disabled=!list.length;submit.textContent=list.length?pageText(model,'send'):pageText(model,'chooseTime');
