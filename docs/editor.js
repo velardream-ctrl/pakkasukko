@@ -135,7 +135,7 @@ function previewClick(event){
       target.closest('h3')?'title':target.closest('.program-duration')?'duration':
       target.closest('.card-foot strong')?'price':'description';
     field=[...$('cards').querySelectorAll('input,textarea')].find(el=>el.dataset.cardIndex===String(idx)&&el.dataset.cardKey===key);
-  }else if(heading)field=$('wholeHeading');
+  }else if(heading)field=$('wholeHeading')?.querySelector('textarea')||$('wholeHeading');
   else if(container.hasAttribute('data-created'))field=$('customBody');
   else{
     const item=fields.find(f=>f.node===target&&f.attribute==='placeholder')||fields.find(f=>f.node?.parentElement===target&&!f.attribute);
@@ -152,7 +152,9 @@ function section(){
   const custom=model.sections.find(s=>s.id===group);
   if(custom&&!query){
     const title=input($('fields'),'Заголовок раздела',custom.title,v=>{custom.title=v;outline();draw();});title.id='wholeHeading';
+    styleControls($('fields'),model.textStyles?.[group+':title'],v=>{(model.textStyles??={})[group+':title']=v;draw();});
     input($('fields'),'Текст раздела',custom.body,v=>{custom.body=v;draw();},'textarea').id='customBody';
+    styleControls($('fields'),model.textStyles?.[group+':body'],v=>{(model.textStyles??={})[group+':body']=v;draw();});
     button($('fields'),'Удалить этот раздел',()=>{if(!confirm('Удалить раздел из редактируемой версии?'))return;
       model.sections=model.sections.filter(s=>s.id!==group);model.order=model.order.filter(id=>id!==group);model.hidden=model.hidden.filter(id=>id!==group);delete model.pictures[group];outline();section();draw();
     });
