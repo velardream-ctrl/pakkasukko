@@ -199,6 +199,7 @@ export async function startInlineEditor({model,fields,currentDevice,onAdmin,fare
     if(custom){
       for(const [key,label] of [['title','Заголовок'],['body','Текст']]){
         labeled(panelBody,label,'textarea',custom[key],value=>{custom[key]=value;const section=document.getElementById(group),node=section?.querySelector(key==='title'?'h2':'p');if(node)node.textContent=value;changed();});
+        styleControls(panelBody,model.textStyles?.[group+':'+key],v=>{(model.textStyles??={})[group+':'+key]=v;const node=document.getElementById(group)?.querySelector(key==='title'?'h2':'p');styleElement(node,v);changed();});
       }
       return;
     }
