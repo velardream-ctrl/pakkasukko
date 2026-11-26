@@ -156,7 +156,7 @@ async function api(req,env,ctx,url){
     if(slots.some((_,i)=>prepaymentForVisit(fares,visitQuote(snapshot,slots.length,i)))&&input.prepaymentTerms!=='accepted')return fail('Ознакомьтесь с условиями предоплаты и отмены перед отправкой заявки.');
    const auto=methodForBooking==='bank'&&fares.prepayments?.automaticBank===true;
    const planned=slots.map((_,i)=>prepaymentForVisit(fares,visitQuote(snapshot,slots.length,i)));
-   if(auto&&JSON.stringify(planned)!==input.paymentQuote)return reply({error:'Предоплата изменилась. Проверьте сумму и отправьте заявку снова.',fares,services},409);
+   if((auto||input.paymentQuote!==undefined)&&JSON.stringify(planned)!==input.paymentQuote)return reply({error:'Предоплата изменилась. Проверьте сумму и отправьте заявку снова.',fares,services},409);
    const autoEligible=auto&&planned.some(Boolean)&&slots.every((_,i)=>Number.isInteger(visitQuote(snapshot,slots.length,i).total));
    const seller=autoEligible?await bankProfile(env.DB):null;
    if(autoEligible&&(!seller||!env.SESSION_SECRET))return fail('Автоматический счёт временно недоступен. Свяжитесь с организатором.',503);
@@ -330,6 +330,8 @@ async function api(req,env,ctx,url){
    if(!Number.isInteger(minutes)||minutes<15||minutes>480)return fail('Проверьте длительность.');
    const row=await env.DB.prepare('SELECT s.*,q.snapshot FROM slots s JOIN bookings b ON b.slot_id=s.id LEFT JOIN booking_quotes q ON q.booking_id=b.id WHERE b.id=?').bind(b.id).first();
    if(!row)return fail('Заявка не найдена.',404);
+   const financial=await env.DB.prepare('SELECT 1 FROM prepayment_requests WHERE booking_id=?').bind(b.id).first();
+   if((financial||row.booking_id&&row.booking_id!==b.id)&&addMinutes(row.start_at,minutes)!==row.end_at)return fail('Нельзя менять продолжительность зарезервированного или оплаченного интервала.',409);
    const bookedMinutes=row.snapshot?JSON.parse(row.snapshot).durationMinutes:0;
    if(bookedMinutes&&minutes<bookedMinutes)return fail('Интервал нельзя сделать короче подтверждённой продолжительности выступления.',409);
    try{await env.DB.batch([
