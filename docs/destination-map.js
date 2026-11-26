@@ -10,7 +10,7 @@ function loadGoogle(key){
   document.head.append(script);
  });return loading;
 }
-export async function mountDestinationMap(box,{key,mapId,city,address='',onPin,onAddress,onClear}){
+export async function mountDestinationMap(box,{key,mapId,city,address='',signal,onPin,onAddress,onClear}){
  box.replaceChildren();
  const field=document.createElement('input');field.placeholder='Улица и дом';field.value=address;field.maxLength=200;field.setAttribute('aria-label','Адрес на карте');
  const search=document.createElement('button');search.type='button';search.textContent='Найти адрес';
@@ -18,25 +18,32 @@ export async function mountDestinationMap(box,{key,mapId,city,address='',onPin,o
  const canvas=document.createElement('div');canvas.className='destination-map';canvas.setAttribute('aria-label','Карта места праздника');
  box.append(field,search,note,canvas);
  await loadGoogle(key);
- if(!box.isConnected||!canvas.isConnected)return;
+ if(signal?.aborted||!box.isConnected||!canvas.isConnected)return;
  const [{Map},{Geocoder},{AdvancedMarkerElement}]=await Promise.all(['maps','geocoding','marker'].map(x=>google.maps.importLibrary(x)));
+ if(signal?.aborted||!canvas.isConnected)return;
  const map=new Map(canvas,{center:{lat:64.5,lng:26},zoom:5,mapId,streetViewControl:false,mapTypeControl:false,fullscreenControl:false});
  const geocoder=new Geocoder();let marker,sequence=0;
+ const active=()=>!signal?.aborted&&canvas.isConnected;
+ function clearSelection(){onClear();if(marker){marker.map=null;marker=null;}}
  function choose(p){const pin={lat:Number(p.lat.toFixed(6)),lng:Number(p.lng.toFixed(6))};if(!validPin(pin)){note.textContent='Выберите место в Финляндии.';return;}
   if(marker)marker.position=pin;else marker=new AdvancedMarkerElement({map,position:pin,title:'Место праздника'});
   note.textContent='Точка выбрана. Расстояние рассчитывается по автомобильному маршруту. Проверьте адрес в форме.';onPin(pin);
  }
- map.addListener('click',event=>{if(event.latLng){sequence++;choose(event.latLng.toJSON());}});
+ const clickListener=map.addListener('click',event=>{if(active()&&event.latLng){sequence++;choose(event.latLng.toJSON());}});
+ signal?.addEventListener('abort',()=>{sequence++;clickListener.remove();if(marker)marker.map=null;},{once:true});
+ field.oninput=()=>{sequence++;clearSelection();note.textContent='Найдите новый адрес и подтвердите точку на карте.';};
  async function locate(useAddress){
+  if(!active()||search.disabled)return;
   const id=++sequence;search.disabled=true;
+  if(useAddress)clearSelection();
   try{const addressText=useAddress?field.value.trim():'';
    const response=await geocoder.geocode({address:[addressText,routeName(city),'Finland'].filter(Boolean).join(', '),componentRestrictions:{country:'FI'}});
-   if(id!==sequence||!canvas.isConnected)return;
+   if(id!==sequence||!active())return;
    const place=response.results?.[0];if(!place){note.textContent='Адрес не найден. Выберите точку вручную.';return;}
    const point=place.geometry.location.toJSON();if(!validPin(point)){note.textContent='Выберите адрес в Финляндии.';return;}
    map.setCenter(point);map.setZoom(useAddress?16:12);
-   if(useAddress&&addressText){onClear();if(marker){marker.map=null;marker=null;}onAddress(addressText);note.textContent='Адрес найден. Нажмите на нужное место карты, чтобы подтвердить точку и рассчитать расстояние.';}else note.textContent='Введите адрес или нажмите на нужную точку карты.';
-  }catch{if(id===sequence)note.textContent='Не удалось найти адрес. Выберите точку вручную.';}finally{search.disabled=false;}
+   if(useAddress&&addressText){onAddress(addressText);note.textContent='Адрес найден. Нажмите на нужное место карты, чтобы подтвердить точку и рассчитать расстояние.';}else note.textContent='Введите адрес или нажмите на нужную точку карты.';
+  }catch{if(id===sequence&&active())note.textContent='Не удалось найти адрес. Выберите точку вручную.';}finally{search.disabled=false;}
  }
  search.onclick=()=>locate(true);field.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();locate(true);}};
  await locate(false);

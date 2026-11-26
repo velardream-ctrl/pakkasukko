@@ -1,0 +1,24 @@
+name: Check Google Routes connection
+on:
+  workflow_dispatch:
+  push:
+    branches: [preview]
+    paths:
+      - '.github/workflows/google-maps-check.yml'
+      - 'scripts/check-google-routes.mjs'
+permissions:
+  contents: read
+concurrency: pakkasukko-google-routes-check
+jobs:
+  routes:
+    if: github.ref == 'refs/heads/preview'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: node scripts/check-google-routes.mjs
+        env:
+          PAKKASUKKO_GOOGLE_ROUTES_API_KEY: ${{ secrets.PAKKASUKKO_GOOGLE_ROUTES_API_KEY }}

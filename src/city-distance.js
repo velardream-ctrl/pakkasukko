@@ -21,7 +21,7 @@ export async function lookupDistance(env,city,fare,settings,fetcher=fetch,pin=nu
  const permit=await env.DB.prepare("INSERT INTO attempts(kind,ip_hash,created_at) SELECT 'route-provider','global',? WHERE (SELECT COUNT(*) FROM attempts WHERE kind='route-provider' AND created_at>=?)<?").bind(now,since,settings.dailyLimit).run();
  if(!permit.meta.changes)return {kind:'limited'};
  try{
-  const response=await fetcher('https://routes.googleapis.com/directions/v2:computeRoutes',{method:'POST',headers:{'Content-Type':'application/json','X-Goog-Api-Key':env.GOOGLE_ROUTES_API_KEY,'X-Goog-FieldMask':'routes.distanceMeters,routes.duration'},body:JSON.stringify({origin:{address:settings.origin+', Finland'},destination:pin?{location:{latLng:{latitude:pin.lat,longitude:pin.lng}}}:{address:routeName(city)+', Finland'},travelMode:'DRIVE',routingPreference:'TRAFFIC_UNAWARE',regionCode:'FI',languageCode:'fi-FI'}),signal:AbortSignal.timeout(8000)});
+  const response=await fetcher('https://routes.googleapis.com/directions/v2:computeRoutes',{method:'POST',headers:{'Content-Type':'application/json','X-Goog-Api-Key':env.GOOGLE_ROUTES_API_KEY,'X-Goog-FieldMask':'routes.distanceMeters'},body:JSON.stringify({origin:{address:settings.origin+', Finland'},destination:pin?{location:{latLng:{latitude:pin.lat,longitude:pin.lng}}}:{address:routeName(city)+', Finland'},travelMode:'DRIVE',routingPreference:'TRAFFIC_UNAWARE',regionCode:'FI',languageCode:'fi-FI'}),signal:AbortSignal.timeout(8000)});
   if(!response.ok)return {kind:'unknown'};
   const route=(await response.json()).routes?.[0];
   if(!Number.isInteger(route?.distanceMeters)||route.distanceMeters<0||route.distanceMeters>2000000)return {kind:'unknown'};

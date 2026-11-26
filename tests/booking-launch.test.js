@@ -92,7 +92,7 @@ test('deploy preserves external mail configuration requirements and does not aut
  assert.match(schema,/CREATE TABLE IF NOT EXISTS booking_settings/);
 });
 
-test('booking freezes the accepted price before confirmation and refuses stale quotes',async()=>{
+test('booking saves the chosen pin, freezes the approved price, and refuses stale quotes',async()=>{
  const {request,login,sqlite,env}=fixture();
  const {quote}=await import('../docs/fares.js');
  env.DB.batch=async statements=>{sqlite.exec('BEGIN');try{for(const s of statements)s.run();sqlite.exec('COMMIT');}catch(e){sqlite.exec('ROLLBACK');throw e;}};
@@ -102,7 +102,7 @@ test('booking freezes the accepted price before confirmation and refuses stale q
  await request('admin/slots',{startAt:'2099-12-24T10:00',minutes:30});
  const slot=sqlite.prepare('SELECT id FROM slots').get();
  const config=await (await request('public-config')).json();
- const body={service:'gift',city:'Tohmajärvi',slotId:slot.id,name:'Test',address:'Road 1',phone:'123456',turnstileToken:'test',group:true};
+ const body={service:'gift',city:'Tohmajärvi',slotId:slot.id,name:'Test',address:'Road 1',phone:'123456',turnstileToken:'test',group:true,destinationPin:{lat:62.227,lng:30.332}};
  body.quoteToken=JSON.stringify(quote(config.fares,config.services.gift,body.city,true,['2099-12-24T10:00']));
  const original=globalThis.fetch;
  try{
@@ -111,6 +111,9 @@ test('booking freezes the accepted price before confirmation and refuses stale q
    const {id}=await created.json();
    const saved=()=>JSON.parse(sqlite.prepare('SELECT snapshot FROM booking_quotes WHERE booking_id=?').get(id).snapshot);
    assert.equal(saved().total,5880);
+   assert.deepEqual(saved().destinationPin,body.destinationPin);
+   const dashboard=await (await request('admin/dashboard')).json();
+   assert.deepEqual(JSON.parse(dashboard.bookings.find(b=>b.id===id).quote_snapshot).destinationPin,body.destinationPin);
    assert.equal((await request('admin/travel-fare',{...config.fares,fuel:3})).status,200);
    assert.equal((await request('bookings',body)).status,409);
    assert.equal((await request('admin/bookings/status',{id,status:'confirmed'})).status,200);

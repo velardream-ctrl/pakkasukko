@@ -11,6 +11,7 @@
     "db:remote": "wrangler d1 execute pakkasukko-db --remote --file=./schema.sql"
   },
   "devDependencies": {
+    "jsdom": "^26.1.0",
     "wrangler": "^4.0.0"
   },
   "dependencies": {

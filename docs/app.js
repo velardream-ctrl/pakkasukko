@@ -1,5 +1,5 @@
 import {deliveryConfig,deliveryLink} from './video-service.js';
-import {mountFares} from './fare-form.js?v=71';
+import {mountFares} from './fare-form.js?v=72';
 import {holidayInfo,bookingPaymentMode,defaultFare} from './fares.js?v=71';
 import {fitTagline} from './tagline.js';
 import {pageText,initial,bindPage,renderPage,deviceFor} from './site.js?v=70';
