@@ -58,6 +58,7 @@ h1 { margin: 12px 0 18px; font-size: clamp(2.65rem, 5.5vw, 5.1rem); line-height:
 .secondary:hover { background: #f2d49a18; }
 .gift-preview { margin: 0; min-width: 0; }
 .gift-card {
+  width: 100%;
   position: relative;
   isolation: isolate;
   overflow: hidden;
@@ -95,4 +96,13 @@ figcaption { text-align: right; margin-top: 10px; color: var(--muted); font-size
   .details { grid-template-columns: 1fr; }
   .gift-card { min-height: 190px; }
   .card-brand { font-size: .67rem; }
+}
+
+.hero > *, .details > * { min-width: 0; }
+h1, h2, .intro { overflow-wrap: anywhere; }
+@media (max-width: 360px) {
+  .workshop-header { gap: 8px; }
+  .brand { letter-spacing: .06em; }
+  .workshop-header img { width: 30px; height: 30px; }
+  h1 { font-size: 2.3rem; }
 }

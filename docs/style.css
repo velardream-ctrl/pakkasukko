@@ -354,7 +354,7 @@ main > section:not(.intro) > .section-media-frame,
 .gift-workshop h2 {color:#fff3e4}
 .gift-workshop .section-kicker {color:#f4d39b}
 .gift-workshop-grid p:not(.section-kicker) {color:#e1e9ea;max-width:46ch;margin-bottom:20px}
-.gift-workshop-card {display:grid;align-items:center;position:relative;isolation:isolate;overflow:hidden;margin:0;aspect-ratio:1.65;min-height:190px;border:1px solid #efcd95;border-radius:18px;background:#461926;box-shadow:0 18px 44px #0005;container-type:inline-size}
+.gift-workshop-card {width:100%;display:grid;align-items:center;position:relative;isolation:isolate;overflow:hidden;margin:0;aspect-ratio:1.65;min-height:190px;border:1px solid #efcd95;border-radius:18px;background:#461926;box-shadow:0 18px 44px #0005;container-type:inline-size}
 .gift-workshop-card::before,.gift-workshop-card::after {content:"";position:absolute;pointer-events:none}
 .gift-workshop-card::before {inset:0;z-index:-1;background:linear-gradient(90deg,#461926 26%,#461926e8 43%,transparent 81%)}
 .gift-workshop-card::after {inset:8px;border:1px solid #efcd9590;border-radius:12px}
