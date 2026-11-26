@@ -56,6 +56,7 @@ export async function prepaymentsAPI(req,env,path,reply){
   return new Response(bytes,{headers:{'Content-Type':'application/pdf','Content-Disposition':'inline; filename="Pakkasukko-ennakko-'+old.number+'.pdf"','Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'}});
  }
  if(path==='send'&&method==='POST'){
+  if(old.final_status||old.status!=='requested'||(document.automatic&&old.bank_note))return fail(reply,'Не отправляйте повторное требование об оплате по обработанному или отменённому счёту.',409);
   if(old.sent_at)return reply({ok:true,alreadySent:true});
   const input=await readJSON(req),email=String(input.email||old.email||'').trim();
   if(!validEmail(email))return fail(reply,'Введите правильный email для авансового счёта.');
@@ -81,9 +82,10 @@ export async function prepaymentsAPI(req,env,path,reply){
   if(outstanding)return fail(reply,'Есть активная ссылка Stripe. Дождитесь подтверждения оплаты или окончания срока ссылки.',409);
   const input=await readJSON(req),note=safeNote(input.note);
   if(!note)return fail(reply,'Укажите дату или примечание к банковскому поступлению.');
+  if(document.automatic&&(!Number.isSafeInteger(input.amount)||input.amount!==old.amount))return fail(reply,'Сумма фактического поступления не совпадает со счётом. Не подтверждайте бронь до сверки и согласования.',409);
   const stamp=new Date().toISOString();
   try{await db.batch([
-   db.prepare("UPDATE prepayment_requests SET status='paid',paid_at=?,bank_note=? WHERE booking_id=? AND status='requested'").bind(stamp,note,id),
+   db.prepare("UPDATE prepayment_requests SET status='paid',paid_at=?,bank_note=? WHERE booking_id=? AND status='requested' AND (?=0 OR EXISTS(SELECT 1 FROM booking_details WHERE booking_id=? AND final_status='cancelled') OR EXISTS(SELECT 1 FROM bookings b JOIN slots s ON s.id=b.slot_id WHERE b.id=? AND b.status='pending' AND s.status='reserved' AND s.booking_id=b.id))").bind(stamp,note,id,document.automatic?1:0,id,id),
    db.prepare(`INSERT INTO prepayment_events(booking_id,action,amount,note,created_at)
     SELECT booking_id,'paid',amount,?,? FROM prepayment_requests WHERE booking_id=? AND status='paid'
     AND paid_at=?`).bind(note,stamp,id,stamp),
