@@ -2,7 +2,7 @@ import {sellerForm,invoiceControls} from './billing-panel.js';
 import {prepaymentControls} from './prepayment-panel.js?v=65';
 import {applyBrand} from './site.js';
 import {musicAdmin} from './music-admin.js';
-import {holidayRules,validFare,validHolidayRule,bookingPaymentMode} from './fares.js?v=65';
+import {holidayRules,validFare,validHolidayRule,bookingPaymentMode} from './fares.js?v=68';
 import {nextAnnualISO,endAnnualISO,isoToAnnual,compareHolidayRules,shiftEndForNewStart} from './holiday-calendar.js?v=59';
 import {renderVideoOrders} from './video-admin.js';
 import {moveControls,slotControls} from './reschedule-panel.js';
