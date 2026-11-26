@@ -132,7 +132,8 @@ async function activate(){
     const script=document.createElement('script');script.src='https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';script.async=true;script.onload=()=>{window.turnstile?.render('#captcha',{sitekey:config.turnstileSiteKey,callback:(token)=>{form.dataset.captcha=token;},'expired-callback':()=>{form.dataset.captcha='';}});};document.head.append(script);
     form.addEventListener('submit',async e=>{e.preventDefault();const out=$('#bookingMessage');out.textContent='';if(!form.reportValidity())return;
       if(!form.dataset.captcha){out.textContent=pageText(model,'captcha');return;}
-      const fd=new FormData(form);const payload={...Object.fromEntries(fd.entries()),...fare.payload()};payload.visits=[...chosen.values()].sort((a,b)=>a.start_at.localeCompare(b.start_at)).map(s=>({slotId:s.id,address:addressInputs.get(s.id)||''}));delete payload.consent;
+      const pricing=fare.payload();if(!form.reportValidity())return;
+      const fd=new FormData(form);const payload={...Object.fromEntries(fd.entries()),...pricing};payload.visits=[...chosen.values()].sort((a,b)=>a.start_at.localeCompare(b.start_at)).map(s=>({slotId:s.id,address:addressInputs.get(s.id)||''}));delete payload.consent;
       const signature=JSON.stringify(payload);
       if(signature!==previousSelection){submissionKey=crypto.randomUUID();previousSelection=signature;}
       payload.submissionKey=submissionKey;payload.turnstileToken=form.dataset.captcha;submit.disabled=true;submit.textContent=pageText(model,'sending');
