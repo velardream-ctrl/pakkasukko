@@ -91,7 +91,7 @@ export async function prepaymentsAPI(req,env,path,reply){
     SELECT booking_id,'paid',amount,?,? FROM prepayment_requests WHERE booking_id=? AND status='paid'
     AND paid_at=? AND NOT EXISTS(SELECT 1 FROM prepayment_events e WHERE e.booking_id=prepayment_requests.booking_id AND e.action='paid')`).bind(note,stamp,id,stamp),
    ...(document.automatic?[
-    db.prepare("UPDATE slots SET status='open',booking_id=NULL WHERE booking_id=? AND status='reserved' AND EXISTS(SELECT 1 FROM prepayment_requests WHERE booking_id=? AND paid_at=? AND status='paid') AND NOT EXISTS(SELECT 1 FROM booking_details WHERE booking_id=? AND final_status IS NOT NULL)").bind(id,id,stamp,id),
+    db.prepare("UPDATE slots SET status='open',booking_id=NULL WHERE booking_id=? AND status='reserved' AND EXISTS(SELECT 1 FROM bookings b WHERE b.id=slots.booking_id AND b.status='pending') AND EXISTS(SELECT 1 FROM prepayment_requests WHERE booking_id=? AND paid_at=? AND status='paid') AND NOT EXISTS(SELECT 1 FROM booking_details WHERE booking_id=? AND final_status IS NOT NULL)").bind(id,id,stamp,id),
     db.prepare("UPDATE bookings SET status='confirmed' WHERE id=? AND status='pending' AND EXISTS(SELECT 1 FROM prepayment_requests WHERE booking_id=? AND paid_at=? AND status='paid') AND NOT EXISTS(SELECT 1 FROM booking_details WHERE booking_id=? AND final_status IS NOT NULL)").bind(id,id,stamp,id)
    ]:[])
   ]);}catch{return fail(reply,'Ошибка записи оплаты.',409);}
