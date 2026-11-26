@@ -77,6 +77,7 @@ export async function prepaymentsAPI(req,env,path,reply){
   return reply({ok:true});
  }
  if(path==='paid'&&method==='POST'){
+  if(old.status==='paid')return reply({ok:true,alreadyPaid:true,confirmed:old.booking_status==='confirmed'&&!old.final_status});
   if(document.quote?.prepayment?.paymentMethod==='stripe')return fail(reply,'Для этого заказа подтверждение оплаты поступает от Stripe.',409);
   const outstanding=await db.prepare("SELECT id FROM stripe_checkouts WHERE booking_id=? AND status='open' AND expires_at>? LIMIT 1").bind(id,Math.floor(Date.now()/1000)).first();
   if(outstanding)return fail(reply,'Есть активная ссылка Stripe. Дождитесь подтверждения оплаты или окончания срока ссылки.',409);
@@ -88,7 +89,7 @@ export async function prepaymentsAPI(req,env,path,reply){
    db.prepare("UPDATE prepayment_requests SET status='paid',paid_at=?,bank_note=? WHERE booking_id=? AND status='requested' AND (?=0 OR EXISTS(SELECT 1 FROM booking_details WHERE booking_id=? AND final_status='cancelled') OR EXISTS(SELECT 1 FROM bookings b JOIN slots s ON s.id=b.slot_id WHERE b.id=? AND b.status='pending' AND s.status='reserved' AND s.booking_id=b.id))").bind(stamp,note,id,document.automatic?1:0,id,id),
    db.prepare(`INSERT INTO prepayment_events(booking_id,action,amount,note,created_at)
     SELECT booking_id,'paid',amount,?,? FROM prepayment_requests WHERE booking_id=? AND status='paid'
-    AND paid_at=?`).bind(note,stamp,id,stamp),
+    AND paid_at=? AND NOT EXISTS(SELECT 1 FROM prepayment_events e WHERE e.booking_id=prepayment_requests.booking_id AND e.action='paid')`).bind(note,stamp,id,stamp),
    ...(document.automatic?[
     db.prepare("UPDATE slots SET status='open',booking_id=NULL WHERE booking_id=? AND status='reserved' AND EXISTS(SELECT 1 FROM prepayment_requests WHERE booking_id=? AND paid_at=? AND status='paid') AND NOT EXISTS(SELECT 1 FROM booking_details WHERE booking_id=? AND final_status IS NOT NULL)").bind(id,id,stamp,id),
     db.prepare("UPDATE bookings SET status='confirmed' WHERE id=? AND status='pending' AND EXISTS(SELECT 1 FROM prepayment_requests WHERE booking_id=? AND paid_at=? AND status='paid') AND NOT EXISTS(SELECT 1 FROM booking_details WHERE booking_id=? AND final_status IS NOT NULL)").bind(id,id,stamp,id)
