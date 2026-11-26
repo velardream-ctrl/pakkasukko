@@ -24,3 +24,11 @@ test('live route returns only transient estimate; global cap enforced',async()=>
  assert.deepEqual(await lookupDistance(env,'Хельсинки',defaultFare,s,fake),{kind:'estimate',origin:'Kitee',km:401,provider:'Google Maps'});
  permitted=false;assert.equal((await lookupDistance(env,'Helsinki',defaultFare,s,()=>{throw Error('must not call');})).kind,'limited');
 });
+
+test('pin routing submits chosen coordinates, not customer name or address',async()=>{
+ const env={GOOGLE_ROUTES_API_KEY:'test',DB:{prepare:()=>({bind:()=>({run:async()=>({meta:{changes:1}})})})}};const s={origin:'Kitee',enabled:true,configured:true,dailyLimit:50};
+ const pin={lat:60.17,lng:24.94};let calls=0;
+ const fake=async(url,opt)=>{calls++;const q=JSON.parse(opt.body);assert.deepEqual(q.destination,{location:{latLng:{latitude:60.17,longitude:24.94}}});return Response.json({routes:[{distanceMeters:400100}]});};
+ assert.equal((await lookupDistance(env,'Хельсинки',defaultFare,s,fake,pin)).km,401);
+ assert.equal((await lookupDistance(env,'Хельсинки',defaultFare,s,fake,{lat:0,lng:0})).kind,'unknown');assert.equal(calls,1);
+});
