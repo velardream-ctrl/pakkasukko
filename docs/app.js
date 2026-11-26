@@ -1,6 +1,6 @@
 import {deliveryConfig,deliveryLink} from './video-service.js';
-import {mountFares} from './fare-form.js?v=68';
-import {holidayInfo,bookingPaymentMode,defaultFare} from './fares.js?v=68';
+import {mountFares} from './fare-form.js?v=71';
+import {holidayInfo,bookingPaymentMode,defaultFare} from './fares.js?v=71';
 import {fitTagline} from './tagline.js';
 import {pageText,initial,bindPage,renderPage,deviceFor} from './site.js?v=70';
 import {mountSpatialPhoto} from './spatial-gallery.js?v=8';
@@ -81,6 +81,7 @@ async function activate(){
     let submissionKey='',previousSelection='';
     const chosen=new Map(),addressInputs=new Map(),originalAddress=form.elements.address;
     const addressLabel=originalAddress.closest('label'),addressList=document.createElement('div');
+    fare.bindAddress(()=>chosen.size===1?addressInputs.get([...chosen.keys()][0])||'':originalAddress.value,v=>{if(chosen.size===1){addressInputs.set([...chosen.keys()][0],v);const field=addressList.querySelector('input');if(field)field.value=v;}else originalAddress.value=v;});
     addressLabel.after(addressList);
     function syncVisits(){
       const list=[...chosen.values()].sort((a,b)=>a.start_at.localeCompare(b.start_at));
