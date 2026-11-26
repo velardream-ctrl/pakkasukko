@@ -125,6 +125,15 @@ try{
   const f=verifiedTariffs.fares;
   if(f?.performance?.rates?.gift?.[0]?.solo!==4500||f?.performance?.rates?.home?.[0]?.solo!==6000||f?.prepayments?.rules?.Kitee?.amount!==2000||verifiedTariffs.services?.gift?.label!=='от 45 €'||verifiedTariffs.services?.home?.label!=='от 60 €')throw Error('New public tariffs did not match the migration');
  }
+ const doorstepUpdate=await fetch(url+'/api/admin/tariffs/doorstep-2026',{method:'POST',headers:{Cookie:cookie,Origin:url,'Content-Type':'application/json'},body:'{}'});
+ const doorstepResult=await doorstepUpdate.json().catch(()=>null);
+ if(!doorstepUpdate.ok||!doorstepResult?.ok)throw Error('Doorstep tariff migration failed (HTTP '+doorstepUpdate.status+')');
+ if(!doorstepResult.alreadyApplied){
+  const current=await fetch(url+'/api/public-config',{cache:'no-store'}).then(r=>r.json());
+  const gift=current.fares?.performance?.rates?.gift;
+  if(JSON.stringify(gift?.map(r=>[r.minutes,r.solo]))!==JSON.stringify([[10,4000],[15,4500],[20,5500]])||current.services?.gift?.label!=='от 40 €')throw Error('Doorstep tariff verification failed');
+ }
+ console.log('Doorstep tariff migration: '+(doorstepResult.alreadyApplied?'already applied':'applied and verified'));
  console.log('Owner calendar launch controls ready.');
  console.log('Readiness (no secret values): Turnstile='+booking.turnstileConfigured+', Resend='+booking.emailConfigured+', testEmailSent='+booking.mailTestSent+', liveBookings='+booking.enabled);
  await fetch(url+'/api/admin/logout',{method:'POST',headers:{Cookie:cookie,Origin:url}});
