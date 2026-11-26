@@ -13,6 +13,8 @@ test('QR and virtual code use same account, amount and reference',()=>{
  const p=paymentData(d,'A-1');assert.equal(p.barcode.length,54);
  assert.equal(p.barcode.slice(17,25),'00005000');
  assert.equal(p.payload.split('\n')[7],'EUR50.00');
+ assert.equal(p.payload.split('\n')[1],'001');
+ assert.throws(()=>paymentData({...d,seller:{...d.seller,bic:''}},'A-1'));
  assert.equal(p.payload.split('\n')[9],p.reference);
  assert.equal(paymentData({...d,preview:true},'A-1'),null);
  assert.notEqual(paymentData(d,'A-2').reference,p.reference);
