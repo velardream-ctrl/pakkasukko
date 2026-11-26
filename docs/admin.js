@@ -44,6 +44,9 @@ async function mountHeadingQuickEditor(){
  }catch(e){box.textContent=e.message;}
 }
 $('textAppearance')?.addEventListener('toggle',()=>{if($('textAppearance').open)mountHeadingQuickEditor();});
+async function loadDistanceSettings(){try{const s=await request('/api/admin/distance-settings');$('distanceOrigin').value=s.origin;$('distanceLimit').value=s.dailyLimit;$('distanceEnabled').checked=s.enabled;$('distanceEnabled').disabled=!s.configured;$('distanceKeyStatus').textContent=s.configured?'Ключи подключены. Проверьте ограничения и квоты Google Cloud.':'Ключи пока не подключены. Сохранённые тарифы работают без карты.';}catch(e){status('distanceStatus',e.message,true);}}
+$('distanceSettings')?.addEventListener('toggle',()=>{if($('distanceSettings').open)loadDistanceSettings();});
+$('distanceForm').onsubmit=async e=>{e.preventDefault();try{await request('/api/admin/distance-settings','POST',{origin:$('distanceOrigin').value,enabled:$('distanceEnabled').checked,dailyLimit:$('distanceLimit').valueAsNumber});status('distanceStatus','Сохранено.');}catch(e){status('distanceStatus',e.message,true);}};
 async function reload(){
  try{state=await request('/api/admin/dashboard');try{stripeConnection=await request('/api/admin/stripe/status');}catch{stripeConnection={enabled:false,mode:'off'};}try{publicServices=(await request('/api/public-config')).services||{};}catch{publicServices={};}$('loginBox').classList.add('hidden');$('dashboard').classList.remove('hidden');$('logout').classList.remove('hidden');render();renderFare();renderPrepayments();renderPerformance();await reloadInvoices();await reloadBookingState();await renderVideoOrders($('videoOrderList'),request);}
  catch(e){$('dashboard').classList.add('hidden');$('loginBox').classList.remove('hidden');$('logout').classList.add('hidden');}
@@ -391,6 +394,7 @@ function render(){
   textBlock(item,'p',v.name+' · '+v.service);
   textBlock(item,'p','Телефон: '+v.phone+' · Email: '+(v.email||'—'));
   textBlock(item,'p','Адрес: '+v.city+', '+v.address);
+  const pin=JSON.parse(v.quote_snapshot||'{}').destinationPin;if(pin&&Number.isFinite(pin.lat)&&Number.isFinite(pin.lng)){const a=el('a','Открыть точку на карте ↗');a.href='https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(pin.lat+','+pin.lng);a.target='_blank';a.rel='noopener noreferrer';item.append(a);}
   if(v.quote_summary)textBlock(item,'p','Зафиксировано при отправке · '+v.quote_summary);
   if(v.message)textBlock(item,'p',v.message);
   textBlock(item,'small','Заявка: '+v.id+' · '+v.created_at);

@@ -1,3 +1,5 @@
+import {distanceSettings,saveDistanceSettings,lookupDistance} from './city-distance.js';
+import {approvedCity,validCityQuery,validPin,pinLink} from '../docs/city-distance.js';
 import {applyIntroCopy} from './intro-copy.js';
 import {applyCompetitiveTariffs,applyDoorstepTariffs} from './competitive-tariffs.js';
 import {bankProfile,autoAdvanceDocument,advanceStatements,expireBankHolds,publicAdvance,createAdvanceAccess} from './automatic-advance.js';
@@ -83,7 +85,13 @@ async function api(req,env,ctx,url){
  if(path==='/api/public-config'&&method==='GET'){
    const state=await bookingState(env);
    const site=await published(env),content=await getContent(env);
-   return reply({site,content,fares:await fareSettings(env),services:prices(site,content),turnstileSiteKey:state.enabled?env.TURNSTILE_SITE_KEY:'',bookingsEnabled:state.enabled});
+   return reply({site,content,fares:await fareSettings(env),services:prices(site,content),turnstileSiteKey:state.enabled?env.TURNSTILE_SITE_KEY:'',bookingsEnabled:state.enabled,distanceLookup:await distanceSettings(env)});
+ }
+ if(path==='/api/distance'&&method==='POST'){
+  if(!env.DB)return fail('Расчёт временно недоступен.',503);
+  const {city,pin}=await parse(req);if(!validCityQuery(city)||pin&&!validPin(pin))return fail('Укажите город и точку в Финляндии.');
+  if(!await rateLimit(req,env,'distance',10,60))return fail('Слишком много запросов.',429);
+  return reply(await lookupDistance(env,city,await fareSettings(env),await distanceSettings(env),fetch,pin||null));
  }
  if(path==='/api/slots'&&method==='GET'){if(!env.DB)return reply({slots:[],timezone:'Europe/Helsinki'});await expireBankHolds(env.DB);const s=await env.DB.prepare('SELECT id,start_at,end_at,status FROM slots WHERE start_at>=? ORDER BY start_at LIMIT 500').bind(fiNow().slice(0,10)+'T00:00').all();return reply({slots:s.results||[],timezone:'Europe/Helsinki'});}
  if(path==='/api/video-orders'&&method==='POST'){
@@ -134,6 +142,9 @@ async function api(req,env,ctx,url){
    catch(e){return fail(e.message);}
    const b=orders[0];
    const services=prices(site,await getContent(env)),fares=await fareSettings(env);
+   b.city=approvedCity(fares,b.city)||b.city;
+   const destinationPin=input.destinationPin;
+   if(destinationPin&&(!validPin(destinationPin)||orders.length!==1))return fail('Точка на карте доступна для одного адреса в Финляндии.');
    const methodForBooking=bookingPaymentMode(fares.prepayments||defaultFare.prepayments);
    if((input.paymentMethod!==undefined||fares.prepayments?.paymentMethod!==undefined)&&input.paymentMethod!==methodForBooking)return reply({error:'Способ оплаты изменился. Проверьте условия и отправьте заявку снова.',fares,services},409);
    if(methodForBooking==='stripe'&&!(String(env.STRIPE_SECRET_KEY||'').startsWith('sk_live_')&&String(env.STRIPE_WEBHOOK_SECRET||'').startsWith('whsec_')))return fail('Онлайн-оплата временно недоступна. Свяжитесь с администратором.',503);
@@ -167,11 +178,11 @@ async function api(req,env,ctx,url){
      const order=orders.find(o=>o.slotId===slot.id),id=crypto.randomUUID();
      const visit=visitQuote(snapshot,slots.length,index);
      const payment=prepaymentForVisit(fares,visit);
-     const saved={...visit,...(payment?{prepayment:{...payment,termsVersion:'2026-11-26',acceptedAt:now()}}:{}),groupId};
+     const saved={...visit,...(destinationPin?{destinationPin:{lat:destinationPin.lat,lng:destinationPin.lng}}:{}),...(payment?{prepayment:{...payment,termsVersion:'2026-11-26',acceptedAt:now()}}:{}),groupId};
      const holiday=saved.holidayName?' · '+saved.holidayName+' +'+saved.holidayPercent+'% ('+(saved.holidayExtra===null?'стоимость по согласованию':euros(saved.holidayExtra))+')':'';
      const artists=saved.durationMinutes?' · '+(saved.performerCast==='duo'?'Дед Мороз и Снегурочка':'Дед Мороз')+' · '+saved.durationMinutes+' минут':'';
      const detailCore=slots.length===1?describe(saved):'Визит '+(index+1)+'/'+slots.length+artists+holiday+' · Программа '+(saved.base==null?'по согласованию':euros(saved.base))+' · Доля дороги '+(saved.travel==null?'по согласованию':euros(saved.travel))+' · Итого '+(saved.total==null?'по согласованию':euros(saved.total));
-     const detail=detailCore+(saved.prepayment?' · Предоплата '+euros(saved.prepayment.amount):'');
+     const detail=detailCore+(destinationPin?' · Место отмечено на карте: '+pinLink(destinationPin):'')+(saved.prepayment?' · Предоплата '+euros(saved.prepayment.amount):'');
      statements.push(env.DB.prepare("INSERT INTO bookings(id,slot_id,service,name,phone,email,city,address,message,status,created_at) VALUES(?,(SELECT id FROM slots WHERE id=? AND status='open'),?,?,?,?,?,?,?,'pending',?)").bind(id,slot.id,b.service,b.name,b.phone,b.email,b.city,order.address,b.message,now()),
        env.DB.prepare("INSERT INTO booking_quotes(booking_id,snapshot,summary) VALUES(?,?,?)").bind(id,JSON.stringify(saved),detail));
      let paymentUrl;
@@ -224,6 +235,8 @@ async function api(req,env,ctx,url){
  if(path==='/api/admin/editor/intro-copy-2026'&&method==='POST')return reply(await applyIntroCopy(env.DB));
  if(path==='/api/admin/tariffs/doorstep-2026'&&method==='POST')return reply(await applyDoorstepTariffs(env.DB));
  if(path==='/api/admin/tariffs/competitive-2026'&&method==='POST')return reply(await applyCompetitiveTariffs(env.DB));
+ if(path==='/api/admin/distance-settings'&&method==='GET')return reply(await distanceSettings(env));
+ if(path==='/api/admin/distance-settings'&&method==='POST')return await saveDistanceSettings(env,await parse(req))?reply({ok:true}):fail('Проверьте настройки и наличие ключей Google Maps и Routes.');
  if(path==='/api/admin/travel-fare'&&method==='POST'){
    const f=await parse(req);
    if(!validFare(f))return fail('Проверьте цену топлива, расход, километраж и режим оплаты.');
