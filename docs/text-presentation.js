@@ -38,7 +38,7 @@ export function legacyHeadingParts(model,group,heading){
  }flush();
  const legacy=model.headingOverrides?.[group];
  if(typeof legacy==='string'&&legacy.trim()){
-  if(group==='intro'&&/не просто вручить подарок[.,]?\s*(?:а\s+)?подарить воспоминани[ея][.!]?/i.test(legacy.trim()))return introHeading.map(p=>({...p}));
+  if(group==='intro'&&/^не просто вручить подарок[.,]?\s*(?:а\s+)?подарить воспоминани[ея][.!]?$/i.test(legacy.trim()))return introHeading.map(p=>({...p}));
   return legacy.split(/\n+/).filter(Boolean).slice(0,12).map((text,i)=>({text,color:base[i]?.color||'auto',font:base[i]?.font||'auto'}));
  }
  return base.length?base:[{text:heading?.textContent||'',color:'auto',font:'auto'}];
