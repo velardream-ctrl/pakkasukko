@@ -341,3 +341,9 @@ main > section:not(.intro) > .section-media-frame,
 .about-portrait{--pk-primary:var(--cream);--pk-accent:var(--gold)}
 
 .city-distance-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center}.city-distance-row[hidden],.city-distance-help[hidden],.city-distance-help [hidden]{display:none}.city-distance-value{padding:8px;color:var(--ink);white-space:nowrap;font-weight:700}.city-distance-help{display:grid;grid-column:1/-1;gap:8px;min-width:0;font-size:14px}.city-distance-help input{width:100%;min-width:0;font-size:16px}.city-distance-help button{font-size:14px;min-height:44px;border:1px solid #b38c4f;background:#fff;color:var(--ink);padding:7px;border-radius:6px}.city-distance-help a{text-decoration:underline}.city-distance-help p{margin:0;line-height:1.5}.destination-map{width:100%;height:clamp(260px,45vh,360px);min-width:0;border-radius:8px;overflow:hidden;margin-top:8px}
+
+.footer-share{margin-block:12px;line-height:1.5}
+.footer-share button{min-height:44px;padding:8px 14px;border:1px solid currentColor;border-radius:8px;background:transparent;color:inherit;font:inherit;cursor:pointer}
+.footer-share label,.footer-share [role="status"]:not(:empty){display:block;margin-top:8px}
+.footer-share label[hidden]{display:none}
+.footer-share input{display:block;width:min(100%,32rem);font-size:16px}
