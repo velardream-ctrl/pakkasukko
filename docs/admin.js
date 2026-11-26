@@ -2,7 +2,7 @@ import {sellerForm,invoiceControls} from './billing-panel.js';
 import {prepaymentControls} from './prepayment-panel.js?v=65';
 import {applyBrand} from './site.js';
 import {musicAdmin} from './music-admin.js';
-import {holidayRules,validFare,validHolidayRule,bookingPaymentMode} from './fares.js?v=65';
+import {holidayRules,validFare,validHolidayRule,bookingPaymentMode} from './fares.js?v=68';
 import {nextAnnualISO,endAnnualISO,isoToAnnual,compareHolidayRules,shiftEndForNewStart} from './holiday-calendar.js?v=59';
 import {renderVideoOrders} from './video-admin.js';
 import {moveControls,slotControls} from './reschedule-panel.js';
@@ -128,7 +128,7 @@ $('prepaymentForm').addEventListener('input',()=>status('prepaymentStatus','Ес
 function performanceRow(parent,rate={minutes:30,solo:null,duo:null}){
  const row=el('fieldset',undefined,'record performance-rate'),grid=el('div',undefined,'admin-grid');
  const minutes=fareNumber(grid,'Длительность, минуты',rate.minutes,480,'5');
- minutes.min='15';minutes.step='5';
+ minutes.min='10';minutes.step='5';
  const solo=fareNumber(grid,'Дед Мороз, €',rate.solo===null?'':(rate.solo/100).toFixed(2),100000);
  const duo=fareNumber(grid,'Дед Мороз + Снегурочка, €',rate.duo===null?'':(rate.duo/100).toFixed(2),100000);
  solo.required=false;duo.required=false;
@@ -162,7 +162,7 @@ function renderPerformance(){
   for(const rate of rates[id]||[{minutes:30,solo:original,duo:null}])performanceRow(rows,rate);
   button(section,'＋ Добавить продолжительность',()=>{
    const current=[...rows.children].map(x=>x.readRate().minutes);
-   const n=[20,30,45,60,90,120].find(n=>!current.includes(n))||Math.max(...current,0)+15;
+   const n=[10,15,20,30,45,60,90,120].find(n=>!current.includes(n))||Math.max(...current,0)+15;
    if(rows.children.length>=25||n>480){status('performanceStatus','Не более 25 продолжительностей для одной программы.',true);return;}
    performanceRow(rows,{minutes:n,solo:null,duo:null});
    status('performanceStatus','Есть несохранённые изменения.');
@@ -182,7 +182,7 @@ $('performanceForm').onsubmit=async event=>{
   for(const section of $('performancePrograms').children)rates[section.dataset.service]=section.readRates();
   const performance={enabled:$('performanceEnabled').checked,rates};
   const fares={...state.fares,performance};
-  if(!validFare(fares))throw Error('Проверьте длительности (15–480 минут, без повторов) и цены (от 0 до 100 000 €).');
+  if(!validFare(fares))throw Error('Проверьте длительности (10–480 минут, без повторов) и цены (от 0 до 100 000 €).');
   submit.disabled=true;status('performanceStatus','Сохраняем и проверяем настройки…');
   await request('/api/admin/travel-fare','POST',fares);
   const verified=(await request('/api/public-config')).fares;

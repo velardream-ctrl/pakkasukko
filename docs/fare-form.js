@@ -1,4 +1,4 @@
-import {defaultFare,prices,quote,describe,euros,visitQuote,performanceRows,performanceChoice,prepaymentForVisit,bookingPaymentMode} from './fares.js?v=65';
+import {defaultFare,prices,quote,describe,euros,visitQuote,performanceRows,performanceChoice,prepaymentForVisit,bookingPaymentMode} from './fares.js?v=68';
 import {routeCities} from './route-cities.js';
 export function mountFares(form,config){
   const service=form.elements.service,input=form.elements.city;
@@ -46,11 +46,11 @@ export function mountFares(form,config){
     choices.hidden=!rows.length;
     if(!rows.length){selectedPerformance=null;return;}
     const previous=durationSelect.value;
-    durationSelect.replaceChildren(...rows.map(row=>new Option(row.minutes+' минут',String(row.minutes))));
+    durationSelect.replaceChildren(...rows.map(row=>new Option(row.minutes+' мин · от '+euros(Math.min(...[row.solo,row.duo].filter(Number.isInteger))),String(row.minutes))));
     durationSelect.value=rows.some(r=>String(r.minutes)===previous)?previous:String(rows[0].minutes);
     const row=rows.find(r=>String(r.minutes)===durationSelect.value);
     const oldCast=castSelect.value;
-    const available=[...(Number.isInteger(row.solo)?[new Option('Дед Мороз','solo')]:[]),...(Number.isInteger(row.duo)?[new Option('Дед Мороз и Снегурочка','duo')]:[])];
+    const available=[...(Number.isInteger(row.solo)?[new Option('Дед Мороз · '+euros(row.solo),'solo')]:[]),...(Number.isInteger(row.duo)?[new Option('Дед Мороз и Снегурочка · '+euros(row.duo)+(Number.isInteger(row.solo)&&row.duo>=row.solo?' (+'+euros(row.duo-row.solo)+')':''),'duo')]:[])];
     castSelect.replaceChildren(...available);
     castSelect.value=available.some(o=>o.value===oldCast)?oldCast:(available.some(o=>o.value==='solo')?'solo':'duo');
     selectedPerformance=performanceChoice(fare,service.value,Number(durationSelect.value),castSelect.value);
