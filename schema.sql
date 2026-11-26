@@ -180,3 +180,28 @@ CREATE TABLE IF NOT EXISTS stripe_checkouts (
 );
 CREATE INDEX IF NOT EXISTS stripe_checkouts_booking_idx ON stripe_checkouts(booking_id,created_at);
 CREATE INDEX IF NOT EXISTS stripe_checkouts_intent_idx ON stripe_checkouts(payment_intent);
+
+-- Gift workshop: promotional discounts, not prepaid monetary certificates.
+CREATE TABLE IF NOT EXISTS promo_codes(
+ id TEXT PRIMARY KEY, code TEXT NOT NULL UNIQUE, label TEXT NOT NULL,
+ kind TEXT NOT NULL CHECK(kind IN('percent','fixed','waive_holiday','free_program','free_visit')),
+ value INTEGER NOT NULL CHECK(value>=0), city TEXT NOT NULL DEFAULT '', service TEXT NOT NULL DEFAULT '', holiday TEXT NOT NULL DEFAULT '',
+ source TEXT NOT NULL CHECK(source IN('personal','velar','campaign')),
+ expires TEXT NOT NULL, max_uses INTEGER NOT NULL CHECK(max_uses BETWEEN 1 AND 1000),
+ active INTEGER NOT NULL DEFAULT 0 CHECK(active IN(0,1)), distributed_at TEXT, note TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS promo_redemptions(
+ promo_id TEXT NOT NULL REFERENCES promo_codes(id), booking_id TEXT PRIMARY KEY REFERENCES bookings(id),
+ discount INTEGER NOT NULL CHECK(discount>0), redeemed_at TEXT NOT NULL, local_day TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS promo_redemptions_code_idx ON promo_redemptions(promo_id);
+CREATE TRIGGER IF NOT EXISTS promo_redeem_guard BEFORE INSERT ON promo_redemptions
+BEGIN
+ SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM booking_settings WHERE key='promos_enabled' AND value='true') OR NOT EXISTS(
+ SELECT 1 FROM promo_codes p WHERE p.id=NEW.promo_id AND p.active=1 AND p.expires>=NEW.local_day
+ AND (SELECT COUNT(*) FROM promo_redemptions WHERE promo_id=p.id)<p.max_uses)
+ THEN RAISE(ABORT,'promo unavailable') END;
+END;
+CREATE TRIGGER IF NOT EXISTS promo_preserve_history BEFORE DELETE ON bookings
+WHEN EXISTS(SELECT 1 FROM promo_redemptions WHERE booking_id=OLD.id)
+BEGIN SELECT RAISE(ABORT,'booking financial lock'); END;
