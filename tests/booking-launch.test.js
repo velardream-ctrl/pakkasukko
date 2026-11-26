@@ -384,3 +384,45 @@ test('Stripe links remain private and signed webhooks alone confirm the 50 euro 
   assert.equal(sqlite.prepare('SELECT refunded_amount FROM prepayment_requests WHERE booking_id=?').get(id).refunded_amount,1200);
  }finally{globalThis.fetch=original;}
 });
+
+test('owner issues a gift and it is redeemed atomically with a free booking',async()=>{
+ const {request,login,sqlite,env}=fixture();
+ env.DB.batch=async statements=>{
+   sqlite.exec('BEGIN');
+   try{for(const statement of statements)statement.run();sqlite.exec('COMMIT');}
+   catch(error){sqlite.exec('ROLLBACK');throw error;}
+ };
+ Object.assign(env,{TURNSTILE_SITE_KEY:'site',TURNSTILE_SECRET:'secret',OWNER_EMAIL:'owner@example.test',FROM_EMAIL:'from@example.test',RESEND_API_KEY:'test'});
+ for(const key of ['enabled','mail_test','mail_received','privacy_confirmed'])sqlite.prepare('INSERT INTO booking_settings VALUES(?,?)').run(key,'true');
+ assert.equal((await request('admin/gift-codes')).status,401);
+ await login();
+ const issued=await request('admin/gift-codes',{kind:'visit',value:0,state:'gifted'});
+ assert.equal(issued.status,201);
+ const {code}=await issued.json();
+ assert.equal((await request('gift-code',{code:code.toLowerCase()})).status,200);
+ for(const startAt of ['2099-12-24T10:00','2099-12-24T11:00'])await request('admin/slots',{startAt,minutes:30});
+ const slots=sqlite.prepare('SELECT id,start_at FROM slots ORDER BY start_at').all();
+ const config=await (await request('public-config')).json();
+ const payload=slot=>({
+  service:'gift',city:'Tohmajärvi',slotId:slot.id,name:'Test',address:'Road 1',phone:'123456',
+  turnstileToken:'test',giftCode:code,giftDiscount:5880,
+  quoteToken:JSON.stringify(quote(config.fares,config.services.gift,'Tohmajärvi',false,[slot.start_at]))
+ });
+ const original=globalThis.fetch;
+ try{
+  globalThis.fetch=async()=>Response.json({success:true});
+  assert.equal((await request('bookings',{...payload(slots[0]),giftDiscount:1})).status,409);
+  assert.equal((await request('gift-code',{code})).status,200);
+  const booking=await request('bookings',payload(slots[0]));
+  assert.equal(booking.status,201);
+  const {id}=await booking.json();
+  const saved=JSON.parse(sqlite.prepare('SELECT snapshot FROM booking_quotes WHERE booking_id=?').get(id).snapshot);
+  assert.equal(saved.total,0);
+  assert.equal(saved.prepayment,undefined);
+  assert.equal(sqlite.prepare('SELECT booking_id FROM gift_redemptions WHERE code=?').get(code).booking_id,id);
+  assert.equal((await request('gift-code',{code})).status,404);
+  assert.equal((await request('bookings',payload(slots[1]))).status,409);
+  assert.equal(sqlite.prepare('SELECT count(*) AS count FROM bookings').get().count,1);
+  assert.throws(()=>sqlite.prepare('INSERT INTO gift_redemptions VALUES(?,?,?)').run(code,'another','now'),/UNIQUE/);
+ }finally{globalThis.fetch=original;}
+});

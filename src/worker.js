@@ -1,3 +1,5 @@
+import {availableGiftCode,giftAdmin} from './gift-codes.js';
+import {discountVisit} from '../docs/gift-codes.js';
 import {distanceSettings,saveDistanceSettings,lookupDistance} from './city-distance.js';
 import {approvedCity,validCityQuery,validPin,pinLink} from '../docs/city-distance.js';
 import {applyIntroCopy} from './intro-copy.js';
@@ -87,6 +89,12 @@ async function api(req,env,ctx,url){
    const site=await published(env),content=await getContent(env);
    return reply({site,content,fares:await fareSettings(env),services:prices(site,content),turnstileSiteKey:state.enabled?env.TURNSTILE_SITE_KEY:'',bookingsEnabled:state.enabled,distanceLookup:await distanceSettings(env)});
  }
+ if(path==='/api/gift-code'&&method==='POST'){
+  if(!env.DB)return fail('Проверка кода временно недоступна.',503);
+  if(!await rateLimit(req,env,'gift-code',20,60))return fail('Слишком много попыток.',429);
+  const rule=await availableGiftCode(env.DB,(await parse(req)).code);
+  return rule?reply({kind:rule.kind,value:rule.value}):fail('Код недействителен, просрочен или уже использован.',404);
+ }
  if(path==='/api/distance'&&method==='POST'){
   if(!env.DB)return fail('Расчёт временно недоступен.',503);
   const {city,pin}=await parse(req);if(!validCityQuery(city)||pin&&!validPin(pin))return fail('Укажите город и точку в Финляндии.');
@@ -147,7 +155,6 @@ async function api(req,env,ctx,url){
    if(destinationPin&&(!validPin(destinationPin)||orders.length!==1))return fail('Точка на карте доступна для одного адреса в Финляндии.');
    const methodForBooking=bookingPaymentMode(fares.prepayments||defaultFare.prepayments);
    if((input.paymentMethod!==undefined||fares.prepayments?.paymentMethod!==undefined)&&input.paymentMethod!==methodForBooking)return reply({error:'Способ оплаты изменился. Проверьте условия и отправьте заявку снова.',fares,services},409);
-   if(methodForBooking==='stripe'&&!(String(env.STRIPE_SECRET_KEY||'').startsWith('sk_live_')&&String(env.STRIPE_WEBHOOK_SECRET||'').startsWith('whsec_')))return fail('Онлайн-оплата временно недоступна. Свяжитесь с администратором.',503);
    const serviceId=b.service;
    b.service=cards.find(c=>c.id===serviceId)?.title||serviceId;
    if(!await human(b.turnstileToken,req,env))return fail('Пройдите проверку от спама.',403);
@@ -166,17 +173,22 @@ async function api(req,env,ctx,url){
    // Recalculate with trusted slot timestamps. The client cannot choose its own holiday prices.
    const snapshot=quote(fares,services[serviceId],b.city,orders.length>1||(!input.visits&&input.group===true),slots.map(s=>s.start_at),choice);
    if(JSON.stringify(snapshot)!==input.quoteToken)return reply({error:'Тариф изменился. Проверьте новый расчёт и отправьте заявку ещё раз.',fares,services},409);
-    if(slots.some((_,i)=>prepaymentForVisit(fares,visitQuote(snapshot,slots.length,i)))&&input.prepaymentTerms!=='accepted')return fail('Ознакомьтесь с условиями предоплаты и отмены перед отправкой заявки.');
+   const gift = input.giftCode ? await availableGiftCode(env.DB,input.giftCode) : null;
+   const pricedVisit = index => discountVisit(visitQuote(snapshot,slots.length,index),gift);
+   if(input.giftCode && (!gift || slots.length!==1 || !pricedVisit(0).discount || input.giftDiscount!==pricedVisit(0).discount))
+    return fail('Код не применён. Проверьте код и итоговую цену для одного визита.',409);
    const auto=methodForBooking==='bank'&&fares.prepayments?.automaticBank===true;
-   const planned=slots.map((_,i)=>prepaymentForVisit(fares,visitQuote(snapshot,slots.length,i)));
+   const planned=slots.map((_,i)=>prepaymentForVisit(fares,pricedVisit(i)));
+   if(!(gift&&pricedVisit(0).total===0)&&methodForBooking==='stripe'&&!(String(env.STRIPE_SECRET_KEY||'').startsWith('sk_live_')&&String(env.STRIPE_WEBHOOK_SECRET||'').startsWith('whsec_')))return fail('Онлайн-оплата временно недоступна. Свяжитесь с администратором.',503);
+   if(planned.some(Boolean)&&input.prepaymentTerms!=='accepted')return fail('Ознакомьтесь с условиями предоплаты и отмены перед отправкой заявки.');
    if((auto||input.paymentQuote!==undefined)&&JSON.stringify(planned)!==input.paymentQuote)return reply({error:'Предоплата изменилась. Проверьте сумму и отправьте заявку снова.',fares,services},409);
-   const autoEligible=auto&&planned.some(Boolean)&&slots.every((_,i)=>Number.isInteger(visitQuote(snapshot,slots.length,i).total));
+   const autoEligible=auto&&planned.some(Boolean)&&slots.every((_,i)=>Number.isInteger(pricedVisit(i).total));
    const seller=autoEligible?await bankProfile(env.DB):null;
    if(autoEligible&&(!seller||!env.SESSION_SECRET))return fail('Автоматический счёт временно недоступен. Свяжитесь с организатором.',503);
    const groupId=crypto.randomUUID(),statements=[],receipts=[];
    for(const [index,slot] of slots.entries()){
      const order=orders.find(o=>o.slotId===slot.id),id=crypto.randomUUID();
-     const visit=visitQuote(snapshot,slots.length,index);
+     const visit=pricedVisit(index);
      const payment=prepaymentForVisit(fares,visit);
      const saved={...visit,...(destinationPin?{destinationPin:{lat:destinationPin.lat,lng:destinationPin.lng}}:{}),...(payment?{prepayment:{...payment,termsVersion:'2026-11-26',acceptedAt:now()}}:{}),groupId};
      const holiday=saved.holidayName?' · '+saved.holidayName+' +'+saved.holidayPercent+'% ('+(saved.holidayExtra===null?'стоимость по согласованию':euros(saved.holidayExtra))+')':'';
@@ -185,13 +197,14 @@ async function api(req,env,ctx,url){
      const detail=detailCore+(destinationPin?' · Место отмечено на карте: '+pinLink(destinationPin):'')+(saved.prepayment?' · Предоплата '+euros(saved.prepayment.amount):'');
      statements.push(env.DB.prepare("INSERT INTO bookings(id,slot_id,service,name,phone,email,city,address,message,status,created_at) VALUES(?,(SELECT id FROM slots WHERE id=? AND status='open'),?,?,?,?,?,?,?,'pending',?)").bind(id,slot.id,b.service,b.name,b.phone,b.email,b.city,order.address,b.message,now()),
        env.DB.prepare("INSERT INTO booking_quotes(booking_id,snapshot,summary) VALUES(?,?,?)").bind(id,JSON.stringify(saved),detail));
+     if(gift)statements.push(env.DB.prepare('INSERT INTO gift_redemptions VALUES(?,?,?)').bind(gift.code,id,now()));
      let paymentUrl;
      if(autoEligible&&payment){const doc=autoAdvanceDocument({seller,order,serviceId,slot,quote:saved,hours:fares.prepayments.holdHours||24});const access=await createAdvanceAccess();doc.accessDigest=access.digest;statements.push(...advanceStatements(env.DB,id,doc,now()));paymentUrl='/api/advance/view?id='+id+'&token='+access.token;}
      receipts.push({id,time:slot.start_at,address:order.address,summary:detail,...(paymentUrl?{paymentUrl}:{} )});
    }
    const result={id:receipts[0].id,receipts,status:'pending',summary:receipts.map(v=>v.summary).join(' / ')};
    if(key)statements.unshift(env.DB.prepare('INSERT INTO booking_submissions VALUES(?,?,?)').bind(key,fingerprint,JSON.stringify(result)));
-   try{await env.DB.batch(statements);}catch(e){if(key){const previous=await replay();if(previous)return previous;}if(String(e).includes('NOT NULL'))return fail('Один из интервалов уже занят.',409);throw e;}
+   try{await env.DB.batch(statements);}catch(e){if(key){const previous=await replay();if(previous)return previous;}if(/gift_redemptions|gift code unavailable/.test(String(e)))return fail('Код уже использован или больше недействителен.',409);if(String(e).includes('NOT NULL'))return fail('Один из интервалов уже занят.',409);throw e;}
    const paymentLinks=receipts.filter(v=>v.paymentUrl);
    if(paymentLinks.length&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(b.email||''))ctx.waitUntil((async()=>{try{const response=await fetch('https://api.resend.com/emails',{method:'POST',headers:{Authorization:'Bearer '+env.RESEND_API_KEY,'Content-Type':'application/json','Idempotency-Key':'pakkasukko-auto-'+groupId},body:JSON.stringify({from:env.FROM_EMAIL,to:[b.email],subject:'Pakkasukko · счёт предоплаты',text:'Время временно зарезервировано. Для оплаты откройте защищённые ссылки:\n'+paymentLinks.map(v=>v.time+' · '+url.origin+v.paymentUrl).join('\n')+'\nБронь подтверждается только после поступления оплаты.'})});if(!response.ok)console.warn('Advance email not accepted',response.status);}catch(e){console.warn('Advance email failed',e.message);}})());
    ctx.waitUntil(emailOwner(env,'Новая заявка Pakkasukko',[b.service,b.name,b.phone,b.email,b.city,b.message,...receipts.map(v=>v.time+' · '+v.address+' · '+v.summary)].join('\n')));
@@ -200,7 +213,7 @@ async function api(req,env,ctx,url){
  if(path==='/api/messages'&&method==='POST'){
    if(!(await bookingState(env)).enabled)return fail('Сообщения пока не принимаются.',503);
    const b=await parse(req),name=clean(b.name,100),contact=clean(b.contact,150),body=clean(b.message,1800),token=clean(b.turnstileToken,2048),topic=clean(b.topic,100);
-   const topics=['Вопрос о бронировании','Особенное поздравление','Корпоративный праздник','Сотрудничество','Персональные данные','Другое'];
+   const topics=['Вопрос о бронировании','Особенное поздравление','Корпоративный праздник','Сотрудничество','Персональные данные','Подарочный сертификат','Другое'];
    if(topic&&!topics.includes(topic))return fail('Выберите тему письма.');
    if(body.length<8)return fail('Напишите сообщение.');
    const message=topic?'Тема: '+topic+'\n\n'+body:body;
@@ -235,6 +248,7 @@ async function api(req,env,ctx,url){
  if(path==='/api/admin/editor/intro-copy-2026'&&method==='POST')return reply(await applyIntroCopy(env.DB));
  if(path==='/api/admin/tariffs/doorstep-2026'&&method==='POST')return reply(await applyDoorstepTariffs(env.DB));
  if(path==='/api/admin/tariffs/competitive-2026'&&method==='POST')return reply(await applyCompetitiveTariffs(env.DB));
+ if(path==='/api/admin/gift-codes')return giftAdmin(req,env.DB,reply);
  if(path==='/api/admin/distance-settings'&&method==='GET')return reply(await distanceSettings(env));
  if(path==='/api/admin/distance-settings'&&method==='POST')return await saveDistanceSettings(env,await parse(req))?reply({ok:true}):fail('Проверьте настройки и наличие ключей Google Maps и Routes.');
  if(path==='/api/admin/travel-fare'&&method==='POST'){

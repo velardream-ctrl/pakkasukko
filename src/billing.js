@@ -5,7 +5,7 @@ const eligible=`SELECT b.id,s.start_at,b.city,json_extract(q.snapshot,'$.travel'
  FROM bookings b JOIN slots s ON s.id=b.slot_id JOIN booking_quotes q ON q.booking_id=b.id
  LEFT JOIN booking_details d ON d.booking_id=b.id LEFT JOIN trip_shares t ON t.booking_id=b.id
  WHERE b.status='confirmed' AND COALESCE(d.final_status,'')!='cancelled' AND t.booking_id IS NULL
- AND json_extract(q.snapshot,'$.remote')=0 AND json_extract(q.snapshot,'$.travel') IS NOT NULL AND b.city!='Kitee'`;
+ AND json_extract(q.snapshot,'$.remote')=0 AND json_extract(q.snapshot,'$.travel') IS NOT NULL AND b.city!='Kitee' AND COALESCE(json_extract(q.snapshot,'$.giftCoversTravel'),0)=0`;
 export const departureSQL=`WITH eligible AS (${eligible}), target AS (SELECT * FROM eligible WHERE id=?),
  ranked AS (SELECT e.id,e.cap,COUNT(*) OVER() AS n,MIN(e.cost) OVER() AS pool,
  ROW_NUMBER() OVER(ORDER BY e.start_at,e.id) AS pos
@@ -61,7 +61,7 @@ export async function billing(req,env,path,reply){
  if((path==='issue'||preview)&&req.method==='POST'){
    if(!preview&&invoice)return reply({number:invoice.number});
    if(b.status!=='confirmed'||b.final_status==='cancelled'||(!preview&&day()<b.start_at.slice(0,10)))return fail(preview?'Предпросмотр доступен для подтверждённого действующего заказа.':'Счёт доступен для подтверждённого действующего заказа с даты услуги.');
-   const pendingTrip=q.travel!=null&&!q.remote&&b.city!=='Kitee'&&b.share==null;
+   const pendingTrip=!q.giftCoversTravel&&q.travel!=null&&!q.remote&&b.city!=='Kitee'&&b.share==null;
    if(!preview&&pendingTrip)return fail('Сначала нажмите «Зафиксировать выезд».');
    const p=await readProfile(db);
    if(!p.address||!p.iban||p.vatRate==='')return fail('Заполните реквизиты для счёта.');

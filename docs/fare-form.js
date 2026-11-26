@@ -1,5 +1,6 @@
+import {discountVisit} from './gift-codes.js';
 import {approvedCity,cityKey,mapsLink,validCityQuery,fuelEstimate,distanceDefaults,validPin} from './city-distance.js';
-import {defaultFare,prices,quote,describe,euros,visitQuote,performanceRows,performanceChoice,prepaymentForVisit,bookingPaymentMode} from './fares.js?v=68';
+import {defaultFare,prices,quote,describe,euros,visitQuote,performanceRows,performanceChoice,prepaymentForVisit,bookingPaymentMode} from './fares.js?v=74';
 import {routeCities} from './route-cities.js';
 export function mountFares(form,config){
   const service=form.elements.service,input=form.elements.city;
@@ -58,7 +59,36 @@ export function mountFares(form,config){
   const paymentConsent=document.createElement('input');paymentConsent.type='checkbox';paymentConsent.name='prepaymentTerms';paymentConsent.value='accepted';
   const terms=document.createElement('span');terms.append('Я ознакомился(-ась) с ');const link=document.createElement('a');link.href='./prepayment.html';link.target='_blank';link.rel='noopener';link.textContent='условиями предоплаты и отмены';terms.append(link,'. Предоплата входит в общую стоимость заказа.');
   paymentLabel.append(paymentConsent,terms);paymentBox.append(paymentText,paymentLabel);
-  block.append(note,output,paymentBox);input.closest('.form-row').after(block);
+  const giftBox=document.createElement('div');
+  const giftLabel=document.createElement('label');
+  giftLabel.textContent='Промокод или подарочный сертификат';
+  const giftInput=document.createElement('input');
+  giftInput.maxLength=64;
+  giftInput.spellcheck=false;
+  giftLabel.append(giftInput);
+  const applyGift=document.createElement('button');
+  applyGift.type='button';applyGift.textContent='Применить код';
+  const giftStatus=document.createElement('p');giftStatus.setAttribute('role','status');
+  giftBox.append(giftLabel,applyGift,giftStatus);
+  let gift=null;
+  let giftRequest=0;
+  function resetGift(){giftRequest++;gift=null;giftStatus.textContent='';}
+  giftInput.addEventListener('input',()=>{resetGift();update();});
+  giftInput.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();applyGift.click();}});
+  applyGift.onclick=async()=>{
+    const id=++giftRequest,code=giftInput.value.trim();
+    if(!code){resetGift();update();return;}
+    gift=null;update();giftStatus.textContent='Проверяем код…';
+    try{
+      const response=await fetch('/api/gift-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code})});
+      const rule=await response.json();
+      if(id!==giftRequest)return;
+      if(!response.ok)throw Error(rule.error);
+      gift={...rule,code};update();
+    }catch(error){if(id===giftRequest)giftStatus.textContent=error.message||'Проверка временно недоступна.';}
+  };
+  const priceVisit=(index)=>discountVisit(visitQuote(current,count,index),count===1?gift:null);
+  block.append(note,giftBox,output,paymentBox);input.closest('.form-row').after(block);
   // Rates are optional: an unconfigured program keeps the original booking form.
   const choices=document.createElement('div');choices.className='performer-options';choices.hidden=true;
   const durationLabel=document.createElement('label');durationLabel.textContent='Продолжительность выступления';
@@ -98,9 +128,14 @@ export function mountFares(form,config){
     updatePerformance();
     const times=selectedSlots.map(s=>s.start_at).sort();
     current=quote(config.fares||defaultFare,items[service.value]||{label:'По запросу',remote:false},other?input.value.trim():select.value,count>1,times,selectedPerformance);
-    output.textContent=describe(visitQuote(current,1,0));
+    const priced=priceVisit(0);
+    giftBox.hidden=Boolean(current.remote);
+    giftInput.disabled=Boolean(current.remote);
+    giftInput.setCustomValidity(giftInput.value.trim()&&!priced.discount?'Примените подходящий код или очистите поле.':'');
+    if(gift)giftStatus.textContent=priced.discount?'Код применён.':count>1?'Код действует на один визит.':'Код не подходит к этому расчёту. Проверьте дату и город или выберите другой код.';
+    output.textContent=describe(priced);
     if(!current.remote&&current.travel===null&&estimate?.kind==='estimate'&&count===1){const v=visitQuote(current,1,0);if(Number.isInteger(v.base)){const rough=v.base+fuelEstimate(estimate.km,config.fares||defaultFare);output.textContent+=' · Предварительно '+euros(rough)+' (программа + топливо; итог по согласованию).';}}
-    const visitsForPay=Array.from({length:count},(_,i)=>visitQuote(current,count,i));
+    const visitsForPay=Array.from({length:count},(_,i)=>priceVisit(i));
     const payments=visitsForPay.map(v=>prepaymentForVisit(config.fares||defaultFare,v)).filter(Boolean);
     const advance=payments.reduce((sum,p)=>sum+p.amount,0);
     paymentBox.hidden=!advance;paymentConsent.required=Boolean(advance);paymentConsent.disabled=!advance;
@@ -112,7 +147,7 @@ export function mountFares(form,config){
     if(!advance||(paymentBox.dataset.signature&&paymentBox.dataset.signature!==signature))paymentConsent.checked=false;
     paymentBox.dataset.signature=signature;paymentBox.dataset.method=method;
     if(count>1){
-      const visits=Array.from({length:count},(_,i)=>visitQuote(current,count,i));
+      const visits=Array.from({length:count},(_,i)=>priceVisit(i));
       const total=visits.every(v=>v.total!==null)?visits.reduce((sum,v)=>sum+v.total,0):null;
       output.textContent='Коллективная заявка · Визитов: '+count+(current.durationMinutes?' · '+(current.performerCast==='duo'?'Дед Мороз и Снегурочка':'Дед Мороз')+' · '+current.durationMinutes+' минут':'')+' · Программа за адрес: '+(current.base==null?'по согласованию':euros(current.base))+' · Одна поездка: '+(current.travel==null?'по согласованию':euros(current.travel))+' · Максимум за все адреса: '+(total===null?'по согласованию':euros(total));
       const holidayVisits=visits.filter(v=>v.holidayName);
@@ -123,7 +158,7 @@ export function mountFares(form,config){
   for(const control of [select,service,input])control.addEventListener('input',update);
   service.addEventListener('change',()=>{update();onSelectionChange();});
   for(const control of [durationSelect,castSelect])control.addEventListener('change',()=>{update();onSelectionChange();});
-  form.addEventListener('reset',()=>{clearMap();queueMicrotask(update);});
+  form.addEventListener('reset',()=>{clearMap();resetGift();giftInput.value='';queueMicrotask(update);});
   update();
-  return {note,castTitle,update,bindAddress(read,write){readAddress=read;writeAddress=write;},addressChanged(){if(!mapBox.hidden||estimate){clearMap();update();}},onSelectionChange(fn){onSelectionChange=fn;},durationMinutes(){return selectedPerformance?.minutes||0;},setCount(n){count=Math.max(1,n);selectedSlots=[];update();},setSlots(slots){const next=[...(slots||[])].sort((a,b)=>a.start_at.localeCompare(b.start_at));if(selectedSlots.length&&JSON.stringify(selectedSlots.map(s=>s.id))!==JSON.stringify(next.map(s=>s.id)))clearMap();selectedSlots=next;count=Math.max(1,selectedSlots.length);update();},payload(){update();return {city:current.city,...(pin&&validPin(pin)&&count===1&&!current.remote?{destinationPin:pin}:{}),group:count>1,quoteToken:JSON.stringify(current),paymentMethod:bookingPaymentMode((config.fares||defaultFare).prepayments||defaultFare.prepayments),paymentQuote:JSON.stringify(Array.from({length:count},(_,i)=>prepaymentForVisit(config.fares||defaultFare,visitQuote(current,count,i)))),...(selectedPerformance?{performanceMinutes:selectedPerformance.minutes,performerCast:selectedPerformance.cast}:{})};}};
+  return {note,castTitle,update,bindAddress(read,write){readAddress=read;writeAddress=write;},addressChanged(){if(!mapBox.hidden||estimate){clearMap();update();}},onSelectionChange(fn){onSelectionChange=fn;},durationMinutes(){return selectedPerformance?.minutes||0;},setCount(n){count=Math.max(1,n);selectedSlots=[];update();},setSlots(slots){const next=[...(slots||[])].sort((a,b)=>a.start_at.localeCompare(b.start_at));if(selectedSlots.length&&JSON.stringify(selectedSlots.map(s=>s.id))!==JSON.stringify(next.map(s=>s.id)))clearMap();selectedSlots=next;count=Math.max(1,selectedSlots.length);update();},payload(){update();return {city:current.city,...(gift&&priceVisit(0).discount?{giftCode:gift.code,giftDiscount:priceVisit(0).discount}:{}),...(pin&&validPin(pin)&&count===1&&!current.remote?{destinationPin:pin}:{}),group:count>1,quoteToken:JSON.stringify(current),paymentMethod:bookingPaymentMode((config.fares||defaultFare).prepayments||defaultFare.prepayments),paymentQuote:JSON.stringify(Array.from({length:count},(_,i)=>prepaymentForVisit(config.fares||defaultFare,priceVisit(i)))),...(selectedPerformance?{performanceMinutes:selectedPerformance.minutes,performerCast:selectedPerformance.cast}:{})};}};
 }

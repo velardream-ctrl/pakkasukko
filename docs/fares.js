@@ -181,6 +181,7 @@ export function describe(q){
   if(q.holidayName)parts.push(q.holidayName+' · +'+q.holidayPercent+'% к программе'+(q.holidayExtra===null?' (стоимость по согласованию)':' ('+euros(q.holidayExtra)+')'));
   if(q.hotel)parts.push('Гостиница ('+q.nights+' ноч.) '+euros(q.hotel));
   if(q.meals)parts.push('Питание '+euros(q.meals));
+  if(q.discount)parts.push('Скидка по коду '+euros(q.discount));
   parts.push(q.total===null?'Итого по согласованию':'Итого '+euros(q.total));
   if(q.group)parts.push('Коллективная заявка');
   return parts.join(' · ');

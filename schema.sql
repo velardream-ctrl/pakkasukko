@@ -180,3 +180,20 @@ CREATE TABLE IF NOT EXISTS stripe_checkouts (
 );
 CREATE INDEX IF NOT EXISTS stripe_checkouts_booking_idx ON stripe_checkouts(booking_id,created_at);
 CREATE INDEX IF NOT EXISTS stripe_checkouts_intent_idx ON stripe_checkouts(payment_intent);
+
+CREATE TABLE IF NOT EXISTS gift_codes (
+ code TEXT PRIMARY KEY, kind TEXT NOT NULL, value INTEGER NOT NULL,
+ state TEXT NOT NULL, expires TEXT, created_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS gift_redemptions (
+ code TEXT PRIMARY KEY REFERENCES gift_codes(code), booking_id TEXT NOT NULL UNIQUE, redeemed_at TEXT NOT NULL
+);
+CREATE TRIGGER IF NOT EXISTS gift_redemption_available
+BEFORE INSERT ON gift_redemptions
+WHEN NOT EXISTS (
+ SELECT 1 FROM gift_codes WHERE code=NEW.code AND state IN ('gifted','published')
+ AND (expires IS NULL OR expires>=date('now'))
+)
+BEGIN
+ SELECT RAISE(ABORT,'gift code unavailable');
+END;

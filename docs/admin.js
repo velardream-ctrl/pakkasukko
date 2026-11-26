@@ -1,3 +1,4 @@
+import {giftKinds} from './gift-codes.js';
 import {headingControls,introHeading} from './text-presentation.js';
 import {initial} from './site.js?v=70';
 import {sellerForm,invoiceControls} from './billing-panel.js';
@@ -448,3 +449,39 @@ if(!preview)reload();
 document.getElementById('billingSettings').ontoggle=e=>{if(e.target.open)sellerForm(document.getElementById('sellerForm'),request).catch(err=>alert(err.message));};
 
 document.getElementById('musicSettings').ontoggle=e=>{if(e.target.open)musicAdmin(document.getElementById('musicForm'),request).catch(err=>alert(err.message));};
+
+
+const gifts=document.querySelector('#giftCodes');
+const giftForm=gifts.querySelector('form');
+const giftList=gifts.querySelector('ul');
+const giftMessage=gifts.querySelector('[role=status]');
+for(const [kind,label] of Object.entries(giftKinds))giftForm.elements.kind.add(new Option(label,kind));
+async function refreshGifts(){
+ try{
+  const {codes}=await request('/api/admin/gift-codes');
+  giftList.replaceChildren();
+  for(const gift of codes){
+   const row=document.createElement('li');
+   const amount=gift.kind==='percent'?' '+gift.value+'%': ['fixed','certificate'].includes(gift.kind)?' '+(gift.value/100).toFixed(2)+' €':'';
+   row.textContent=gift.code+' · '+giftKinds[gift.kind]+amount+' · '+(gift.booking_id?'Использован':({gifted:'Выдан',published:'Опубликован',disabled:'Отключён'}[gift.state]))+(gift.expires?' · до '+gift.expires:'');
+   if(!gift.booking_id&&gift.state!=='disabled'){
+    const disable=document.createElement('button');disable.type='button';disable.textContent='Отключить';
+    disable.onclick=async()=>{try{await request('/api/admin/gift-codes','POST',{action:'disable',code:gift.code});await refreshGifts();}catch(error){giftMessage.textContent=error.message;}};
+    row.append(' ',disable);
+   }
+   giftList.append(row);
+  }
+ }catch(error){giftMessage.textContent=error.message;}
+}
+gifts.addEventListener('toggle',()=>{if(gifts.open)refreshGifts();});
+giftForm.addEventListener('submit',async event=>{
+ event.preventDefault();
+ const fields=Object.fromEntries(new FormData(giftForm));
+ const value=Number(fields.value);
+ fields.value=['fixed','certificate'].includes(fields.kind)?Math.round(value*100):value;
+ try{
+  const result=await request('/api/admin/gift-codes','POST',fields);
+  giftMessage.textContent='Код создан: '+result.code;
+  await refreshGifts();
+ }catch(error){giftMessage.textContent=error.message;}
+});

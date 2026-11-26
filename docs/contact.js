@@ -18,3 +18,6 @@ form.addEventListener('submit',async e=>{
  try{const r=await fetch('/api/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});const result=await r.json();if(!r.ok)throw Error(result.error||'Не удалось отправить письмо.');form.reset();status.textContent='Ваше письмо получено! Дед Мороз ответит по указанному адресу.';}catch(e){status.textContent=e.message||'Не удалось отправить письмо. Попробуйте снова.';}finally{busy=false;resetCaptcha();}
 });
 init();
+if(new URLSearchParams(location.search).get('topic')==='certificate'){
+ document.querySelector('#letterForm').elements.topic.value='Подарочный сертификат';
+}
