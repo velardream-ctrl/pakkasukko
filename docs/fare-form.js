@@ -34,7 +34,7 @@ export function mountFares(form,config){
    const key=cityKey(raw);if(lastCity!==key||count>1&&pin){lastCity=key;clearMap();}
    if(!other||count>1){if(!mapBox.hidden)clearMap();}
    distanceRow.hidden=!other;routeBox.hidden=!other||items[service.value]?.remote===true;distance.hidden=!other;
-   lookup.hidden=!!known||!settings.enabled||!settings.configured;lookup.disabled=busy||!validCityQuery(raw);
+   lookup.hidden=!!known&&!pin||!settings.enabled||!settings.configured;lookup.disabled=busy||!validCityQuery(raw);
    mapButton.hidden=!settings.enabled||!settings.configured||!settings.browserKey||count>1;mapButton.disabled=!validCityQuery(raw);
    routeLink.hidden=!validCityQuery(raw)||!!known;routeLink.href=mapsLink(settings.origin,raw);
    if(estimate?.kind==='estimate'){distance.textContent='≈ '+estimate.km+' км';routeNote.textContent='Google Maps · '+estimate.origin+' → '+raw+'. В одну сторону. Топливо туда и обратно ≈ '+euros(fuelEstimate(estimate.km,config.fares||defaultFare))+'. '+(known?'Действует утверждённый тариф города.':'Итоговую стоимость и возможность выезда подтвердит организатор.');}
@@ -91,6 +91,7 @@ export function mountFares(form,config){
     const times=selectedSlots.map(s=>s.start_at).sort();
     current=quote(config.fares||defaultFare,items[service.value]||{label:'По запросу',remote:false},other?input.value.trim():select.value,count>1,times,selectedPerformance);
     output.textContent=describe(visitQuote(current,1,0));
+    if(current.travel===null&&estimate?.kind==='estimate'&&count===1){const v=visitQuote(current,1,0);if(Number.isInteger(v.base)){const rough=v.base+fuelEstimate(estimate.km,config.fares||defaultFare);output.textContent+=' · Предварительно '+euros(rough)+' (программа + топливо; итог по согласованию).';}}
     const visitsForPay=Array.from({length:count},(_,i)=>visitQuote(current,count,i));
     const payments=visitsForPay.map(v=>prepaymentForVisit(config.fares||defaultFare,v)).filter(Boolean);
     const advance=payments.reduce((sum,p)=>sum+p.amount,0);
@@ -116,5 +117,5 @@ export function mountFares(form,config){
   for(const control of [durationSelect,castSelect])control.addEventListener('change',()=>{update();onSelectionChange();});
   form.addEventListener('reset',()=>{clearMap();queueMicrotask(update);});
   update();
-  return {note,castTitle,update,bindAddress(read,write){readAddress=read;writeAddress=write;},onSelectionChange(fn){onSelectionChange=fn;},durationMinutes(){return selectedPerformance?.minutes||0;},setCount(n){count=Math.max(1,n);selectedSlots=[];update();},setSlots(slots){selectedSlots=[...(slots||[])].sort((a,b)=>a.start_at.localeCompare(b.start_at));count=Math.max(1,selectedSlots.length);update();},payload(){update();return {city:current.city,...(pin&&validPin(pin)&&count===1&&select.value==='Другой город'&&!current.remote?{destinationPin:pin}:{}),group:count>1,quoteToken:JSON.stringify(current),paymentMethod:bookingPaymentMode((config.fares||defaultFare).prepayments||defaultFare.prepayments),paymentQuote:JSON.stringify(Array.from({length:count},(_,i)=>prepaymentForVisit(config.fares||defaultFare,visitQuote(current,count,i)))),...(selectedPerformance?{performanceMinutes:selectedPerformance.minutes,performerCast:selectedPerformance.cast}:{})};}};
+  return {note,castTitle,update,bindAddress(read,write){readAddress=read;writeAddress=write;},addressChanged(){if(pin){clearMap();update();}},onSelectionChange(fn){onSelectionChange=fn;},durationMinutes(){return selectedPerformance?.minutes||0;},setCount(n){count=Math.max(1,n);selectedSlots=[];update();},setSlots(slots){selectedSlots=[...(slots||[])].sort((a,b)=>a.start_at.localeCompare(b.start_at));count=Math.max(1,selectedSlots.length);update();},payload(){update();return {city:current.city,...(pin&&validPin(pin)&&count===1&&select.value==='Другой город'&&!current.remote?{destinationPin:pin}:{}),group:count>1,quoteToken:JSON.stringify(current),paymentMethod:bookingPaymentMode((config.fares||defaultFare).prepayments||defaultFare.prepayments),paymentQuote:JSON.stringify(Array.from({length:count},(_,i)=>prepaymentForVisit(config.fares||defaultFare,visitQuote(current,count,i)))),...(selectedPerformance?{performanceMinutes:selectedPerformance.minutes,performerCast:selectedPerformance.cast}:{})};}};
 }
