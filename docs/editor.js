@@ -1,9 +1,10 @@
+import {headingControls,styleControls,styleField} from './text-presentation.js';
 import {fitTagline,taglineSlider} from './tagline.js';
 import {applySnow} from './snow.js';
 import {deliveryFields} from './delivery-editor.js';
 import {BUILTIN_SERVICES} from './video-service.js';
 import {snowPanel} from './snow-panel.js';
-import {applyBrand,setField,devices,baseCrop,baseSectionCrop,sectionCrop,initial,bindPage,renderPage,cropPhoto,applySectionCrop,applyHeroShade,heroShadePercent,applyRoutesShade,routesShadePercent,heroImageId,setHeroDeviceImage,setHeroGlobalImage,mediaURL} from './site.js?v=45';
+import {applyBrand,setField,devices,baseCrop,baseSectionCrop,sectionCrop,initial,bindPage,renderPage,cropPhoto,applySectionCrop,applyHeroShade,heroShadePercent,applyRoutesShade,routesShadePercent,heroImageId,setHeroDeviceImage,setHeroGlobalImage,mediaURL} from './site.js?v=70';
 const $=id=>document.getElementById(id);
 const frame=document.querySelector('iframe'), panel=document.querySelector('main');
 const names={header:'Шапка',top:'Первый экран',intro:'Вступление',programs:'Программы',about:'Об артисте',routes:'Города',booking:'Календарь',contact:'Контакты',privacy:'Конфиденциальность',footer:'Подвал'};
@@ -159,16 +160,18 @@ function section(){
   if(group==='header')taglineSlider($('fields'),model,doc);
   const heading=doc.getElementById(group)?.querySelector('h1,h2');
   if(heading&&!custom&&!query){
-    const title=input($('fields'),'Заголовок целиком',model.headingOverrides[group]??(heading.innerText||heading.textContent),v=>{model.headingOverrides[group]=v;draw();},'textarea');title.id='wholeHeading';
-    button($('fields'),'Вернуть составной заголовок',()=>{delete model.headingOverrides[group];draw();section();});
+    const title=headingControls($('fields'),model,group,heading,draw);title.id='wholeHeading';
+    button($('fields'),'Вернуть составной заголовок',()=>{delete model.headingOverrides[group];delete model.headingParts?.[group];draw();section();});
   }
   for(const f of fields){
     const value=model.texts[f.key]??f.original;
+    if(!query&&heading&&!custom&&heading.contains(f.node)&&!f.attribute)continue;
     if(query ? !(value+' '+f.original).toLocaleLowerCase('ru').includes(query) : f.group!==group)continue;
     const label=(query?names[f.group]+' · ':'')+(f.attribute==='placeholder'?'Подсказка поля · ':'')+f.original.trim().slice(0,80);
     const editor=input($('fields'),label,value,v=>{model.texts[f.key]=v;setField(f,v);if(f.group==='header')fitTagline(doc,model.taglineWidth);if(!f.node)draw();
-      if(f.node?.parentElement?.closest('[data-heading-original]')){delete model.headingOverrides[f.group];draw();}
+      if(f.node?.parentElement?.closest('[data-heading-original]')){delete model.headingOverrides[f.group];delete model.headingParts?.[f.group];draw();}
     },'textarea');editor.id='edit-'+f.key;
+    if(f.node&&!f.attribute)styleControls($('fields'),model.textStyles?.[f.key],v=>{(model.textStyles??={})[f.key]=v;styleField(f,v);});
   }
   if(group==='programs')for(const link of doc.querySelectorAll('.card [data-service]')){
     const k=link.dataset.service;input($('fields'),'Длительность · '+link.closest('.card').querySelector('h3').textContent,model.durations[k]||'',v=>{model.durations[k]=v;draw();});
