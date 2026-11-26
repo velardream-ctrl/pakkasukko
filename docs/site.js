@@ -62,6 +62,35 @@ export function applySectionCrop(doc,model,section,device,editing=false){
   img.style.transform='translate('+Math.max(-100,Math.min(100,Number(crop.x)||0))+'%, '+Math.max(-100,Math.min(100,Number(crop.y)||0))+'%) scale('+Math.max(.35,Math.min(3,(Number(crop.zoom)||100)/100))+')';
 }
 
+const defaultSectionOrder = ['top','intro','programs','giftWorkshop','about','routes','booking','contact','privacy'];
+export function sectionOrder(order) {
+  const sections = new Set(order?.length ? order : defaultSectionOrder);
+  sections.delete('top');
+  const result = ['top', ...sections];
+  if (!sections.has('giftWorkshop')) {
+    const programs = result.indexOf('programs');
+    result.splice(programs < 0 ? 1 : programs + 1, 0, 'giftWorkshop');
+  }
+  return result;
+}
+
+export function applyGiftWorkshop(doc,settings) {
+  const section=doc.getElementById('giftWorkshop');
+  if(!section)return;
+  section.dataset.workshopEnabled=String(settings?.enabled===true);
+  if(!settings)return;
+  for(const [id,key] of [['giftWorkshopTitle','title'],['giftWorkshopDescription','description'],['giftWorkshopButton','button']]){
+    doc.getElementById(id).textContent=settings[key];
+  }
+}
+
+export function moveSection(order,id,delta) {
+  const from=order.indexOf(id),to=from+delta;
+  if(from<1||to<1||to>=order.length)return false;
+  [order[from],order[to]]=[order[to],order[from]];
+  return true;
+}
+
 export const initial = () => ({sections:[],headingOverrides:{},headingParts:{},textStyles:{},texts:{},crops:{},sectionCrops:{},shades:{},routesShades:{},hidden:[],order:[],cards:[],pictures:{},seo:{},logo:"",contacts:{},durations:{},deliveryModes:{}});
 // Additional programs use the same visual structure as the three original cards.
 // Presentation defaults are derived at render time, so old D1 drafts stay intact.
@@ -206,9 +235,19 @@ export function renderPage(doc,model,fields,device,editing=false,fares=null){
     if(original.id){replacement.id=original.id;original.dataset.headingOriginalId=original.id;original.removeAttribute('id');}
     original.dataset.headingOriginal='';original.hidden=true;original.after(replacement);
   }
-  for(const id of model.order){const section=doc.getElementById(id);if(section?.parentElement?.tagName==='MAIN')section.parentElement.append(section);}
+  const workshop=doc.getElementById('giftWorkshop');
+  const workshopLink=doc.querySelector('[data-gift-workshop-link]');
+  if(workshopLink)workshopLink.hidden=workshop?.dataset.workshopEnabled!=='true'||model.hidden.includes('giftWorkshop');
+  const main=doc.querySelector('main');
+  for(const id of sectionOrder(model.order)){
+    const section=doc.getElementById(id);
+    if(section?.parentElement===main)main.append(section);
+  }
+  const hero=doc.getElementById('top');
+  const firstSection=main?.querySelector(':scope > section');
+  if(hero?.parentElement===main&&firstSection!==hero)firstSection.before(hero);
   for(const section of doc.querySelectorAll('main > section')){
-    section.hidden=model.hidden.includes(section.id);
+    section.hidden=model.hidden.includes(section.id)||(section.id==='giftWorkshop'&&section.dataset.workshopEnabled!=='true');
     section.querySelector('.section-media-frame')?.remove();
     section.querySelector('.section-media')?.remove();
     const asset=model.pictures[section.id];

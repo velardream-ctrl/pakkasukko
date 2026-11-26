@@ -1,0 +1,30 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {JSDOM} from 'jsdom';
+import {applyGiftWorkshop,bindPage,initial,moveSection,renderPage,sectionOrder} from '../docs/site.js';
+
+test('legacy order places the gift workshop after programs, and editor moves change the rendered order below the hero',()=>{
+ const {document:doc}=new JSDOM(readFileSync(new URL('../docs/index.html',import.meta.url),'utf8')).window;
+ doc.querySelectorAll('canvas').forEach(canvas=>canvas.remove());
+ const model=initial();
+ model.order=['top','programs','intro','about','routes','booking','contact','privacy'];
+ const settings={enabled:true,title:'Подарок',description:'Описание',button:'Выбрать'};
+ applyGiftWorkshop(doc,settings);
+ const fields=bindPage(doc);
+ const main=doc.querySelector('main');
+ const gift=doc.getElementById('giftWorkshop');
+ renderPage(doc,model,fields,'desktop');
+ assert.equal(gift.previousElementSibling.id,'programs');
+ assert.equal(gift.hidden,false);
+ model.order=sectionOrder(model.order);
+ assert.equal(moveSection(model.order,'giftWorkshop',-1),true);
+ assert.equal(moveSection(model.order,'giftWorkshop',-1),false);
+ assert.equal(moveSection(model.order,'top',1),false);
+ renderPage(doc,model,fields,'phone');
+ assert.equal(main.querySelector(':scope > section').id,'top');
+ assert.equal(gift.previousElementSibling.id,'top');
+ applyGiftWorkshop(doc,{...settings,enabled:false});
+ renderPage(doc,model,fields,'phone');
+ assert.equal(gift.hidden,true);
+});

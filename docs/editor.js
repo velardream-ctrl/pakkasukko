@@ -4,10 +4,10 @@ import {applySnow} from './snow.js';
 import {deliveryFields} from './delivery-editor.js';
 import {BUILTIN_SERVICES} from './video-service.js';
 import {snowPanel} from './snow-panel.js';
-import {applyBrand,setField,devices,baseCrop,baseSectionCrop,sectionCrop,initial,bindPage,renderPage,cropPhoto,applySectionCrop,applyHeroShade,heroShadePercent,applyRoutesShade,routesShadePercent,heroImageId,setHeroDeviceImage,setHeroGlobalImage,mediaURL} from './site.js?v=70';
+import {applyGiftWorkshop,sectionOrder,moveSection,applyBrand,setField,devices,baseCrop,baseSectionCrop,sectionCrop,initial,bindPage,renderPage,cropPhoto,applySectionCrop,applyHeroShade,heroShadePercent,applyRoutesShade,routesShadePercent,heroImageId,setHeroDeviceImage,setHeroGlobalImage,mediaURL} from './site.js?v=76';
 const $=id=>document.getElementById(id);
 const frame=document.querySelector('iframe'), panel=document.querySelector('main');
-const names={header:'Шапка',top:'Первый экран',intro:'Вступление',programs:'Программы',about:'Об артисте',routes:'Города',booking:'Календарь',contact:'Контакты',privacy:'Конфиденциальность',footer:'Подвал'};
+const names={header:'Шапка',top:'Первый экран',intro:'Вступление',programs:'Программы',giftWorkshop:'Подарочная мастерская',about:'Об артисте',routes:'Города',booking:'Календарь',contact:'Контакты',privacy:'Конфиденциальность',footer:'Подвал'};
 let data,model,fields,doc,landscape=false,scale=1,start,sessionNotice,lastBrokenImage='';
 function note(s){$('status').textContent=s;}
 function requireOwnerLogin(){
@@ -180,7 +180,10 @@ function section(){
   }
   if(![...$('picture').options].some(o=>o.value==='pakkasukko-gifts'))$('picture').add(new Option('Дед Мороз дарит подарки','pakkasukko-gifts'));
   $('picture').value=model.pictures[group]?.id||'';
-  for(const id of ['up','down','visibility','picture'])$(id).disabled=!model.order.includes(group);
+  for(const id of ['visibility','picture'])$(id).disabled=!model.order.includes(group);
+  const position=model.order.indexOf(group);
+  $('up').disabled=position<=1;
+  $('down').disabled=position<1||position>=model.order.length-1;
   $('visibility').textContent=model.hidden.includes(group)?'Показать раздел':'Скрыть раздел';
 }
 function cards(){
@@ -232,7 +235,7 @@ async function refreshMedia(){data.media=(await api('editor')).media;library();s
 function reset(){
   model=Object.assign(initial(),structuredClone(data.model));
   snowPanel($('snowFields'),model.snow,value=>{model.snow=value;applySnow(doc,value,device());});
-  if(!model.order.length)model.order=Object.keys(names).filter(k=>!['header','footer'].includes(k));
+  model.order=sectionOrder(model.order);
   outline();library();section();cards();$('contacts').replaceChildren();for(const [k,label] of [['email','Email'],['phone','Телефон']])input($('contacts'),label,model.contacts[k]||'',v=>{model.contacts[k]=v;draw();});$('seo').replaceChildren();
   for(const [key,label,v] of [['title','Заголовок',doc.title],['description','Описание',doc.querySelector('meta[name=description]').content]])input($('seo'),label,model.seo[key]??v,text=>model.seo[key]=text);
   $('history').replaceChildren(...data.history.map(v=>new Option('#'+v.id+' · '+v.created_at+' · '+(v.published?'публикация':'черновик'),v.id)));layout();
@@ -246,6 +249,7 @@ async function init(){
   page.querySelectorAll('script').forEach(s=>s.remove());
   const config=await (await fetch('/api/public-config',{cache:'no-store'})).json();publishedFares=config.fares;
   for(const [id,key] of Object.entries({priceGift:'giftPrice',priceHome:'homePrice',priceEvent:'eventPrice',bio:'bio',travel:'travel'}))if(config.content?.[key])page.getElementById(id).textContent=config.content[key];
+  applyGiftWorkshop(page,config.giftWorkshop);
   const loaded=new Promise(resolve=>frame.onload=resolve);frame.srcdoc=page.documentElement.outerHTML;await loaded;
   doc=frame.contentDocument;fields=bindPage(doc);doc.addEventListener('click',previewClick,true);
   // Image errors cannot be read through img.onload as they may be caused by
@@ -328,7 +332,10 @@ $('picture').onchange=async e=>{
   else delete model.pictures[group];
   draw();
 };
-for(const [id,delta] of [['up',-1],['down',1]])action(id,()=>{const i=model.order.indexOf($('section').value),j=i+delta;if(j>=0&&j<model.order.length){[model.order[i],model.order[j]]=[model.order[j],model.order[i]];outline();draw();note('Порядок: '+model.order.map(groupName).join(' · '));}});
+for(const [id,delta] of [['up',-1],['down',1]])action(id,()=>{
+  if(!moveSection(model.order,$('section').value,delta))return;
+  outline();section();draw();note('Порядок: '+model.order.map(groupName).join(' · '));
+});
 action('visibility',()=>{const k=$('section').value;model.hidden=model.hidden.includes(k)?model.hidden.filter(i=>i!==k):[...model.hidden,k];outline();section();draw();});
 action('add',()=>{const id=crypto.randomUUID();model.cards.push({id,title:'Новая программа',description:'',price:'',duration:''});model.deliveryModes??={};model.deliveryModes[id]={mode:'visit',days:7};cards();draw();});
 action('save',()=>commit());action('publish',()=>commit(true));action('restore',()=>{if($('history').value)return commit(false,Number($('history').value));});

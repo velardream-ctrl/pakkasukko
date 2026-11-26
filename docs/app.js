@@ -2,7 +2,7 @@ import {deliveryConfig,deliveryLink} from './video-service.js';
 import {mountFares} from './fare-form.js?v=74';
 import {holidayInfo,bookingPaymentMode,defaultFare} from './fares.js?v=71';
 import {fitTagline} from './tagline.js';
-import {pageText,initial,bindPage,renderPage,deviceFor} from './site.js?v=70';
+import {applyGiftWorkshop,pageText,initial,bindPage,renderPage,deviceFor} from './site.js?v=76';
 import {mountSpatialPhoto} from './spatial-gallery.js?v=8';
 const $=(s)=>document.querySelector(s);
 fitTagline(document);
@@ -21,13 +21,7 @@ async function activate(){
     const configResp=await fetch('/api/public-config',{cache:'no-store'});
     if(!configResp.ok) return;
     const config=await configResp.json();
-    const workshop=config.giftWorkshop;
-    if(workshop?.enabled){
-      $('#giftWorkshopTitle').textContent=workshop.title;
-      $('#giftWorkshopDescription').textContent=workshop.description;
-      $('#giftWorkshopButton').textContent=workshop.button;
-      $('#giftWorkshop').hidden=false;
-    }
+    applyGiftWorkshop(document,config.giftWorkshop);
     for(const [id,key] of [['priceGift','giftPrice'],['priceHome','homePrice'],['priceEvent','eventPrice'],['bio','bio'],['travel','travel']]){
       if(config.content&&typeof config.content[key]==='string'&&config.content[key])document.getElementById(id).textContent=config.content[key];
     }
@@ -49,7 +43,7 @@ async function activate(){
     addEventListener('resize',()=>{redraw();document.dispatchEvent(new Event('pakkasukko:layout'));});
     // Ordinary visitors receive no editing UI. Authentication is validated by the Worker.
     try{
-      const {startInlineEditor}=await import('./inline-editor.js?v=70');
+      const {startInlineEditor}=await import('./inline-editor.js?v=76');
       await startInlineEditor({model,fields:boundFields,currentDevice,fares:config.fares,spatialPhoto,onAdmin:()=>{ownerPreview=true;}});
     }catch(err){console.warn('Inline editor unavailable',err?.message);}
     // Open availability is public and needs no login, cookies or Turnstile.

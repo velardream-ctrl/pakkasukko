@@ -4,7 +4,7 @@ import {fitTagline,taglineSlider} from './tagline.js';
 import {applySnow} from './snow.js';
 import {snowPanel} from './snow-panel.js';
 import {spatialSettings,BUILTIN_SPATIAL,patchSpatialSettings} from './spatial-gallery.js?v=8';
-import {initial,mediaURL,baseCrop,baseSectionCrop,sectionCrop,cropPhoto,applySectionCrop,renderPage,setField,applyHeroShade,heroShadePercent,applyRoutesShade,routesShadePercent,heroImageId,setHeroDeviceImage} from './site.js?v=70';
+import {sectionOrder,moveSection,initial,mediaURL,baseCrop,baseSectionCrop,sectionCrop,cropPhoto,applySectionCrop,renderPage,setField,applyHeroShade,heroShadePercent,applyRoutesShade,routesShadePercent,heroImageId,setHeroDeviceImage} from './site.js?v=76';
 
 // RUN-009: In-page controls are loaded only after the protected /api/admin/editor request succeeds.
 export function editableFields(fields,element){
@@ -16,7 +16,7 @@ export function photoState(model,target,device){
   model.sectionCrops??={};
   return (model.sectionCrops[target]??={})[device]??=baseSectionCrop();
 }
-const names={header:'Шапка',top:'Главный экран',intro:'Подарить воспоминание',programs:'Программы',about:'У волшебства есть голос',routes:'Города',booking:'Календарь',contact:'Контакты',privacy:'Конфиденциальность',footer:'Подвал'};
+const names={header:'Шапка',top:'Главный экран',intro:'Подарить воспоминание',programs:'Программы',giftWorkshop:'Подарочная мастерская',about:'У волшебства есть голос',routes:'Города',booking:'Календарь',contact:'Контакты',privacy:'Конфиденциальность',footer:'Подвал'};
 const short=(s,n=45)=>String(s||'').trim().replace(/\s+/g,' ').slice(0,n);
 function make(tag,className,text){
   const e=document.createElement(tag);
@@ -92,7 +92,7 @@ export async function startInlineEditor({model,fields,currentDevice,onAdmin,fare
     for(const key of Object.keys(model))delete model[key];
     Object.assign(model,initial(),structuredClone(value||{}));
     model.sectionCrops??={};model.shades??={};model.routesShades??={};model.pictures??={};model.hidden??=[];model.order??=[];model.cards??=[];model.sections??=[];
-    if(!model.order.length)model.order=['top','intro','programs','about','routes','booking','contact','privacy'];
+    model.order=sectionOrder(model.order);
   }
   baseline=structuredClone(result.model||{});
   replaceModel(baseline);
@@ -243,12 +243,12 @@ export async function startInlineEditor({model,fields,currentDevice,onAdmin,fare
         button(buttons,target?'Показать':'Скрыть',()=>{model.hidden=target?model.hidden.filter(x=>x!==id):[...model.hidden,id];changed();draw();sectionPanel(id);});
       }
       for(const [label,delta] of [['↑',-1],['↓',1]]){
-        button(buttons,label,()=>{
-          const i=model.order.indexOf(id),j=i+delta;
-          if(i<0||j<0||j>=model.order.length)return;
-          [model.order[i],model.order[j]]=[model.order[j],model.order[i]];
+        const arrow=button(buttons,label,()=>{
+          if(!moveSection(model.order,id,delta))return;
           changed();draw();sectionPanel(id);
         });
+        const index=model.order.indexOf(id);
+        arrow.disabled=index<1||index+delta<1||index+delta>=model.order.length;
       }
       if(id!=='footer'&&id!=='header')button(buttons,'▣ Фото',()=>photoPanel(id));
       const custom=model.sections.some(s=>s.id===id);
