@@ -134,6 +134,15 @@ try{
   if(JSON.stringify(gift?.map(r=>[r.minutes,r.solo,r.duo]))!==JSON.stringify([[10,4000,6500],[15,4500,7500],[20,5500,9000]])||current.services?.gift?.label!=='от 40 €'||current.fares?.performance?.rates?.home?.find(r=>r.minutes===45)?.duo!==16000)throw Error('Doorstep tariff verification failed');
  }
  console.log('Doorstep tariff migration: '+(doorstepResult.alreadyApplied?'already applied':'applied and verified'));
+ const copyUpdate=await fetch(url+'/api/admin/editor/intro-copy-2026',{method:'POST',headers:{Cookie:cookie,Origin:url,'Content-Type':'application/json'},body:'{}'});
+ const copyResult=await copyUpdate.json().catch(()=>null);
+ if(!copyUpdate.ok||!copyResult?.ok)throw Error('Intro copy migration failed (HTTP '+copyUpdate.status+')');
+ if(!copyResult.alreadyApplied){
+  const config=await fetch(url+'/api/public-config',{cache:'no-store'}).then(r=>r.json());
+  const parts=config.site?.headingParts?.intro;
+  if(parts&&JSON.stringify(parts.map(p=>[p.text,p.color,p.font]))!==JSON.stringify([['Не просто вручить подарок,','ink','normal'],['а подарить воспоминания.','gold','italic']]))throw Error('Intro copy verification failed');
+ }
+ console.log('Intro copy migration: '+(copyResult.alreadyApplied?'already applied':'applied and verified'));
  console.log('Owner calendar launch controls ready.');
  console.log('Readiness (no secret values): Turnstile='+booking.turnstileConfigured+', Resend='+booking.emailConfigured+', testEmailSent='+booking.mailTestSent+', liveBookings='+booking.enabled);
  await fetch(url+'/api/admin/logout',{method:'POST',headers:{Cookie:cookie,Origin:url}});
