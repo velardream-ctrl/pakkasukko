@@ -69,11 +69,12 @@ export function mountFares(form,config){
     const advance=payments.reduce((sum,p)=>sum+p.amount,0);
     paymentBox.hidden=!advance;paymentConsent.required=Boolean(advance);paymentConsent.disabled=!advance;
     const method=bookingPaymentMode((config.fares||defaultFare).prepayments||defaultFare.prepayments);
-    const auto=method==='bank'&&config.fares?.prepayments?.automaticBank===true;
-    const modeText=auto?'Счёт откроется сразу после отправки заявки с известной ценой.':method==='stripe'?'Оплата через защищённую ссылку Stripe после выставления счёта.':'Оплата банковским переводом после выставления счёта.';
+    const auto=method==='bank'&&config.fares?.prepayments?.automaticBank===true&&visitsForPay.every(v=>Number.isInteger(v.total));
+    const modeText=auto?'Счёт откроется сразу после отправки заявки. Время резервируется до '+(config.fares?.prepayments?.holdHours||24)+' ч., но не позже начала визита.':method==='stripe'?'Оплата через защищённую ссылку Stripe после выставления счёта.':'Оплата банковским переводом после выставления счёта.';
     paymentText.textContent=advance?'Обязательная предоплата: '+euros(advance)+'. '+modeText+' Предоплата входит в общую стоимость.':'';
-    if(!advance||(paymentBox.dataset.method&&paymentBox.dataset.method!==method))paymentConsent.checked=false;
-    paymentBox.dataset.method=method;
+    const signature=JSON.stringify([method,auto,config.fares?.prepayments?.holdHours||24,payments]);
+    if(!advance||(paymentBox.dataset.signature&&paymentBox.dataset.signature!==signature))paymentConsent.checked=false;
+    paymentBox.dataset.signature=signature;paymentBox.dataset.method=method;
     if(count>1){
       const visits=Array.from({length:count},(_,i)=>visitQuote(current,count,i));
       const total=visits.every(v=>v.total!==null)?visits.reduce((sum,v)=>sum+v.total,0):null;
