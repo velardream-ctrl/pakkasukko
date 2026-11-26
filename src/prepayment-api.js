@@ -74,6 +74,7 @@ export async function prepaymentsAPI(req,env,path,reply){
   return reply({ok:true});
  }
  if(path==='paid'&&method==='POST'){
+  if(document.quote?.prepayment?.paymentMethod==='stripe')return fail(reply,'Для этого заказа подтверждение оплаты поступает от Stripe.',409);
   const outstanding=await db.prepare("SELECT id FROM stripe_checkouts WHERE booking_id=? AND status='open' AND expires_at>? LIMIT 1").bind(id,Math.floor(Date.now()/1000)).first();
   if(outstanding)return fail(reply,'Есть активная ссылка Stripe. Дождитесь подтверждения оплаты или окончания срока ссылки.',409);
   const input=await readJSON(req),note=safeNote(input.note);
