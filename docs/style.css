@@ -325,3 +325,17 @@ main > section:not(.intro) > .section-media-frame,
 .booking-form .performer-options select{width:100%;min-width:0;font-size:15px}
 @media(max-width:620px){.booking-form .performer-options{grid-template-columns:1fr}}
 .booking-form .performer-hint{grid-column:1/-1;font-size:13px;line-height:1.5;font-weight:500;color:#627780;margin:0}
+
+/* Text palette: contrast-aware, independent of italic / normal font style. */
+[data-pk-color="ink"]{color:var(--pk-primary,var(--cream))!important}
+[data-pk-color="gold"]{color:var(--pk-accent,var(--gold))!important}
+.intro,.about,.admin-main{--pk-primary:var(--ink);--pk-accent:#976b32}
+[data-pk-font="normal"]{font-style:normal!important}
+[data-pk-font="italic"]{font-style:italic!important}
+[data-heading-display] span{white-space:pre-line}
+.pk-text-style-controls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:8px 0 12px}
+.pk-text-style-controls label{min-width:0;display:flex;flex-direction:column;gap:4px}
+.pk-text-style-controls select{width:100%;min-width:0}
+@media(max-width:480px){.pk-text-style-controls{grid-template-columns:1fr}}
+
+.about-portrait{--pk-primary:var(--cream);--pk-accent:var(--gold)}

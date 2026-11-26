@@ -1,3 +1,5 @@
+import {headingControls,introHeading} from './text-presentation.js';
+import {initial} from './site.js?v=70';
 import {sellerForm,invoiceControls} from './billing-panel.js';
 import {prepaymentControls} from './prepayment-panel.js?v=65';
 import {applyBrand} from './site.js';
@@ -22,6 +24,26 @@ function el(tag,text,cls){const node=document.createElement(tag);if(text!==undef
 function textBlock(parent,tag,text,cls){const child=el(tag,text,cls);parent.append(child);return child;}
 function button(parent,label,cb,cls){const b=el('button',label,cls);b.type='button';b.addEventListener('click',cb);parent.append(b);return b;}
 function format(stamp){return (stamp||'').replace('T',' ');}
+async function mountHeadingQuickEditor(){
+ const box=$('headingQuickEditor');if(!box||box.dataset.ready)return;
+ try{
+  const data=await request('/api/admin/editor');const model=Object.assign(initial(),data.model||{});
+  model.headingParts??={};model.headingOverrides??={};
+  // Preserve any existing draft and require an explicit save or publish.
+  const mock=document.createElement('h2');mock.append(document.createTextNode(introHeading[0].text),document.createElement('br'));const em=document.createElement('em');em.textContent=introHeading[1].text;mock.append(em);
+  const published=el('p','Заголовок «Подарить воспоминания»','status');box.append(published);
+  let dirty=false,revision=data.id||0;
+  headingControls(box,model,'intro',mock,()=>{dirty=true;published.textContent='Есть несохранённые изменения';});
+  for(const [publish,label] of [[false,'Сохранить черновик'],[true,'Опубликовать']])button(box,label,async()=>{
+   try{if(!dirty&&!publish){published.textContent='Нет изменений';return;}
+    if(publish&&data.history?.[0]?.published===0&&!confirm('Будет опубликован весь текущий черновик сайта, включая другие сохранённые правки. Продолжить?'))return;
+    const result=await request('/api/admin/editor','POST',{id:revision,model,publish});revision=result.id;dirty=false;published.textContent=publish?'Опубликовано':'Черновик сохранён';
+   }catch(e){published.textContent=e.message;}
+  },'btn btn-dark');
+  box.dataset.ready='1';
+ }catch(e){box.textContent=e.message;}
+}
+$('textAppearance')?.addEventListener('toggle',()=>{if($('textAppearance').open)mountHeadingQuickEditor();});
 async function reload(){
  try{state=await request('/api/admin/dashboard');try{stripeConnection=await request('/api/admin/stripe/status');}catch{stripeConnection={enabled:false,mode:'off'};}try{publicServices=(await request('/api/public-config')).services||{};}catch{publicServices={};}$('loginBox').classList.add('hidden');$('dashboard').classList.remove('hidden');$('logout').classList.remove('hidden');render();renderFare();renderPrepayments();renderPerformance();await reloadInvoices();await reloadBookingState();await renderVideoOrders($('videoOrderList'),request);}
  catch(e){$('dashboard').classList.add('hidden');$('loginBox').classList.remove('hidden');$('logout').classList.add('hidden');}

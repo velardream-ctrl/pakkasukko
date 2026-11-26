@@ -77,6 +77,21 @@ with sync_playwright() as playwright:
     panel.get_by_label("С даты").fill("2000-01-01")
     panel.get_by_label("По дату").fill("2099-12-31")
     expect(canvas).to_be_visible()
+    # Editing a headline must keep independent color, font and line breaks.
+    page.get_by_role("button", name="Закрыть панель").click()
+    page.locator('#intro-title').scroll_into_view_if_needed()
+    page.locator('.pk-pin-text[aria-label*="Не просто вручить"]').first.dispatch_event("click")
+    panel = page.locator(".pk-panel")
+    expect(panel.get_by_label("Строка 1", exact=True)).to_have_value("Не просто вручить подарок,")
+    panel.get_by_label("Строка 2", exact=True).fill("а подарить новые воспоминания.")
+    panel.get_by_label("Цвет текста", exact=True).nth(0).select_option("ink")
+    panel.get_by_label("Цвет текста", exact=True).nth(1).select_option("gold")
+    panel.get_by_label("Начертание", exact=True).nth(1).select_option("italic")
+    title = page.locator("#intro-title")
+    expect(title.locator("br")).to_have_count(1)
+    expect(title.locator("span").nth(1)).to_have_text("а подарить новые воспоминания.")
+    expect(title.locator("span").nth(1)).to_have_css("color", "rgb(151, 107, 50)")
+    expect(title.locator("span").nth(1)).to_have_css("font-style", "italic")
     # Exercise the same revision returned to the owner after saving a draft.
     logo = "12345678-1234-1234-1234-123456789abc"
     page.route("**/api/admin/editor", lambda route: route.fulfill(json={

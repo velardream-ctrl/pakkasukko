@@ -1,3 +1,4 @@
+import {applyIntroCopy} from './intro-copy.js';
 import {applyCompetitiveTariffs,applyDoorstepTariffs} from './competitive-tariffs.js';
 import {bankProfile,autoAdvanceDocument,advanceStatements,expireBankHolds,publicAdvance,createAdvanceAccess} from './automatic-advance.js';
 import {billing} from './billing.js';
@@ -220,6 +221,7 @@ async function api(req,env,ctx,url){
   if(path.startsWith('/api/admin/stripe/'))return stripeAdmin(req,env,path.split('/').pop(),reply);
  if(path.startsWith('/api/admin/music/'))return musicAPI(req,env,path,reply,true);
  if(path.startsWith('/api/admin/media/'))return mediaAPI(req,env,path,reply,true);
+ if(path==='/api/admin/editor/intro-copy-2026'&&method==='POST')return reply(await applyIntroCopy(env.DB));
  if(path==='/api/admin/tariffs/doorstep-2026'&&method==='POST')return reply(await applyDoorstepTariffs(env.DB));
  if(path==='/api/admin/tariffs/competitive-2026'&&method==='POST')return reply(await applyCompetitiveTariffs(env.DB));
  if(path==='/api/admin/travel-fare'&&method==='POST'){

@@ -1,9 +1,10 @@
+import {headingControls,styleControls,styleField} from './text-presentation.js';
 import {fitTagline,taglineSlider} from './tagline.js';
 import {applySnow} from './snow.js';
 import {deliveryFields} from './delivery-editor.js';
 import {BUILTIN_SERVICES} from './video-service.js';
 import {snowPanel} from './snow-panel.js';
-import {applyBrand,setField,devices,baseCrop,baseSectionCrop,sectionCrop,initial,bindPage,renderPage,cropPhoto,applySectionCrop,applyHeroShade,heroShadePercent,applyRoutesShade,routesShadePercent,heroImageId,setHeroDeviceImage,setHeroGlobalImage,mediaURL} from './site.js?v=45';
+import {applyBrand,setField,devices,baseCrop,baseSectionCrop,sectionCrop,initial,bindPage,renderPage,cropPhoto,applySectionCrop,applyHeroShade,heroShadePercent,applyRoutesShade,routesShadePercent,heroImageId,setHeroDeviceImage,setHeroGlobalImage,mediaURL} from './site.js?v=70';
 const $=id=>document.getElementById(id);
 const frame=document.querySelector('iframe'), panel=document.querySelector('main');
 const names={header:'Шапка',top:'Первый экран',intro:'Вступление',programs:'Программы',about:'Об артисте',routes:'Города',booking:'Календарь',contact:'Контакты',privacy:'Конфиденциальность',footer:'Подвал'};
@@ -134,7 +135,7 @@ function previewClick(event){
       target.closest('h3')?'title':target.closest('.program-duration')?'duration':
       target.closest('.card-foot strong')?'price':'description';
     field=[...$('cards').querySelectorAll('input,textarea')].find(el=>el.dataset.cardIndex===String(idx)&&el.dataset.cardKey===key);
-  }else if(heading)field=$('wholeHeading');
+  }else if(heading)field=$('wholeHeading')?.querySelector('textarea')||$('wholeHeading');
   else if(container.hasAttribute('data-created'))field=$('customBody');
   else{
     const item=fields.find(f=>f.node===target&&f.attribute==='placeholder')||fields.find(f=>f.node?.parentElement===target&&!f.attribute);
@@ -151,7 +152,9 @@ function section(){
   const custom=model.sections.find(s=>s.id===group);
   if(custom&&!query){
     const title=input($('fields'),'Заголовок раздела',custom.title,v=>{custom.title=v;outline();draw();});title.id='wholeHeading';
+    styleControls($('fields'),model.textStyles?.[group+':title'],v=>{(model.textStyles??={})[group+':title']=v;draw();});
     input($('fields'),'Текст раздела',custom.body,v=>{custom.body=v;draw();},'textarea').id='customBody';
+    styleControls($('fields'),model.textStyles?.[group+':body'],v=>{(model.textStyles??={})[group+':body']=v;draw();});
     button($('fields'),'Удалить этот раздел',()=>{if(!confirm('Удалить раздел из редактируемой версии?'))return;
       model.sections=model.sections.filter(s=>s.id!==group);model.order=model.order.filter(id=>id!==group);model.hidden=model.hidden.filter(id=>id!==group);delete model.pictures[group];outline();section();draw();
     });
@@ -159,16 +162,18 @@ function section(){
   if(group==='header')taglineSlider($('fields'),model,doc);
   const heading=doc.getElementById(group)?.querySelector('h1,h2');
   if(heading&&!custom&&!query){
-    const title=input($('fields'),'Заголовок целиком',model.headingOverrides[group]??(heading.innerText||heading.textContent),v=>{model.headingOverrides[group]=v;draw();},'textarea');title.id='wholeHeading';
-    button($('fields'),'Вернуть составной заголовок',()=>{delete model.headingOverrides[group];draw();section();});
+    const title=headingControls($('fields'),model,group,heading,draw);title.id='wholeHeading';
+    button($('fields'),'Вернуть составной заголовок',()=>{delete model.headingOverrides[group];delete model.headingParts?.[group];draw();section();});
   }
   for(const f of fields){
     const value=model.texts[f.key]??f.original;
+    if(heading&&!custom&&f.node&&heading.contains(f.node)&&!f.attribute&&!query)continue;
     if(query ? !(value+' '+f.original).toLocaleLowerCase('ru').includes(query) : f.group!==group)continue;
     const label=(query?names[f.group]+' · ':'')+(f.attribute==='placeholder'?'Подсказка поля · ':'')+f.original.trim().slice(0,80);
     const editor=input($('fields'),label,value,v=>{model.texts[f.key]=v;setField(f,v);if(f.group==='header')fitTagline(doc,model.taglineWidth);if(!f.node)draw();
-      if(f.node?.parentElement?.closest('[data-heading-original]')){delete model.headingOverrides[f.group];draw();}
+      if(f.node?.parentElement?.closest('[data-heading-original]')){note('Этот заголовок имеет отдельное оформление. Откройте его раздел, чтобы изменить строки.');draw();}
     },'textarea');editor.id='edit-'+f.key;
+    if(f.node&&!f.attribute)styleControls($('fields'),model.textStyles?.[f.key],v=>{(model.textStyles??={})[f.key]=v;styleField(f,v);});
   }
   if(group==='programs')for(const link of doc.querySelectorAll('.card [data-service]')){
     const k=link.dataset.service;input($('fields'),'Длительность · '+link.closest('.card').querySelector('h3').textContent,model.durations[k]||'',v=>{model.durations[k]=v;draw();});

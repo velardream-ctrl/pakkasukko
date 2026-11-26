@@ -1,9 +1,10 @@
+import {headingControls,styleControls,styleField,styleElement} from './text-presentation.js';
 import {deliveryFields} from './delivery-editor.js';
 import {fitTagline,taglineSlider} from './tagline.js';
 import {applySnow} from './snow.js';
 import {snowPanel} from './snow-panel.js';
 import {spatialSettings,BUILTIN_SPATIAL,patchSpatialSettings} from './spatial-gallery.js?v=8';
-import {initial,mediaURL,baseCrop,baseSectionCrop,sectionCrop,cropPhoto,applySectionCrop,renderPage,setField,applyHeroShade,heroShadePercent,applyRoutesShade,routesShadePercent,heroImageId,setHeroDeviceImage} from './site.js?v=45';
+import {initial,mediaURL,baseCrop,baseSectionCrop,sectionCrop,cropPhoto,applySectionCrop,renderPage,setField,applyHeroShade,heroShadePercent,applyRoutesShade,routesShadePercent,heroImageId,setHeroDeviceImage} from './site.js?v=70';
 
 // RUN-009: In-page controls are loaded only after the protected /api/admin/editor request succeeds.
 export function editableFields(fields,element){
@@ -135,7 +136,7 @@ export async function startInlineEditor({model,fields,currentDevice,onAdmin,fare
         const related=editableFields(fields,el);
         const extra=el.closest('.extra-card');
         const custom=el.closest('section[data-created]');
-        const heading=el.matches('h1,h2')&&Object.hasOwn(model.headingOverrides||{},id);
+        const heading=el.matches('h1,h2')&&(Object.hasOwn(model.headingOverrides||{},id)||Object.hasOwn(model.headingParts||{},id));
         if(related.length||extra||custom||heading){
           seen.add(el);
           makePin('text',el,id,'Редактировать: '+short(el.textContent),()=>textPanel(el,id));
@@ -198,12 +199,13 @@ export async function startInlineEditor({model,fields,currentDevice,onAdmin,fare
     if(custom){
       for(const [key,label] of [['title','Заголовок'],['body','Текст']]){
         labeled(panelBody,label,'textarea',custom[key],value=>{custom[key]=value;const section=document.getElementById(group),node=section?.querySelector(key==='title'?'h2':'p');if(node)node.textContent=value;changed();});
+        styleControls(panelBody,model.textStyles?.[group+':'+key],v=>{(model.textStyles??={})[group+':'+key]=v;const node=document.getElementById(group)?.querySelector(key==='title'?'h2':'p');styleElement(node,v);changed();});
       }
       return;
     }
-    if(el.matches('h1,h2')&&Object.hasOwn(model.headingOverrides||{},group)){
-      labeled(panelBody,'Заголовок целиком','textarea',model.headingOverrides[group],value=>{model.headingOverrides[group]=value;el.textContent=value;changed();});
-      button(panelBody,'Вернуть исходное оформление заголовка',()=>{delete model.headingOverrides[group];changed();draw();closePanel();});
+    if(el.matches('h1,h2')&&el===document.getElementById(group)?.querySelector('h1:not([hidden]),h2:not([hidden])')){
+      headingControls(panelBody,model,group,el,()=>{changed();draw();});
+      button(panelBody,'Вернуть исходное оформление заголовка',()=>{delete model.headingOverrides[group];delete model.headingParts?.[group];changed();draw();closePanel();});
       return;
     }
     if(group==='header'&&el.closest('.brand'))taglineSlider(panelBody,model,document,changed);
@@ -222,6 +224,7 @@ export async function startInlineEditor({model,fields,currentDevice,onAdmin,fare
         if(group==='header')fitTagline(document,model.taglineWidth);
         changed();
       });
+      if(f.node&&!f.attribute)styleControls(panelBody,model.textStyles?.[f.key],v=>{(model.textStyles??={})[f.key]=v;styleField(f,v);changed();});
     });
     panelBody.append(make('p','pk-hint','Текст меняется на странице сразу. Для посетителей правки появятся только после публикации.'));
   }

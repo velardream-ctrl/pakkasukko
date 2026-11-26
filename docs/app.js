@@ -2,7 +2,7 @@ import {deliveryConfig,deliveryLink} from './video-service.js';
 import {mountFares} from './fare-form.js?v=68';
 import {holidayInfo,bookingPaymentMode,defaultFare} from './fares.js?v=68';
 import {fitTagline} from './tagline.js';
-import {pageText,initial,bindPage,renderPage,deviceFor} from './site.js?v=67';
+import {pageText,initial,bindPage,renderPage,deviceFor} from './site.js?v=70';
 import {mountSpatialPhoto} from './spatial-gallery.js?v=8';
 const $=(s)=>document.querySelector(s);
 fitTagline(document);
@@ -42,7 +42,7 @@ async function activate(){
     addEventListener('resize',()=>{redraw();document.dispatchEvent(new Event('pakkasukko:layout'));});
     // Ordinary visitors receive no editing UI. Authentication is validated by the Worker.
     try{
-      const {startInlineEditor}=await import('./inline-editor.js?v=46');
+      const {startInlineEditor}=await import('./inline-editor.js?v=70');
       await startInlineEditor({model,fields:boundFields,currentDevice,fares:config.fares,spatialPhoto,onAdmin:()=>{ownerPreview=true;}});
     }catch(err){console.warn('Inline editor unavailable',err?.message);}
     // Open availability is public and needs no login, cookies or Turnstile.
