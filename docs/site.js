@@ -1,3 +1,4 @@
+import {performanceRows} from './fares.js';
 import {deliveryConfig,deliveryNotice,deliveryLink} from './video-service.js';
 export const devices = {desktop:[1440,900],tablet:[820,1180],phone:[390,844]};
 export const portrait = './assets/pakkasukko-ded-moroz.webp';
@@ -274,6 +275,14 @@ export function renderPage(doc,model,fields,device,editing=false,fares=null){
     }
     box.append(foot);
     programGrid.append(box);
+  }
+  // Keep visible starting prices synchronized with the actual duration/cast tariff.
+  for(const [id,priceId] of [['gift','priceGift'],['home','priceHome'],['event','priceEvent']]){
+    const rows=performanceRows(fares,id),amounts=rows.flatMap(r=>[r.solo,r.duo]).filter(Number.isInteger);
+    const price=doc.getElementById(priceId),option=[...doc.querySelector('#service').options].find(o=>o.value===id);
+    const label=amounts.length?'от '+(Math.min(...amounts)/100).toLocaleString('ru-RU')+' €':price?.textContent;
+    if(price&&label)price.textContent=label;
+    if(option&&label)option.textContent=option.textContent.split(' · ')[0]+' · '+label;
   }
   if(selectedService && [...doc.querySelector('#service').options].some(o=>o.value===selectedService))doc.querySelector('#service').value=selectedService;
   if(model.seo.title)doc.title=model.seo.title;
