@@ -29,14 +29,14 @@ export function paymentData(d,number){
  const iban=String(d.seller.iban).replace(/\s/g,'').toUpperCase();
  const name=String(d.seller.name||'').trim();
  const bic=String(d.seller.bic||'').replace(/\s/g,'').toUpperCase();
- if(!name||name.length>70||/[\r\n]/.test(name)||!/^([A-Z]{6}[A-Z0-9]{2}([A-Z0-9]{3})?)?$/.test(bic))throw Error('Invalid payee');
+ if(!name||name.length>70||/[\r\n]/.test(name)||!/^[A-Z]{6}[A-Z0-9]{2}([A-Z0-9]{3})?$/.test(bic))throw Error('Invalid payee');
  const barcode=virtualBankCode(iban,d.total,reference,d.due);
- const payload=['BCD','002','1','SCT',bic,name,iban,'EUR'+(d.total/100).toFixed(2),'',reference,'','ReqdExctnDt/'+d.due].join('\n');
+ const payload=['BCD','001','1','SCT',bic,name,iban,'EUR'+(d.total/100).toFixed(2),'',reference,'','ReqdExctnDt/'+d.due].join('\n');
  if(new TextEncoder().encode(payload).length>331)throw Error('QR payload too long');
  return {reference,iban,name,bic,barcode,payload};
 }
 export function bankProfileReady(p){
  return Boolean(p&&p.name&&p.name.length<=70&&!/[\r\n]/.test(p.name)&&p.address&&p.businessId&&validFinnishIBAN(p.iban)&&
- /^([A-Z]{6}[A-Z0-9]{2}([A-Z0-9]{3})?)?$/.test(String(p.bic||'').replace(/\s/g,'').toUpperCase())&&
+ /^[A-Z]{6}[A-Z0-9]{2}([A-Z0-9]{3})?$/.test(String(p.bic||'').replace(/\s/g,'').toUpperCase())&&
  /^\d{1,2}([.,]\d{1,2})?$/.test(String(p.vatRate??''))&&(Number(String(p.vatRate).replace(',','.'))?p.vatId:p.vatNote));
 }
