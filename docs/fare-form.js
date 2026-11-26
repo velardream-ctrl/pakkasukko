@@ -1,3 +1,4 @@
+import {promoDiscount,normalizePromo} from './promo-rules.js';
 import {defaultFare,prices,quote,describe,euros,visitQuote,performanceRows,performanceChoice,prepaymentForVisit,bookingPaymentMode} from './fares.js?v=65';
 import {routeCities} from './route-cities.js';
 export function mountFares(form,config){
@@ -24,7 +25,13 @@ export function mountFares(form,config){
   const paymentConsent=document.createElement('input');paymentConsent.type='checkbox';paymentConsent.name='prepaymentTerms';paymentConsent.value='accepted';
   const terms=document.createElement('span');terms.append('Я ознакомился(-ась) с ');const link=document.createElement('a');link.href='./prepayment.html';link.target='_blank';link.rel='noopener';link.textContent='условиями предоплаты и отмены';terms.append(link,'. Предоплата входит в общую стоимость заказа.');
   paymentLabel.append(paymentConsent,terms);paymentBox.append(paymentText,paymentLabel);
-  block.append(note,output,paymentBox);input.closest('.form-row').after(block);
+  let applied=null,pricedVisits=[];
+  const promoBox=document.createElement('div');promoBox.hidden=!config.promosEnabled;
+  const promoLabel=document.createElement('label');promoLabel.textContent='Подарочный код';const promoInput=document.createElement('input');promoInput.placeholder='GIFT-XXXXXXXXXX';promoInput.maxLength=20;promoInput.autocomplete='off';promoLabel.append(promoInput);
+  const promoApply=document.createElement('button');promoApply.type='button';promoApply.textContent='Применить код';promoApply.className='btn btn-dark';const promoStatus=document.createElement('p');promoStatus.setAttribute('role','status');promoBox.append(promoLabel,promoApply,promoStatus);
+  promoInput.addEventListener('input',()=>{applied=null;update();});
+  promoApply.addEventListener('click',async()=>{const code=normalizePromo(promoInput.value);applied=null;update();if(!code)return;promoApply.disabled=true;try{const r=await fetch('/api/promo/check',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code})});const data=await r.json();if(!r.ok)throw Error(data.error||'Код недоступен');if(normalizePromo(promoInput.value)===code){applied={code,rule:data.rule};update();}}catch(e){promoStatus.textContent=e.message;}finally{promoApply.disabled=false;}});
+  block.append(note,output,promoBox,paymentBox);input.closest('.form-row').after(block);
   // Rates are optional: an unconfigured program keeps the original booking form.
   const choices=document.createElement('div');choices.className='performer-options';choices.hidden=true;
   const durationLabel=document.createElement('label');durationLabel.textContent='Продолжительность выступления';
@@ -65,6 +72,11 @@ export function mountFares(form,config){
     current=quote(config.fares||defaultFare,items[service.value]||{label:'По запросу',remote:false},other?input.value.trim():select.value,count>1,times,selectedPerformance);
     output.textContent=describe(visitQuote(current,1,0));
     const visitsForPay=Array.from({length:count},(_,i)=>visitQuote(current,count,i));
+    const discounted=applied&&config.promosEnabled&&count===1&&selectedSlots.length===1?promoDiscount(visitsForPay[0],applied.rule,service.value):null;
+    if(discounted){visitsForPay[0]=discounted;output.textContent=describe(discounted)+' · Подарочная скидка −'+euros(discounted.promo.discount);promoStatus.textContent='Код принят: скидка '+euros(discounted.promo.discount)+(discounted.total===0?' · Бесплатно!':'');}
+    else promoStatus.textContent=applied?'Код не подходит к этому городу, программе, времени или коллективной заявке.':promoInput.value?'Нажмите «Применить код».':'';
+    promoInput.setCustomValidity(promoInput.value.trim()&&!discounted?'Примените подходящий код или удалите его.':'');promoBox.hidden=!config.promosEnabled;
+    pricedVisits=visitsForPay;
     const payments=visitsForPay.map(v=>prepaymentForVisit(config.fares||defaultFare,v)).filter(Boolean);
     const advance=payments.reduce((sum,p)=>sum+p.amount,0);
     paymentBox.hidden=!advance;paymentConsent.required=Boolean(advance);paymentConsent.disabled=!advance;
@@ -87,7 +99,7 @@ export function mountFares(form,config){
   for(const control of [select,service,input])control.addEventListener('input',update);
   service.addEventListener('change',()=>{update();onSelectionChange();});
   for(const control of [durationSelect,castSelect])control.addEventListener('change',()=>{update();onSelectionChange();});
-  form.addEventListener('reset',()=>queueMicrotask(update));
+  form.addEventListener('reset',()=>{applied=null;queueMicrotask(update);});
   update();
-  return {note,castTitle,update,onSelectionChange(fn){onSelectionChange=fn;},durationMinutes(){return selectedPerformance?.minutes||0;},setCount(n){count=Math.max(1,n);selectedSlots=[];update();},setSlots(slots){selectedSlots=[...(slots||[])].sort((a,b)=>a.start_at.localeCompare(b.start_at));count=Math.max(1,selectedSlots.length);update();},payload(){update();return {city:current.city,group:count>1,quoteToken:JSON.stringify(current),paymentMethod:bookingPaymentMode((config.fares||defaultFare).prepayments||defaultFare.prepayments),paymentQuote:JSON.stringify(Array.from({length:count},(_,i)=>prepaymentForVisit(config.fares||defaultFare,visitQuote(current,count,i)))),...(selectedPerformance?{performanceMinutes:selectedPerformance.minutes,performerCast:selectedPerformance.cast}:{})};}};
+  return {note,castTitle,update,onSelectionChange(fn){onSelectionChange=fn;},durationMinutes(){return selectedPerformance?.minutes||0;},setCount(n){count=Math.max(1,n);selectedSlots=[];update();},setSlots(slots){selectedSlots=[...(slots||[])].sort((a,b)=>a.start_at.localeCompare(b.start_at));count=Math.max(1,selectedSlots.length);update();},payload(){update();return {city:current.city,group:count>1,quoteToken:JSON.stringify(current),paymentMethod:bookingPaymentMode((config.fares||defaultFare).prepayments||defaultFare.prepayments),paymentQuote:JSON.stringify(pricedVisits.map(v=>prepaymentForVisit(config.fares||defaultFare,v))),...(pricedVisits[0]?.promo?{promoCode:applied.code,promoQuote:JSON.stringify(pricedVisits[0].promo)}:{}),...(selectedPerformance?{performanceMinutes:selectedPerformance.minutes,performerCast:selectedPerformance.cast}:{})};}};
 }
