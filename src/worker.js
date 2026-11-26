@@ -1,4 +1,4 @@
-import {bankProfile,autoAdvanceDocument,advanceStatements,expireBankHolds,publicAdvance} from './automatic-advance.js';
+import {bankProfile,autoAdvanceDocument,advanceStatements,expireBankHolds,publicAdvance,createAdvanceAccess} from './automatic-advance.js';
 import {billing} from './billing.js';
 import {prepaymentsAPI} from './prepayment-api.js';
 import {stripeAdmin,stripeWebhook} from './stripe.js';
@@ -173,7 +173,7 @@ async function api(req,env,ctx,url){
      statements.push(env.DB.prepare("INSERT INTO bookings(id,slot_id,service,name,phone,email,city,address,message,status,created_at) VALUES(?,(SELECT id FROM slots WHERE id=? AND status='open'),?,?,?,?,?,?,?,'pending',?)").bind(id,slot.id,b.service,b.name,b.phone,b.email,b.city,order.address,b.message,now()),
        env.DB.prepare("INSERT INTO booking_quotes(booking_id,snapshot,summary) VALUES(?,?,?)").bind(id,JSON.stringify(saved),detail));
      let paymentUrl;
-     if(autoEligible&&payment){const doc=autoAdvanceDocument({seller,order,serviceId,slot,quote:saved,hours:fares.prepayments.holdHours||24});statements.push(...advanceStatements(env.DB,id,doc,now()));paymentUrl='/api/advance/view?id='+id+'&token='+await mac(env.SESSION_SECRET,'advance:'+id);}
+     if(autoEligible&&payment){const doc=autoAdvanceDocument({seller,order,serviceId,slot,quote:saved,hours:fares.prepayments.holdHours||24});const access=await createAdvanceAccess();doc.accessDigest=access.digest;statements.push(...advanceStatements(env.DB,id,doc,now()));paymentUrl='/api/advance/view?id='+id+'&token='+access.token;}
      receipts.push({id,time:slot.start_at,address:order.address,summary:detail,...(paymentUrl?{paymentUrl}:{} )});
    }
    const result={id:receipts[0].id,receipts,status:'pending',summary:receipts.map(v=>v.summary).join(' / ')};
