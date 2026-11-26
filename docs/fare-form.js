@@ -1,4 +1,4 @@
-import {defaultFare,prices,quote,describe,euros,visitQuote,performanceRows,performanceChoice,prepaymentForVisit} from './fares.js?v=62';
+import {defaultFare,prices,quote,describe,euros,visitQuote,performanceRows,performanceChoice,prepaymentForVisit,bookingPaymentMode} from './fares.js?v=64';
 import {routeCities} from './route-cities.js';
 export function mountFares(form,config){
   const service=form.elements.service,input=form.elements.city;
@@ -68,7 +68,11 @@ export function mountFares(form,config){
     const payments=visitsForPay.map(v=>prepaymentForVisit(config.fares||defaultFare,v)).filter(Boolean);
     const advance=payments.reduce((sum,p)=>sum+p.amount,0);
     paymentBox.hidden=!advance;paymentConsent.required=Boolean(advance);paymentConsent.disabled=!advance;
-    paymentText.textContent=advance?'Предоплата после личного согласования и выставления счёта: '+euros(advance)+'. Оплата банковским переводом; оставшаяся сумма оплачивается позднее.':'';
+    const method=bookingPaymentMode((config.fares||defaultFare).prepayments||defaultFare.prepayments);
+    const modeText=method==='stripe'?'Оплата через защищённую ссылку Stripe после выставления счёта.':'Оплата банковским переводом после выставления счёта.';
+    paymentText.textContent=advance?'Обязательная предоплата: '+euros(advance)+'. '+modeText+' Предоплата входит в общую стоимость.':'';
+    if(!advance)paymentConsent.checked=false;
+    paymentBox.dataset.method=method;
     if(count>1){
       const visits=Array.from({length:count},(_,i)=>visitQuote(current,count,i));
       const total=visits.every(v=>v.total!==null)?visits.reduce((sum,v)=>sum+v.total,0):null;
@@ -83,5 +87,5 @@ export function mountFares(form,config){
   for(const control of [durationSelect,castSelect])control.addEventListener('change',()=>{update();onSelectionChange();});
   form.addEventListener('reset',()=>queueMicrotask(update));
   update();
-  return {note,castTitle,update,onSelectionChange(fn){onSelectionChange=fn;},durationMinutes(){return selectedPerformance?.minutes||0;},setCount(n){count=Math.max(1,n);selectedSlots=[];update();},setSlots(slots){selectedSlots=[...(slots||[])].sort((a,b)=>a.start_at.localeCompare(b.start_at));count=Math.max(1,selectedSlots.length);update();},payload(){update();return {city:current.city,group:count>1,quoteToken:JSON.stringify(current),...(selectedPerformance?{performanceMinutes:selectedPerformance.minutes,performerCast:selectedPerformance.cast}:{})};}};
+  return {note,castTitle,update,onSelectionChange(fn){onSelectionChange=fn;},durationMinutes(){return selectedPerformance?.minutes||0;},setCount(n){count=Math.max(1,n);selectedSlots=[];update();},setSlots(slots){selectedSlots=[...(slots||[])].sort((a,b)=>a.start_at.localeCompare(b.start_at));count=Math.max(1,selectedSlots.length);update();},payload(){update();return {city:current.city,group:count>1,quoteToken:JSON.stringify(current),paymentMethod:bookingPaymentMode((config.fares||defaultFare).prepayments||defaultFare.prepayments),...(selectedPerformance?{performanceMinutes:selectedPerformance.minutes,performerCast:selectedPerformance.cast}:{})};}};
 }
