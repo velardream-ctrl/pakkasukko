@@ -48,7 +48,7 @@ function control(parent,title,options,value,change){
  for(const [v,t] of options)select.add(new Option(t,v));select.value=value;select.onchange=()=>change(select.value);label.append(select);parent.append(label);
 }
 export function styleControls(parent,style,onChange){
- let current=validTextStyle(style)?{...style}:{color:'auto',font:'auto'};
+ let current=validTextStyle(style)?{color:style.color,font:style.font}:{color:'auto',font:'auto'};
  const row=document.createElement('div');row.className='pk-text-style-controls';parent.append(row);
  control(row,'Цвет текста',[['auto','Исходный'],['ink','Основной (тёмный / светлый)'],['gold','Золотой']],current.color,v=>{current.color=v;onChange({...current});});
  control(row,'Начертание',[['auto','Исходное'],['normal','Прямой'],['italic','Курсив']],current.font,v=>{current.font=v;onChange({...current});});
@@ -62,7 +62,7 @@ export function headingControls(parent,model,group,heading,onChange){
   parts.forEach((p,i)=>{
    const wrap=document.createElement('fieldset');const legend=document.createElement('legend');legend.textContent='Строка '+(i+1);wrap.append(legend);
    const input=document.createElement('textarea');input.value=p.text;input.maxLength=1000;input.setAttribute('aria-label','Строка '+(i+1));input.oninput=()=>{p.text=input.value;commit();};wrap.append(input);
-   styleControls(wrap,p,style=>{Object.assign(p,style);commit();});
+   styleControls(wrap,p,style=>{p.color=style.color;p.font=style.font;commit();});
    if(parts.length>1){const remove=document.createElement('button');remove.type='button';remove.textContent='Удалить строку';remove.onclick=()=>{parts.splice(i,1);commit();draw();};wrap.append(remove);}
    root.append(wrap);
   });
