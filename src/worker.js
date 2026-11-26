@@ -223,7 +223,7 @@ async function api(req,env,ctx,url){
    const f=await parse(req);
    if(!validFare(f))return fail('Проверьте цену топлива, расход, километраж и режим оплаты.');
    if(f.prepayments?.paymentMethod==='stripe'&&!(String(env.STRIPE_SECRET_KEY||'').startsWith('sk_live_')&&String(env.STRIPE_WEBHOOK_SECRET||'').startsWith('whsec_')))return fail('Для онлайн-оплаты необходимо подключить Stripe в рабочем режиме.',409);
-   if(f.prepayments?.paymentMethod==='bank'&&f.prepayments.automaticBank&&(!env.SESSION_SECRET||!await bankProfile(env.DB)))return fail('Для автоматического счёта заполните и проверьте финский IBAN, имя получателя и налоговые реквизиты.',409);
+   if(f.prepayments?.paymentMethod==='bank'&&f.prepayments.automaticBank&&(!env.SESSION_SECRET||!await bankProfile(env.DB)))return fail('Для автоматического счёта заполните и проверьте финский IBAN, BIC / SWIFT, имя получателя и налоговые реквизиты.',409);
    const km=f.km,routes=f.routes;
    await setSetting(env,'travel_fare',JSON.stringify({fuel:f.fuel,consumption:f.consumption,km,routes,holidayPercent:f.holidayPercent??50,...(f.holidayRules!==undefined?{holidayRules:f.holidayRules}:{}),holidaySort:f.holidaySort||'date',...(f.performance!==undefined?{performance:f.performance}:{}),...(f.prepayments!==undefined?{prepayments:f.prepayments}:{})}));
    return reply({ok:true});
