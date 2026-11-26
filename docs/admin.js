@@ -35,7 +35,7 @@ async function mountHeadingQuickEditor(){
   let dirty=false,revision=data.id||0;
   headingControls(box,model,'intro',mock,()=>{dirty=true;published.textContent='Есть несохранённые изменения';});
   for(const [publish,label] of [[false,'Сохранить черновик'],[true,'Опубликовать']])button(box,label,async()=>{
-   try{if(!dirty){published.textContent='Нет изменений';return;}
+   try{if(!dirty&&!publish){published.textContent='Нет изменений';return;}
     if(publish&&data.history?.[0]?.published===0&&!confirm('Будет опубликован весь текущий черновик сайта, включая другие сохранённые правки. Продолжить?'))return;
     const result=await request('/api/admin/editor','POST',{id:revision,model,publish});revision=result.id;dirty=false;published.textContent=publish?'Опубликовано':'Черновик сохранён';
    }catch(e){published.textContent=e.message;}
