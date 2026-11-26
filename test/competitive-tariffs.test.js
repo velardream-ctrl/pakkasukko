@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {readFileSync} from 'node:fs';
-import {competitiveFare,competitiveModel,applyCompetitiveTariffs,tariffVersion} from '../src/competitive-tariffs.js';
+import {competitiveFare,competitiveModel,applyCompetitiveTariffs,tariffVersion,doorstepFare,doorstepModel,applyDoorstepTariffs,doorstepVersion} from '../src/competitive-tariffs.js';
 import {defaultFare,validFare,holidayInfo,performanceChoice,quote,visitQuote,prepaymentForVisit,prices} from '../docs/fares.js';
 test('competitive tariff grid, preserved settings and capped advance',()=>{
  const old={...defaultFare,km:{...defaultFare.km,Near:30,Far:31},prepayments:{...defaultFare.prepayments,enabled:false,paymentMethod:'none',holdHours:36}};
@@ -49,5 +49,24 @@ test('migration writes D1-style transaction once, preserves draft and prior pric
  assert.equal(sql.prepare('SELECT COUNT(*) n FROM site_revisions').get().n,4);
  assert.equal((await applyCompetitiveTariffs(db)).alreadyApplied,true);
  assert.equal(sql.prepare('SELECT COUNT(*) n FROM site_revisions').get().n,4);
+ assert.equal((await applyDoorstepTariffs(db)).alreadyApplied,false);
+ assert.equal((await applyDoorstepTariffs(db)).alreadyApplied,true);
+ assert.equal(sql.prepare('SELECT COUNT(*) n FROM site_revisions').get().n,6);
+ assert.ok(sql.prepare('SELECT value FROM booking_settings WHERE key=?').get(doorstepVersion));
+ const current=JSON.parse(sql.prepare("SELECT value FROM booking_settings WHERE key='travel_fare'").get().value);
+ assert.deepEqual(current.performance.rates.gift.map(r=>[r.minutes,r.solo]),[[10,4000],[15,4500],[20,5500]]);
  sql.close();
+});
+
+test('doorstep 10, 15 and 20 minutes; unrelated tariffs remain unchanged',()=>{
+ const old=competitiveFare(defaultFare),next=doorstepFare(old);
+ assert.ok(validFare(next));assert.deepEqual(next.performance.rates.home,old.performance.rates.home);
+ assert.deepEqual(next.prepayments,old.prepayments);assert.deepEqual(next.holidayRules,old.holidayRules);
+ for(const [minutes,amount] of [[10,4000],[15,4500],[20,5500]]){
+  assert.equal(performanceChoice(next,'gift',minutes,'solo').amount,amount);
+  const v=visitQuote(quote(next,{label:'от 40 €',remote:false},'Kitee',false,['2026-12-24T15:00'],performanceChoice(next,'gift',minutes,'solo')),1,0);
+  assert.equal(v.total,amount*1.2);assert.equal(prepaymentForVisit(next,v).amount,2000);
+ }
+ assert.equal(prices(doorstepModel(competitiveModel({}))).gift.label,'от 40 €');
+ assert.equal(doorstepModel({}).durations.gift,'10 / 15 / 20 минут');
 });
