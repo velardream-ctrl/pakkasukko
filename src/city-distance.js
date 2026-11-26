@@ -4,10 +4,10 @@ export async function distanceSettings(env){
  const row=await env.DB.prepare("SELECT value FROM booking_settings WHERE key='distance_lookup'").first();
  let value;try{value=JSON.parse(row?.value||'null');}catch{}
  const s=validDistanceSettings(value)?value:distanceDefaults;
- return {...s,configured:Boolean(env.GOOGLE_ROUTES_API_KEY&&env.GOOGLE_MAPS_BROWSER_KEY),browserKey:s.enabled&&env.GOOGLE_ROUTES_API_KEY?env.GOOGLE_MAPS_BROWSER_KEY||'':''};
+ return {...s,configured:Boolean(env.GOOGLE_ROUTES_API_KEY&&env.GOOGLE_MAPS_BROWSER_KEY&&env.GOOGLE_MAPS_MAP_ID),browserKey:s.enabled&&env.GOOGLE_ROUTES_API_KEY?env.GOOGLE_MAPS_BROWSER_KEY||'':'',mapId:s.enabled?env.GOOGLE_MAPS_MAP_ID||'':''};
 }
 export async function saveDistanceSettings(env,v){
- if(!validDistanceSettings(v)||v.enabled&&!(env.GOOGLE_ROUTES_API_KEY&&env.GOOGLE_MAPS_BROWSER_KEY))return false;
+ if(!validDistanceSettings(v)||v.enabled&&!(env.GOOGLE_ROUTES_API_KEY&&env.GOOGLE_MAPS_BROWSER_KEY&&env.GOOGLE_MAPS_MAP_ID))return false;
  await env.DB.prepare("INSERT INTO booking_settings(key,value) VALUES('distance_lookup',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").bind(JSON.stringify({origin:v.origin.trim(),enabled:v.enabled,dailyLimit:v.dailyLimit})).run();return true;
 }
 export async function lookupDistance(env,city,fare,settings,fetcher=fetch,pin=null){
