@@ -1,8 +1,8 @@
 import {sellerForm,invoiceControls} from './billing-panel.js';
-import {prepaymentControls} from './prepayment-panel.js?v=64';
+import {prepaymentControls} from './prepayment-panel.js?v=65';
 import {applyBrand} from './site.js';
 import {musicAdmin} from './music-admin.js';
-import {holidayRules,validFare,validHolidayRule,bookingPaymentMode} from './fares.js?v=64';
+import {holidayRules,validFare,validHolidayRule,bookingPaymentMode} from './fares.js?v=65';
 import {nextAnnualISO,endAnnualISO,isoToAnnual,compareHolidayRules,shiftEndForNewStart} from './holiday-calendar.js?v=59';
 import {renderVideoOrders} from './video-admin.js';
 import {moveControls,slotControls} from './reschedule-panel.js';
@@ -75,14 +75,15 @@ function renderFare(){
 // City-by-city advance payment: persisted together with fares but edited independently.
 function refreshPaymentMode(){
  const select=$('bookingPaymentMethod'),mode=select.value;
- $('paymentTariffFields').hidden=mode==='none';
- $('bookingPaymentHint').textContent=mode==='none'?'Новые заявки без предоплаты. Тарифы городов и старые счета сохраняются.':mode==='bank'?'Клиент получает счёт после согласования заявки. Оплату проверяет администратор.':stripeConnection.enabled&&stripeConnection.mode==='live'?'Онлайн-ссылка Stripe после выставления счёта; оплата подтверждается платёжным сервисом.':'Stripe не подключён в рабочем режиме. Для реальных заявок выберите банковский перевод или без предоплаты.';
+ $('paymentTariffFields').hidden=mode==='none';$('autoBankFields').hidden=mode!=='bank';
+ $('bookingPaymentHint').textContent=mode==='none'?'Новые заявки без предоплаты. Тарифы городов и старые счета сохраняются.':mode==='bank'?'В автоматическом режиме счёт открывается сразу после заявки. Оплату проверяет администратор.':stripeConnection.enabled&&stripeConnection.mode==='live'?'Онлайн-ссылка Stripe после выставления счёта; оплата подтверждается платёжным сервисом.':'Stripe не подключён в рабочем режиме. Для реальных заявок выберите банковский перевод или без предоплаты.';
 }
 function renderPrepayments(){
  const p=state.fares.prepayments||{enabled:true,dueDays:14,defaultRule:{mode:'fixed',percent:0,amount:5000},rules:{}};
  const select=$('bookingPaymentMethod');select.value=bookingPaymentMode(p);
  const stripeOption=select.querySelector('[value="stripe"]');stripeOption.disabled=!(stripeConnection.enabled&&stripeConnection.mode==='live')&&select.value!=='stripe';
  refreshPaymentMode();
+ $('automaticBank').checked=p.automaticBank===true;$('holdHours').value=p.holdHours||24;
  $('prepaymentDue').value=p.dueDays||14;
  $('prepaymentBase').value=((p.defaultRule?.amount??5000)/100).toFixed(2);
  const list=$('prepaymentCities');list.replaceChildren();
@@ -107,7 +108,7 @@ $('prepaymentForm').onsubmit=async event=>{
  const submit=$('prepaymentForm').querySelector('[type="submit"]'),rules=Object.fromEntries([...$('prepaymentCities').children].map(row=>row.readPayment()));
  const method=$('bookingPaymentMethod').value;
  if(method==='stripe'&&!(stripeConnection.enabled&&stripeConnection.mode==='live')){status('prepaymentStatus','Stripe не подключён в рабочем режиме.',true);return;}
- const prepayments={enabled:method!=='none',paymentMethod:method,dueDays:Number($('prepaymentDue').value),defaultRule:{mode:'fixed',percent:0,amount:Math.round(Number($('prepaymentBase').value)*100)},rules};
+ const prepayments={enabled:method!=='none',paymentMethod:method,automaticBank:$('automaticBank').checked,holdHours:Number($('holdHours').value),dueDays:Number($('prepaymentDue').value),defaultRule:{mode:'fixed',percent:0,amount:Math.round(Number($('prepaymentBase').value)*100)},rules};
  const next={...state.fares,prepayments};
  if(!validFare(next)){status('prepaymentStatus','Проверьте процент (0–100), сумму и срок (1–30 дней).',true);return;}
  submit.disabled=true;
