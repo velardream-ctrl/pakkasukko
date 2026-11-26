@@ -12,7 +12,7 @@ function fixture(){
  const future='2099-12-24T17:00',stamp='2026-11-26T08:00:00Z';
  sqlite.prepare("INSERT INTO slots(id,start_at,end_at,created_at) VALUES('s',?,?,?)").run(future,'2099-12-24T17:30',stamp);
  const insert=id=>db.prepare("INSERT INTO bookings(id,slot_id,service,name,phone,city,address,created_at) VALUES(?,(SELECT id FROM slots WHERE id='s' AND status='open'),'home','Test','123','Kitee','Road',?)").bind(id,stamp);
- const doc={automatic:true,bankPayment:true,holdUntil:future,time:future,total:5000,quote:{prepayment:{paymentMethod:'bank'}}};
+ const doc={automatic:true,bankPayment:true,holdUntil:future,time:future,due:future.slice(0,10),total:5000,quote:{prepayment:{paymentMethod:'bank'}}};
  const reserve=(id,d=doc)=>db.batch([insert(id),...advanceStatements(db,id,d,stamp)]);
  const get=(table,id)=>sqlite.prepare('SELECT * FROM '+table+' WHERE '+(table==='slots'?'id':table==='bookings'?'id':'booking_id')+'=?').get(id);
  const paid=(id,amount=5000)=>prepaymentsAPI(new Request('https://test.invalid/api/admin/prepayments/paid?id='+id,{method:'POST',body:JSON.stringify({note:'Verified in bank',amount})}),{DB:db},'paid',(data,status=200)=>({data,status}));
