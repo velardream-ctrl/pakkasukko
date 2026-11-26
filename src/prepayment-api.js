@@ -93,7 +93,9 @@ export async function prepaymentsAPI(req,env,path,reply){
    ]:[])
   ]);}catch{return fail(reply,'Ошибка записи оплаты.',409);}
   const row=await db.prepare(select).bind(id).first();
-  return row.status==='paid'?reply({ok:true,confirmed:row.booking_status==='confirmed'&&!row.final_status}):fail(reply,'Оплата уже обработана.',409);
+  const confirmed=row.booking_status==='confirmed'&&!row.final_status;
+  if(document.automatic&&row.paid_at===stamp&&confirmed&&validEmail(row.email||'')&&env.RESEND_API_KEY&&env.FROM_EMAIL){try{const res=await fetch('https://api.resend.com/emails',{method:'POST',headers:{Authorization:'Bearer '+env.RESEND_API_KEY,'Content-Type':'application/json','Idempotency-Key':'pakkasukko-paid-'+old.number},body:JSON.stringify({from:env.FROM_EMAIL,to:[row.email],subject:'Pakkasukko · бронирование подтверждено',text:'Предоплата по счёту '+number+' получена. Ваш визит подтверждён: '+row.start_at.replace('T',' ')+' (Финляндия). Спасибо!'})});if(!res.ok)console.warn('Payment confirmation email not accepted',res.status);}catch(e){console.warn('Payment confirmation email failed',e.message);}}
+  return row.status==='paid'?reply({ok:true,confirmed}):fail(reply,'Оплата уже обработана.',409);
  }
  if(path==='refund'&&method==='POST'){
   const stripePayment=await db.prepare("SELECT id FROM stripe_checkouts WHERE booking_id=? AND status='paid' LIMIT 1").bind(id).first();
