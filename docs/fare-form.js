@@ -1,3 +1,4 @@
+import {approvedCity,cityKey,mapsLink,validCityQuery,fuelEstimate,distanceDefaults,validPin} from './city-distance.js';
 import {defaultFare,prices,quote,describe,euros,visitQuote,performanceRows,performanceChoice,prepaymentForVisit,bookingPaymentMode} from './fares.js?v=68';
 import {routeCities} from './route-cities.js';
 export function mountFares(form,config){
@@ -15,6 +16,31 @@ export function mountFares(form,config){
     source=cities;
   }
   input.before(select);input.required=false;
+  const distanceRow=document.createElement('div');distanceRow.className='city-distance-row';input.before(distanceRow);distanceRow.append(input);
+  const distance=document.createElement('output');distance.className='city-distance-value';distance.setAttribute('aria-live','polite');distanceRow.append(distance);
+  const routeBox=document.createElement('div');routeBox.className='city-distance-help';distanceRow.after(routeBox);
+  const lookup=document.createElement('button');lookup.type='button';lookup.textContent='Рассчитать расстояние';routeBox.append(lookup);
+  const mapButton=document.createElement('button');mapButton.type='button';mapButton.textContent='Выбрать адрес на карте';routeBox.append(mapButton);
+  const mapBox=document.createElement('div');mapBox.hidden=true;routeBox.append(mapBox);
+  const routeLink=document.createElement('a');routeLink.target='_blank';routeLink.rel='noopener noreferrer';routeLink.textContent='Посмотреть маршрут на Google Maps ↗';routeBox.append(routeLink);
+  const routeNote=document.createElement('p');routeNote.setAttribute('aria-live','polite');routeBox.append(routeNote);
+  let estimate=null,requestId=0,busy=false,lastCity='',pin=null,readAddress=()=>form.elements.address.value,writeAddress=v=>{form.elements.address.value=v;};
+  function clearMap(){pin=null;estimate=null;requestId++;busy=false;mapBox.hidden=true;mapBox.replaceChildren();mapButton.textContent='Выбрать адрес на карте';}
+  async function calculate(){const city=input.value.trim(),id=++requestId;busy=true;lookup.disabled=true;routeNote.textContent='Рассчитываем маршрут…';try{const r=await fetch('/api/distance',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({city,...(pin?{pin}:{})})});const data=await r.json();if(id!==requestId)return;estimate=r.ok?data:{kind:'unknown'};}catch{if(id===requestId)estimate={kind:'unknown'};}finally{if(id===requestId){busy=false;update();}}}
+  lookup.onclick=calculate;
+  mapButton.onclick=async()=>{if(!mapBox.hidden){clearMap();update();return;}const city=input.value.trim(),settings=config.distanceLookup||distanceDefaults;if(!validCityQuery(city)||!settings.browserKey)return;mapBox.hidden=false;mapButton.textContent='Закрыть карту и удалить точку';try{const {mountDestinationMap}=await import('./destination-map.js');await mountDestinationMap(mapBox,{key:settings.browserKey,city,address:readAddress(),onPin:p=>{if(mapBox.hidden||cityKey(input.value)!==cityKey(city)||count!==1)return;pin=p;estimate=null;calculate();},onAddress:v=>{if(!mapBox.hidden&&cityKey(input.value)===cityKey(city)&&count===1)writeAddress(v);}});}catch(e){mapBox.textContent='Карта недоступна. Введите адрес вручную.';}};
+  function updateDistance(other,items){
+   const raw=other?input.value.trim():select.value,settings=config.distanceLookup||distanceDefaults,known=approvedCity(config.fares||defaultFare,raw);
+   const key=cityKey(raw);if(lastCity!==key||count>1&&pin){lastCity=key;clearMap();}
+   if(!other||count>1){if(!mapBox.hidden)clearMap();}
+   distanceRow.hidden=!other;routeBox.hidden=!other||items[service.value]?.remote===true;distance.hidden=!other;
+   lookup.hidden=!!known||!settings.enabled||!settings.configured;lookup.disabled=busy||!validCityQuery(raw);
+   mapButton.hidden=!settings.enabled||!settings.configured||!settings.browserKey||count>1;mapButton.disabled=!validCityQuery(raw);
+   routeLink.hidden=!validCityQuery(raw)||!!known;routeLink.href=mapsLink(settings.origin,raw);
+   if(estimate?.kind==='estimate'){distance.textContent='≈ '+estimate.km+' км';routeNote.textContent='Google Maps · '+estimate.origin+' → '+raw+'. В одну сторону. Топливо туда и обратно ≈ '+euros(fuelEstimate(estimate.km,config.fares||defaultFare))+'. '+(known?'Действует утверждённый тариф города.':'Итоговую стоимость и возможность выезда подтвердит организатор.');}
+   else if(known){const f=config.fares||defaultFare;distance.textContent=f.routes?.[known]?.mode==='rail'?'Поезд':f.km[known]+' км';routeNote.textContent='Расстояние из утверждённого тарифа.';}
+   else{distance.textContent='— км';routeNote.textContent=busy?'Рассчитываем маршрут…':!raw?'Введите название города.':estimate?.kind==='limited'?'Лимит расчётов исчерпан. Маршрут согласуем вручную.':settings.enabled&&settings.configured?'Укажите адрес на карте или рассчитайте маршрут от '+settings.origin+'. Итог подтвердит организатор.':'Маршрут от '+settings.origin+' уточнит организатор. Самостоятельно вводить километраж не требуется.';}
+  }
   const block=document.createElement('div');block.className='fare-summary';
   const note=document.createElement('p');
   note.textContent='При бронировании фиксируется максимальная сумма. Если в день выезда будут другие подтверждённые заказы в ваш город на ту же поездку, расходы разделятся и ваша сумма может уменьшиться. Для нескольких адресов в одном городе выберите отдельное время для каждого.';
@@ -60,6 +86,7 @@ export function mountFares(form,config){
     const other=select.value==='Другой город';
     input.hidden=!other;input.required=other;input.placeholder='Название города';
     const items=config.services||prices(config.site,config.content);
+    updateDistance(other,items);
     updatePerformance();
     const times=selectedSlots.map(s=>s.start_at).sort();
     current=quote(config.fares||defaultFare,items[service.value]||{label:'По запросу',remote:false},other?input.value.trim():select.value,count>1,times,selectedPerformance);
@@ -87,7 +114,7 @@ export function mountFares(form,config){
   for(const control of [select,service,input])control.addEventListener('input',update);
   service.addEventListener('change',()=>{update();onSelectionChange();});
   for(const control of [durationSelect,castSelect])control.addEventListener('change',()=>{update();onSelectionChange();});
-  form.addEventListener('reset',()=>queueMicrotask(update));
+  form.addEventListener('reset',()=>{clearMap();queueMicrotask(update);});
   update();
-  return {note,castTitle,update,onSelectionChange(fn){onSelectionChange=fn;},durationMinutes(){return selectedPerformance?.minutes||0;},setCount(n){count=Math.max(1,n);selectedSlots=[];update();},setSlots(slots){selectedSlots=[...(slots||[])].sort((a,b)=>a.start_at.localeCompare(b.start_at));count=Math.max(1,selectedSlots.length);update();},payload(){update();return {city:current.city,group:count>1,quoteToken:JSON.stringify(current),paymentMethod:bookingPaymentMode((config.fares||defaultFare).prepayments||defaultFare.prepayments),paymentQuote:JSON.stringify(Array.from({length:count},(_,i)=>prepaymentForVisit(config.fares||defaultFare,visitQuote(current,count,i)))),...(selectedPerformance?{performanceMinutes:selectedPerformance.minutes,performerCast:selectedPerformance.cast}:{})};}};
+  return {note,castTitle,update,bindAddress(read,write){readAddress=read;writeAddress=write;},onSelectionChange(fn){onSelectionChange=fn;},durationMinutes(){return selectedPerformance?.minutes||0;},setCount(n){count=Math.max(1,n);selectedSlots=[];update();},setSlots(slots){selectedSlots=[...(slots||[])].sort((a,b)=>a.start_at.localeCompare(b.start_at));count=Math.max(1,selectedSlots.length);update();},payload(){update();return {city:current.city,...(pin&&validPin(pin)&&count===1&&select.value==='Другой город'&&!current.remote?{destinationPin:pin}:{}),group:count>1,quoteToken:JSON.stringify(current),paymentMethod:bookingPaymentMode((config.fares||defaultFare).prepayments||defaultFare.prepayments),paymentQuote:JSON.stringify(Array.from({length:count},(_,i)=>prepaymentForVisit(config.fares||defaultFare,visitQuote(current,count,i)))),...(selectedPerformance?{performanceMinutes:selectedPerformance.minutes,performerCast:selectedPerformance.cast}:{})};}};
 }
