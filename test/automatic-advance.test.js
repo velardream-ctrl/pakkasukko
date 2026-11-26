@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {autoAdvanceDocument,advanceStatements} from '../src/automatic-advance.js';
+import {autoAdvanceDocument,advanceStatements,createAdvanceAccess,advanceAccessDigest} from '../src/automatic-advance.js';
 import {paymentData} from '../src/bank-payment.js';
 import {qrMatrix,qrSvg} from '../src/bank-qr.js';
 const seller={name:'Test company',iban:'FI0250004640001302',bic:'OKOYFIHH',vatRate:'0'};
@@ -23,4 +23,12 @@ test('SEPA QR encoder constructs a real matrix and SVG',()=>{
  const m=qrMatrix(p.payload);assert.ok(m.length>=21);
  assert.equal(m.every(row=>row.length===m.length),true);
  assert.equal(m[0][0],true);assert.match(qrSvg(p.payload),/<svg/);
+});
+
+test('public advance token digest survives admin key rotations',async()=>{
+ const a=await createAdvanceAccess(),b=await createAdvanceAccess();
+ assert.match(a.token,/^[a-f0-9]{64}$/);assert.match(a.digest,/^[a-f0-9]{64}$/);
+ assert.notEqual(a.token,a.digest);assert.notEqual(a.digest,b.digest);
+ assert.equal(await advanceAccessDigest(a.token),a.digest);
+ assert.notEqual(await advanceAccessDigest(b.token),a.digest);
 });

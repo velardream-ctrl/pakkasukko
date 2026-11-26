@@ -102,6 +102,19 @@ try{
    if(attempt<9)await new Promise(resolve=>setTimeout(resolve,700*(attempt+1)));
  }
  if(!booking)throw Error('Owner booking readiness API not ready: '+lastBookingStatus);
+ // Read-only smoke checks: no test bookings, real transfers or settings changes.
+ let advanceReady=false;
+ for(let attempt=0;attempt<10;attempt++){
+   const [admin,denied]=await Promise.all([
+     fetch(url+'/admin',{cache:'no-store'}),
+     fetch(url+'/api/advance/view?id=00000000-0000-0000-0000-000000000000&token='+ '0'.repeat(64),{cache:'no-store'})
+   ]);
+   const html=await admin.text(),body=await denied.json().catch(()=>null);
+   if(admin.ok&&html.includes('id="automaticBank"')&&html.includes('id="holdHours"')&&denied.status===404&&body?.error==='Счёт не найден.'){advanceReady=true;break;}
+   if(attempt<9)await new Promise(resolve=>setTimeout(resolve,1000));
+ }
+ if(!advanceReady)throw Error('Advance booking controls or secure public route unavailable');
+ console.log('Automatic bank advance UI ready; unknown payment link rejected.');
  console.log('Owner calendar launch controls ready.');
  console.log('Readiness (no secret values): Turnstile='+booking.turnstileConfigured+', Resend='+booking.emailConfigured+', testEmailSent='+booking.mailTestSent+', liveBookings='+booking.enabled);
  await fetch(url+'/api/admin/logout',{method:'POST',headers:{Cookie:cookie,Origin:url}});

@@ -3,6 +3,14 @@ import {invoiceService} from '../docs/invoice-service.js';
 import {invoiceView} from './invoice-view.js';
 const localTime=date=>new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Helsinki',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(date).replace(' ','T');
 const now=()=>new Date().toISOString();
+export async function advanceAccessDigest(token){
+ const bytes=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(token));
+ return Array.from(new Uint8Array(bytes),n=>n.toString(16).padStart(2,'0')).join('');
+}
+export async function createAdvanceAccess(){
+ const token=crypto.randomUUID().replace(/-/g,'')+crypto.randomUUID().replace(/-/g,'');
+ return {token,digest:await advanceAccessDigest(token)};
+}
 export async function bankProfile(db){
  const p=JSON.parse((await db.prepare("SELECT value FROM booking_settings WHERE key='billing_profile'").first())?.value||'{}');
  if(!bankProfileReady(p))return null;
@@ -36,13 +44,14 @@ export async function expireBankHolds(db){
 }
 export async function publicAdvance(req,env,url,reply,mac,same,emailOwner){
  const id=url.searchParams.get('id')||'',token=url.searchParams.get('token')||'';
- if(!/^[a-f0-9-]{36}$/.test(id)||!env.SESSION_SECRET||!same(token,await mac(env.SESSION_SECRET,'advance:'+id)))return reply({error:'Счёт не найден.'},404);
- await expireBankHolds(env.DB);
- const row=await env.DB.prepare(`SELECT p.*,b.status AS booking_status,b.email,d.final_status
+ if(!/^[a-f0-9-]{36}$/.test(id)||! /^[a-f0-9]{64}$/.test(token)||!env.DB)return reply({error:'Счёт не найден.'},404);
+ const lookup=()=>env.DB.prepare(`SELECT p.*,b.status AS booking_status,b.email,d.final_status
  FROM prepayment_requests p JOIN bookings b ON b.id=p.booking_id LEFT JOIN booking_details d ON d.booking_id=b.id WHERE p.booking_id=?`).bind(id).first();
- if(!row)return reply({error:'Счёт не найден.'},404);
+ let row=await lookup();if(!row)return reply({error:'Счёт не найден.'},404);
  const doc=JSON.parse(row.document),number='A-'+row.number;
- if(!doc.automatic)return reply({error:'Счёт не найден.'},404);
+ const valid=doc.accessDigest?same(doc.accessDigest,await advanceAccessDigest(token)):Boolean(env.SESSION_SECRET&&same(token,await mac(env.SESSION_SECRET,'advance:'+id)));
+ if(!doc.automatic||!valid)return reply({error:'Счёт не найден.'},404);
+ await expireBankHolds(env.DB);row=await lookup();
  const active=row.status==='requested'&&!row.final_status&&row.booking_status==='pending';
  const params='?id='+encodeURIComponent(id)+'&token='+encodeURIComponent(token);
  const root='/api/advance/';
