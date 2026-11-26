@@ -131,7 +131,7 @@ try{
  if(!doorstepResult.alreadyApplied){
   const current=await fetch(url+'/api/public-config',{cache:'no-store'}).then(r=>r.json());
   const gift=current.fares?.performance?.rates?.gift;
-  if(JSON.stringify(gift?.map(r=>[r.minutes,r.solo]))!==JSON.stringify([[10,4000],[15,4500],[20,5500]])||current.services?.gift?.label!=='от 40 €')throw Error('Doorstep tariff verification failed');
+  if(JSON.stringify(gift?.map(r=>[r.minutes,r.solo,r.duo]))!==JSON.stringify([[10,4000,6500],[15,4500,7500],[20,5500,9000]])||current.services?.gift?.label!=='от 40 €'||current.fares?.performance?.rates?.home?.find(r=>r.minutes===45)?.duo!==16000)throw Error('Doorstep tariff verification failed');
  }
  console.log('Doorstep tariff migration: '+(doorstepResult.alreadyApplied?'already applied':'applied and verified'));
  console.log('Owner calendar launch controls ready.');
