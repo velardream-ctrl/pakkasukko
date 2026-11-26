@@ -115,6 +115,16 @@ try{
  }
  if(!advanceReady)throw Error('Advance booking controls or secure public route unavailable');
  console.log('Automatic bank advance UI ready; unknown payment link rejected.');
+ // Authorized one-time tariff update; the database marker prevents overwriting later owner edits.
+ const tariffUpdate=await fetch(url+'/api/admin/tariffs/competitive-2026',{method:'POST',headers:{Cookie:cookie,Origin:url,'Content-Type':'application/json'},body:'{}'});
+ const tariffResult=await tariffUpdate.json().catch(()=>null);
+ if(!tariffUpdate.ok||!tariffResult?.ok)throw Error('Competitive tariff migration failed (HTTP '+tariffUpdate.status+')');
+ console.log('Competitive tariff migration: '+(tariffResult.alreadyApplied?'already applied':'applied; cities='+tariffResult.cityCount+', video cards='+tariffResult.videoCards+', payment mode='+tariffResult.paymentMode));
+ const verifiedTariffs=await fetch(url+'/api/public-config',{cache:'no-store'}).then(r=>r.json());
+ if(!tariffResult.alreadyApplied){
+  const f=verifiedTariffs.fares;
+  if(f?.performance?.rates?.gift?.[0]?.solo!==4500||f?.performance?.rates?.home?.[0]?.solo!==6000||f?.prepayments?.rules?.Kitee?.amount!==2000||verifiedTariffs.services?.gift?.label!=='от 45 €'||verifiedTariffs.services?.home?.label!=='от 60 €')throw Error('New public tariffs did not match the migration');
+ }
  console.log('Owner calendar launch controls ready.');
  console.log('Readiness (no secret values): Turnstile='+booking.turnstileConfigured+', Resend='+booking.emailConfigured+', testEmailSent='+booking.mailTestSent+', liveBookings='+booking.enabled);
  await fetch(url+'/api/admin/logout',{method:'POST',headers:{Cookie:cookie,Origin:url}});
