@@ -1,3 +1,4 @@
+import {validTextPresentation} from '../docs/text-presentation.js';
 import {serviceCard,isVideoGreeting} from '../docs/video-service.js';
 import {currentCopy} from './privacy-copy.js';
 const spatialUuid=/^[a-f0-9-]{36}$/;
@@ -50,6 +51,7 @@ export async function editorAPI(req,env,path,reply){
       if(!body)return reply({error:'Версия не найдена'},404);
     }else{
       if(!model || !['texts','crops','pictures','seo'].every(k=>model[k] && typeof model[k]==='object'&&!Array.isArray(model[k])) || !['order','hidden','cards'].every(k=>Array.isArray(model[k])))return reply({error:'Некорректный черновик'},400);
+      if(!validTextPresentation(model))return reply({error:'Проверьте оформление текста.'},400);
       if(!validSpatialSettings(model.spatial))return reply({error:'Проверьте настройки пространственных фотографий.'},400);
       if(model.deliveryModes!==undefined){const modes=model.deliveryModes;if(!modes||typeof modes!=='object'||Array.isArray(modes)||Object.entries(modes).some(([id,v])=>!serviceCard(model,id)||!['visit','delivery'].includes(v?.mode)||!Number.isInteger(v.days)||v.days<(isVideoGreeting(serviceCard(model,id))&&v.mode==='delivery'?7:0)||v.days>365))return reply({error:'Проверьте способы оказания услуг и сроки подготовки.'},400);}
       body=JSON.stringify(model);
