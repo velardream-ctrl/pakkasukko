@@ -4,6 +4,7 @@ import {execFileSync} from 'node:child_process';
 const {CLOUDFLARE_ACCOUNT_ID:account,CLOUDFLARE_API_TOKEN:token,PAKKASUKKO_ADMIN_PASSWORD:password,
  PAKKASUKKO_TURNSTILE_SITE_KEY:siteKey='',PAKKASUKKO_TURNSTILE_SECRET:turnstileSecret='',
  PAKKASUKKO_RESEND_API_KEY:resendKey='',PAKKASUKKO_OWNER_EMAIL:ownerEmail='',PAKKASUKKO_FROM_EMAIL:fromEmail='',
+ PAKKASUKKO_GOOGLE_MAPS_BROWSER_KEY:mapsBrowserKey='',PAKKASUKKO_GOOGLE_ROUTES_API_KEY:routesKey='',
  PAKKASUKKO_STRIPE_SECRET_KEY:stripeKey='',PAKKASUKKO_STRIPE_WEBHOOK_SECRET:stripeWebhookSecret=''}=process.env;
 if(!/^[a-f0-9]{32}$/.test(account)||!token||!password||password.length<16)throw Error('Configure the three Pakkasukko repository secrets first.');
 const api='https://api.cloudflare.com/client/v4/accounts/'+account;
@@ -46,6 +47,7 @@ try{
   secure.STRIPE_SECRET_KEY=stripeKey;
   secure.STRIPE_WEBHOOK_SECRET=stripeWebhookSecret;
  }
+ if(mapsBrowserKey&&routesKey){secure.GOOGLE_MAPS_BROWSER_KEY=mapsBrowserKey;secure.GOOGLE_ROUTES_API_KEY=routesKey;}
  writeFileSync(secrets,JSON.stringify(secure),{mode:0o600});
  wrangler('d1','execute',dbName,'--remote','--file=schema.sql');
  wrangler('deploy','--secrets-file',secrets);
