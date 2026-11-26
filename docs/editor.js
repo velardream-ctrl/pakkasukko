@@ -167,11 +167,11 @@ function section(){
   }
   for(const f of fields){
     const value=model.texts[f.key]??f.original;
-    if(!query&&heading&&!custom&&heading.contains(f.node)&&!f.attribute)continue;
+    if(heading&&!custom&&f.node&&heading.contains(f.node)&&!f.attribute&&!query)continue;
     if(query ? !(value+' '+f.original).toLocaleLowerCase('ru').includes(query) : f.group!==group)continue;
     const label=(query?names[f.group]+' · ':'')+(f.attribute==='placeholder'?'Подсказка поля · ':'')+f.original.trim().slice(0,80);
     const editor=input($('fields'),label,value,v=>{model.texts[f.key]=v;setField(f,v);if(f.group==='header')fitTagline(doc,model.taglineWidth);if(!f.node)draw();
-      if(f.node?.parentElement?.closest('[data-heading-original]')){delete model.headingOverrides[f.group];delete model.headingParts?.[f.group];draw();}
+      if(f.node?.parentElement?.closest('[data-heading-original]')){note('Этот заголовок имеет отдельное оформление. Откройте его раздел, чтобы изменить строки.');draw();}
     },'textarea');editor.id='edit-'+f.key;
     if(f.node&&!f.attribute)styleControls($('fields'),model.textStyles?.[f.key],v=>{(model.textStyles??={})[f.key]=v;styleField(f,v);});
   }
