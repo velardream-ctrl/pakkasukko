@@ -71,7 +71,7 @@ export function mountFares(form,config){
     const method=bookingPaymentMode((config.fares||defaultFare).prepayments||defaultFare.prepayments);
     const modeText=method==='stripe'?'Оплата через защищённую ссылку Stripe после выставления счёта.':'Оплата банковским переводом после выставления счёта.';
     paymentText.textContent=advance?'Обязательная предоплата: '+euros(advance)+'. '+modeText+' Предоплата входит в общую стоимость.':'';
-    if(!advance)paymentConsent.checked=false;
+    if(!advance||(paymentBox.dataset.method&&paymentBox.dataset.method!==method))paymentConsent.checked=false;
     paymentBox.dataset.method=method;
     if(count>1){
       const visits=Array.from({length:count},(_,i)=>visitQuote(current,count,i));
