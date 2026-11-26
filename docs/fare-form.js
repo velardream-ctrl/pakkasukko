@@ -1,4 +1,4 @@
-import {defaultFare,prices,quote,describe,euros,visitQuote,performanceRows,performanceChoice,prepaymentForVisit,bookingPaymentMode} from './fares.js?v=65';
+import {defaultFare,prices,quote,describe,euros,visitQuote,performanceRows,performanceChoice,prepaymentForVisit,bookingPaymentMode} from './fares.js?v=68';
 import {routeCities} from './route-cities.js';
 export function mountFares(form,config){
   const service=form.elements.service,input=form.elements.city;
@@ -46,7 +46,7 @@ export function mountFares(form,config){
     choices.hidden=!rows.length;
     if(!rows.length){selectedPerformance=null;return;}
     const previous=durationSelect.value;
-    durationSelect.replaceChildren(...rows.map(row=>new Option(row.minutes+' минут',String(row.minutes))));
+    durationSelect.replaceChildren(...rows.map(row=>new Option(row.minutes+' мин · от '+euros(Math.min(...[row.solo,row.duo].filter(Number.isInteger))),String(row.minutes))));
     durationSelect.value=rows.some(r=>String(r.minutes)===previous)?previous:String(rows[0].minutes);
     const row=rows.find(r=>String(r.minutes)===durationSelect.value);
     const oldCast=castSelect.value;
