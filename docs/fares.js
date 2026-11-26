@@ -70,6 +70,8 @@ export function validPrepayments(value,km){
    ||!Number.isInteger(value.dueDays)||value.dueDays<1||value.dueDays>30
    ||!value.rules||typeof value.rules!=='object'||Array.isArray(value.rules))return false;
  if(value.paymentMethod!==undefined&&(!['none','bank','stripe'].includes(value.paymentMethod)||value.enabled!==(value.paymentMethod!=='none')))return false;
+ if(value.automaticBank!==undefined&&typeof value.automaticBank!=='boolean')return false;
+ if(value.holdHours!==undefined&&(!Number.isInteger(value.holdHours)||value.holdHours<1||value.holdHours>168))return false;
  if(Object.keys(value.rules).length>100)return false;
  const base=value.defaultRule||{mode:'fixed',percent:0,amount:5000};
  if(!['none','travel','percent','fixed'].includes(base.mode)||!Number.isInteger(base.percent)||base.percent<0||base.percent>100||!Number.isInteger(base.amount)||base.amount<0||base.amount>10000000)return false;
