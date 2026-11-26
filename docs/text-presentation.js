@@ -44,7 +44,7 @@ export function legacyHeadingParts(model,group,heading){
  return base.length?base:[{text:heading?.textContent||'',color:'auto',font:'auto'}];
 }
 function control(parent,title,options,value,change){
- const label=document.createElement('label');label.textContent=title;const select=document.createElement('select');
+ const label=document.createElement('label');label.textContent=title;const select=document.createElement('select');select.setAttribute('aria-label',title);
  for(const [v,t] of options)select.add(new Option(t,v));select.value=value;select.onchange=()=>change(select.value);label.append(select);parent.append(label);
 }
 export function styleControls(parent,style,onChange){
