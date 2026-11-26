@@ -1,0 +1,12 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {promoDiscount,normalizePromo} from '../docs/promo-rules.js';
+import {prepaymentForVisit,defaultFare} from '../docs/fares.js';
+import {generatePromoCode} from '../src/promos.js';
+const q={city:'Kitee',base:15000,travel:0,total:15000,holidayName:'Рождественская ночь',holidayExtra:5000,holidayPercent:50};
+const r=(kind,value=0,extra={})=>({id:'test',kind,value,...extra});
+test('holiday gift removes surcharge only',()=>{const v=promoDiscount(q,r('waive_holiday'),'home');assert.equal(v.total,10000);assert.equal(v.holidayExtra,0);assert.equal(v.promo.discount,5000);});
+test('free local visit has no advance',()=>{const v=promoDiscount(q,r('free_visit',0,{city:'Kitee'}),'home');assert.equal(v.total,0);assert.equal(prepaymentForVisit(defaultFare,v),null);});
+test('program gift preserves transport costs',()=>{const v=promoDiscount({...q,city:'Joensuu',travel:3000,total:18000},r('free_program'),'home');assert.equal(v.total,3000);assert.equal(prepaymentForVisit(defaultFare,v).amount,3000);});
+test('fixed, percent and scope',()=>{assert.equal(promoDiscount(q,r('fixed',20000),'home').total,0);assert.equal(promoDiscount(q,r('percent',25),'home').total,11250);assert.equal(promoDiscount(q,r('percent',25,{service:'other'}),'home'),null);assert.equal(promoDiscount({...q,groupSize:2},r('percent',25),'home'),null);assert.equal(promoDiscount({...q,city:'Joensuu',travel:1000,total:16000},r('free_visit'),'home'),null);});
+test('random codes normalize',()=>{const a=generatePromoCode(),b=generatePromoCode();assert.match(a,/^GIFT-[A-HJ-NP-Z2-9]{10}$/);assert.notEqual(a,b);assert.equal(normalizePromo(' '+a.toLowerCase()+' '),a);});

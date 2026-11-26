@@ -1,3 +1,5 @@
+import {promoDiscount} from '../docs/promo-rules.js';
+import {promosEnabled,findPromo,promoRedemption,promoAdmin} from './promos.js';
 import {bankProfile,autoAdvanceDocument,advanceStatements,expireBankHolds,publicAdvance,createAdvanceAccess} from './automatic-advance.js';
 import {billing} from './billing.js';
 import {prepaymentsAPI} from './prepayment-api.js';
@@ -81,7 +83,12 @@ async function api(req,env,ctx,url){
  if(path==='/api/public-config'&&method==='GET'){
    const state=await bookingState(env);
    const site=await published(env),content=await getContent(env);
-   return reply({site,content,fares:await fareSettings(env),services:prices(site,content),turnstileSiteKey:state.enabled?env.TURNSTILE_SITE_KEY:'',bookingsEnabled:state.enabled});
+   return reply({site,content,fares:await fareSettings(env),services:prices(site,content),turnstileSiteKey:state.enabled?env.TURNSTILE_SITE_KEY:'',bookingsEnabled:state.enabled,promosEnabled:env.DB?await promosEnabled(env.DB):false});
+ }
+ if(path==='/api/promo/check'&&method==='POST'){
+   if(!(await bookingState(env)).enabled||!await rateLimit(req,env,'promo-check',20,60))return fail('Проверка кода временно недоступна.',429);
+   const input=await parse(req),rule=await findPromo(env.DB,input.code);
+   return rule?reply({rule}):fail('Код недействителен, отключён или уже использован.',404);
  }
  if(path==='/api/slots'&&method==='GET'){if(!env.DB)return reply({slots:[],timezone:'Europe/Helsinki'});await expireBankHolds(env.DB);const s=await env.DB.prepare('SELECT id,start_at,end_at,status FROM slots WHERE start_at>=? ORDER BY start_at LIMIT 500').bind(fiNow().slice(0,10)+'T00:00').all();return reply({slots:s.results||[],timezone:'Europe/Helsinki'});}
  if(path==='/api/video-orders'&&method==='POST'){
@@ -153,32 +160,40 @@ async function api(req,env,ctx,url){
    // Recalculate with trusted slot timestamps. The client cannot choose its own holiday prices.
    const snapshot=quote(fares,services[serviceId],b.city,orders.length>1||(!input.visits&&input.group===true),slots.map(s=>s.start_at),choice);
    if(JSON.stringify(snapshot)!==input.quoteToken)return reply({error:'Тариф изменился. Проверьте новый расчёт и отправьте заявку ещё раз.',fares,services},409);
-    if(slots.some((_,i)=>prepaymentForVisit(fares,visitQuote(snapshot,slots.length,i)))&&input.prepaymentTerms!=='accepted')return fail('Ознакомьтесь с условиями предоплаты и отмены перед отправкой заявки.');
+   const visitsPriced=slots.map((_,i)=>visitQuote(snapshot,slots.length,i));
+   if(input.promoCode){
+    if(slots.length!==1||snapshot.group)return fail('Подарочный код применяется к одному визиту.',409);
+    const rule=await findPromo(env.DB,input.promoCode),discounted=rule&&promoDiscount(visitsPriced[0],rule,serviceId);
+    if(!discounted||JSON.stringify(discounted.promo)!==input.promoQuote)return fail('Подарочный код недоступен или условия изменились. Проверьте код заново.',409);
+    visitsPriced[0]=discounted;
+   }else if(input.promoQuote)return fail('Проверьте подарочный код.',409);
+    if(visitsPriced.some(v=>prepaymentForVisit(fares,v))&&input.prepaymentTerms!=='accepted')return fail('Ознакомьтесь с условиями предоплаты и отмены перед отправкой заявки.');
    const auto=methodForBooking==='bank'&&fares.prepayments?.automaticBank===true;
-   const planned=slots.map((_,i)=>prepaymentForVisit(fares,visitQuote(snapshot,slots.length,i)));
+   const planned=visitsPriced.map(v=>prepaymentForVisit(fares,v));
    if((auto||input.paymentQuote!==undefined)&&JSON.stringify(planned)!==input.paymentQuote)return reply({error:'Предоплата изменилась. Проверьте сумму и отправьте заявку снова.',fares,services},409);
-   const autoEligible=auto&&planned.some(Boolean)&&slots.every((_,i)=>Number.isInteger(visitQuote(snapshot,slots.length,i).total));
+   const autoEligible=auto&&planned.some(Boolean)&&visitsPriced.every(v=>Number.isInteger(v.total));
    const seller=autoEligible?await bankProfile(env.DB):null;
    if(autoEligible&&(!seller||!env.SESSION_SECRET))return fail('Автоматический счёт временно недоступен. Свяжитесь с организатором.',503);
    const groupId=crypto.randomUUID(),statements=[],receipts=[];
    for(const [index,slot] of slots.entries()){
      const order=orders.find(o=>o.slotId===slot.id),id=crypto.randomUUID();
-     const visit=visitQuote(snapshot,slots.length,index);
+     const visit=visitsPriced[index];
      const payment=prepaymentForVisit(fares,visit);
      const saved={...visit,...(payment?{prepayment:{...payment,termsVersion:'2026-11-26',acceptedAt:now()}}:{}),groupId};
      const holiday=saved.holidayName?' · '+saved.holidayName+' +'+saved.holidayPercent+'% ('+(saved.holidayExtra===null?'стоимость по согласованию':euros(saved.holidayExtra))+')':'';
      const artists=saved.durationMinutes?' · '+(saved.performerCast==='duo'?'Дед Мороз и Снегурочка':'Дед Мороз')+' · '+saved.durationMinutes+' минут':'';
      const detailCore=slots.length===1?describe(saved):'Визит '+(index+1)+'/'+slots.length+artists+holiday+' · Программа '+(saved.base==null?'по согласованию':euros(saved.base))+' · Доля дороги '+(saved.travel==null?'по согласованию':euros(saved.travel))+' · Итого '+(saved.total==null?'по согласованию':euros(saved.total));
-     const detail=detailCore+(saved.prepayment?' · Предоплата '+euros(saved.prepayment.amount):'');
+     const detail=detailCore+(saved.promo?' · Подарочная скидка −'+euros(saved.promo.discount):'')+(saved.prepayment?' · Предоплата '+euros(saved.prepayment.amount):'');
      statements.push(env.DB.prepare("INSERT INTO bookings(id,slot_id,service,name,phone,email,city,address,message,status,created_at) VALUES(?,(SELECT id FROM slots WHERE id=? AND status='open'),?,?,?,?,?,?,?,'pending',?)").bind(id,slot.id,b.service,b.name,b.phone,b.email,b.city,order.address,b.message,now()),
        env.DB.prepare("INSERT INTO booking_quotes(booking_id,snapshot,summary) VALUES(?,?,?)").bind(id,JSON.stringify(saved),detail));
+     if(saved.promo)statements.push(promoRedemption(env.DB,saved.promo,id,now()));
      let paymentUrl;
      if(autoEligible&&payment){const doc=autoAdvanceDocument({seller,order,serviceId,slot,quote:saved,hours:fares.prepayments.holdHours||24});const access=await createAdvanceAccess();doc.accessDigest=access.digest;statements.push(...advanceStatements(env.DB,id,doc,now()));paymentUrl='/api/advance/view?id='+id+'&token='+access.token;}
      receipts.push({id,time:slot.start_at,address:order.address,summary:detail,...(paymentUrl?{paymentUrl}:{} )});
    }
    const result={id:receipts[0].id,receipts,status:'pending',summary:receipts.map(v=>v.summary).join(' / ')};
    if(key)statements.unshift(env.DB.prepare('INSERT INTO booking_submissions VALUES(?,?,?)').bind(key,fingerprint,JSON.stringify(result)));
-   try{await env.DB.batch(statements);}catch(e){if(key){const previous=await replay();if(previous)return previous;}if(String(e).includes('NOT NULL'))return fail('Один из интервалов уже занят.',409);throw e;}
+   try{await env.DB.batch(statements);}catch(e){if(key){const previous=await replay();if(previous)return previous;}if(String(e).includes('promo unavailable'))return fail('Подарочный код уже недоступен. Проверьте другой код.',409);if(String(e).includes('NOT NULL'))return fail('Один из интервалов уже занят.',409);throw e;}
    const paymentLinks=receipts.filter(v=>v.paymentUrl);
    if(paymentLinks.length&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(b.email||''))ctx.waitUntil((async()=>{try{const response=await fetch('https://api.resend.com/emails',{method:'POST',headers:{Authorization:'Bearer '+env.RESEND_API_KEY,'Content-Type':'application/json','Idempotency-Key':'pakkasukko-auto-'+groupId},body:JSON.stringify({from:env.FROM_EMAIL,to:[b.email],subject:'Pakkasukko · счёт предоплаты',text:'Время временно зарезервировано. Для оплаты откройте защищённые ссылки:\n'+paymentLinks.map(v=>v.time+' · '+url.origin+v.paymentUrl).join('\n')+'\nБронь подтверждается только после поступления оплаты.'})});if(!response.ok)console.warn('Advance email not accepted',response.status);}catch(e){console.warn('Advance email failed',e.message);}})());
    ctx.waitUntil(emailOwner(env,'Новая заявка Pakkasukko',[b.service,b.name,b.phone,b.email,b.city,b.message,...receipts.map(v=>v.time+' · '+v.address+' · '+v.summary)].join('\n')));
@@ -214,6 +229,7 @@ async function api(req,env,ctx,url){
    return reply({ok:true},200,{'Set-Cookie':'pakkasukko_session=; Path=/api/admin; HttpOnly; SameSite=Strict; Max-Age=0'});
  }
  if(!await adminOK(req,env))return fail('Необходим вход владельца.',401);
+ if(path.startsWith('/api/admin/promos/'))return promoAdmin(req,env,path.split('/').pop(),reply);
  if(path.startsWith('/api/admin/billing/'))return billing(req,env,path.split('/').pop(),reply);
   if(path.startsWith('/api/admin/prepayments/'))return prepaymentsAPI(req,env,path.split('/').pop(),reply);
   if(path.startsWith('/api/admin/stripe/'))return stripeAdmin(req,env,path.split('/').pop(),reply);

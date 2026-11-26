@@ -1,3 +1,4 @@
+import {mountPromoAdmin} from './promo-admin.js';
 import {sellerForm,invoiceControls} from './billing-panel.js';
 import {prepaymentControls} from './prepayment-panel.js?v=65';
 import {applyBrand} from './site.js';
@@ -23,7 +24,7 @@ function textBlock(parent,tag,text,cls){const child=el(tag,text,cls);parent.appe
 function button(parent,label,cb,cls){const b=el('button',label,cls);b.type='button';b.addEventListener('click',cb);parent.append(b);return b;}
 function format(stamp){return (stamp||'').replace('T',' ');}
 async function reload(){
- try{state=await request('/api/admin/dashboard');try{stripeConnection=await request('/api/admin/stripe/status');}catch{stripeConnection={enabled:false,mode:'off'};}try{publicServices=(await request('/api/public-config')).services||{};}catch{publicServices={};}$('loginBox').classList.add('hidden');$('dashboard').classList.remove('hidden');$('logout').classList.remove('hidden');render();renderFare();renderPrepayments();renderPerformance();await reloadInvoices();await reloadBookingState();await renderVideoOrders($('videoOrderList'),request);}
+ try{state=await request('/api/admin/dashboard');try{stripeConnection=await request('/api/admin/stripe/status');}catch{stripeConnection={enabled:false,mode:'off'};}try{publicServices=(await request('/api/public-config')).services||{};}catch{publicServices={};}$('loginBox').classList.add('hidden');$('dashboard').classList.remove('hidden');$('logout').classList.remove('hidden');render();renderFare();renderPrepayments();renderPerformance();await reloadInvoices();await reloadBookingState();await renderVideoOrders($('videoOrderList'),request);await mountPromoAdmin($('promoAdmin'),request,state.fares||{},publicServices);}
  catch(e){$('dashboard').classList.add('hidden');$('loginBox').classList.remove('hidden');$('logout').classList.add('hidden');}
 }
 async function reloadInvoices(){
