@@ -1,3 +1,4 @@
+import {approvedCity} from './city-distance.js';
 import {deliveryConfig} from './video-service.js';
 export const defaultHolidayRules=[
   {name:'Рождественская ночь',startDate:'24.12',startTime:'20:00',endDate:'25.12',endTime:'09:00',percent:50},
@@ -152,6 +153,7 @@ export function holidayInfo(startAt,fare=defaultFare){
 }
 export const holidayNight=(startAt,fare=defaultFare)=>holidayInfo(startAt,fare)?.name||null;
 export function quote(fare,item,city,group=false,visitTimes=[],performance=null){
+  city=approvedCity(fare,city)||city;
   const match=String(item.label).trim().match(/^(?:от\s*)?(\d+(?:[.,]\d{1,2})?)\s*(?:€|евро)?$/iu);
   const base=performance?performance.amount:match?Math.round(Number(match[1].replace(',','.'))*100):null;
   const known=Object.hasOwn(fare.km,city),local=item.remote||city==='Kitee';
