@@ -96,11 +96,13 @@ async function activate(){
       submit.disabled=!list.length;submit.textContent=list.length?pageText(model,'send'):pageText(model,'chooseTime');
     }
     const slotMinutes=slot=>(Date.parse(slot.end_at+':00Z')-Date.parse(slot.start_at+':00Z'))/60000;
-    function fill(){
-      chosen.clear();addressInputs.clear();addressList.replaceChildren();addressLabel.hidden=false;originalAddress.required=true;fare.setSlots([]);
+    function fill(preserve=false){
+      if(!preserve){chosen.clear();addressInputs.clear();}
+      addressList.replaceChildren();addressLabel.hidden=false;originalAddress.required=true;
       area.replaceChildren();$('#slotId').value='';submit.disabled=true;
       submit.textContent=selectable?pageText(model,'chooseTime'):'Приём заявок пока закрыт';
       const matching=slots.filter(s=>s.start_at.startsWith(select.value)&&slotMinutes(s)>=fare.durationMinutes());
+      const allowed=new Set(matching.map(s=>s.id));for(const id of chosen.keys())if(!allowed.has(id)){chosen.delete(id);addressInputs.delete(id);}
       if(!matching.length)area.textContent='На выбранную продолжительность свободных интервалов нет. Выберите другой день или продолжительность.';
       for(const slot of matching){
         const element=document.createElement(selectable?'button':'span');
@@ -109,7 +111,7 @@ async function activate(){
         const special=holidayInfo(slot.start_at,config.fares);
         if(special?.percent>0)element.textContent+=' · ✦ +'+special.percent+'%';
         if(selectable){
-          element.type='button';
+          element.type='button';element.classList.toggle('selected',chosen.has(slot.id));element.setAttribute('aria-pressed',String(chosen.has(slot.id)));
           element.addEventListener('click',()=>{
             if(chosen.has(slot.id))chosen.delete(slot.id);
             else{if(chosen.size>=25){alert('За одну заявку можно выбрать до 25 адресов.');return;}chosen.set(slot.id,slot);}
@@ -118,13 +120,14 @@ async function activate(){
         }else element.title='Интервал открыт для просмотра. Отправка заявки пока выключена.';
         area.append(element);
       }
+      syncVisits();if(!selectable)submit.textContent='Приём заявок пока закрыт';
     }
-    fare.onSelectionChange(fill);
-    select.addEventListener('change',fill);fill();
+    fare.onSelectionChange(()=>fill(true));
+    select.addEventListener('change',()=>fill(false));fill();
     $('#bookingMode').textContent=selectable?pageText(model,'pending'):
       'Свободные даты уже видны. Отправка заявок пока закрыта — можно ознакомиться с расписанием.';
     if(!selectable)return;
-    const privacyNote=document.querySelector('#booking .privacy-note');
+    const privacyNote=document.querySelector('#booking .booking-copy .privacy-note');
     if(privacyNote)privacyNote.hidden=true;
     const script=document.createElement('script');script.src='https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';script.async=true;script.onload=()=>{window.turnstile?.render('#captcha',{sitekey:config.turnstileSiteKey,callback:(token)=>{form.dataset.captcha=token;},'expired-callback':()=>{form.dataset.captcha='';}});};document.head.append(script);
     form.addEventListener('submit',async e=>{e.preventDefault();const out=$('#bookingMessage');out.textContent='';if(!form.reportValidity())return;
