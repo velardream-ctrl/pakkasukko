@@ -4,9 +4,9 @@ function loadGoogle(key){
  if(window.google?.maps?.importLibrary)return Promise.resolve();
  if(!loading)loading=new Promise((resolve,reject)=>{
   const script=document.createElement('script');script.async=true;
-  const callback='pakkasukkoGoogleReady';window[callback]=()=>{delete window[callback];resolve();};
+  const callback='pakkasukkoGoogleReady';const timeout=setTimeout(()=>{delete window[callback];script.remove();loading=null;reject(Error('Google Maps не отвечает.'));},15000);window[callback]=()=>{clearTimeout(timeout);delete window[callback];resolve();};
   script.src='https://maps.googleapis.com/maps/api/js?'+new URLSearchParams({key,callback,loading:'async',v:'weekly',language:'fi',region:'FI'});
-  script.onerror=()=>{delete window[callback];script.remove();loading=null;reject(Error('Google Maps недоступен.'));};
+  script.onerror=()=>{clearTimeout(timeout);delete window[callback];script.remove();loading=null;reject(Error('Google Maps недоступен.'));};
   document.head.append(script);
  });return loading;
 }
