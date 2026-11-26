@@ -30,8 +30,8 @@ export function competitiveModel(old={}){
 }
 export const doorstepVersion='doorstep-2026-11-26-v2';
 export function doorstepFare(old){
- const gift=[{minutes:10,solo:4000,duo:null},{minutes:15,solo:4500,duo:null},{minutes:20,solo:5500,duo:null}];
- const next={...old,performance:{...old.performance,enabled:true,rates:{...old.performance?.rates,gift}}};
+ const gift=[{minutes:10,solo:4000,duo:6500},{minutes:15,solo:4500,duo:7500},{minutes:20,solo:5500,duo:9000}];
+ const next={...old,performance:{...old.performance,enabled:true,rates:{...old.performance?.rates,gift,...(old.performance?.rates?.home?{home:old.performance.rates.home.map(r=>r.minutes===45&&Number.isInteger(r.solo)?{...r,duo:r.solo+5000}:r)}:{})}}};
  if(!validFare(next))throw Error('Doorstep tariff failed validation');return next;
 }
 export function doorstepModel(old={}){return {...old,texts:{...old.texts,'programs-9':'от 40 €'},durations:{...old.durations,gift:'10 / 15 / 20 минут'}};}
