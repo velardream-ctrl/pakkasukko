@@ -62,6 +62,16 @@ try{
  const publicResponse=await fetch(url+'/api/public-config',{cache:'no-store'});
  const publicConfig=await publicResponse.json();
  if(!publicResponse.ok||typeof publicConfig.bookingsEnabled!=='boolean')throw Error('Public booking configuration unavailable');
+ // Verify presence of the Google bindings, never log their values or call billable services.
+ if(mapsBrowserKey&&routesKey&&mapsId){
+   let mapsReady=false;
+   for(let attempt=0;attempt<10;attempt++){
+     const check=await fetch(url+'/api/public-config',{cache:'no-store'}).then(r=>r.json()).catch(()=>null);
+     if(check?.distanceLookup?.configured===true){mapsReady=true;console.log('Google Maps bindings ready; map enabled: '+Boolean(check.distanceLookup.enabled));break;}
+     if(attempt<9)await new Promise(resolve=>setTimeout(resolve,1000));
+   }
+   if(!mapsReady)throw Error('Google Maps bindings missing after deployment');
+ }else console.log('Google Maps bindings incomplete; automatic map not activated by deployment.');
  console.log('Pakkasukko calendar availability endpoint ready; live booking enabled: '+publicConfig.bookingsEnabled);
  console.log('Pakkasukko R2 media binding ready: '+health.mediaReady);
  const login=await fetch(url+'/api/admin/login',{method:'POST',redirect:'error',headers:{Origin:url,'Content-Type':'application/json'},body:JSON.stringify({password})});
