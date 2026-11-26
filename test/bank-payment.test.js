@@ -6,7 +6,7 @@ test('Finance Finland v4 invoice example 3',()=>{
  assert.equal(validFinnishIBAN(iban),true);
  assert.equal(validFinnishIBAN('FI03 5000 4640 0013 02'),false);
  assert.equal(finnishReference(ref.slice(0,-1)),ref);
- assert.equal(virtualBankCode(iban,69380,ref,'2011-07-24'),'40250004640001302000693800000069875672083435364110724');
+ assert.equal(virtualBankCode(iban,69380,ref,'2011-07-24'),'402500046400013020006938000000069875672083435364110724');
 });
 test('QR and virtual code use same account, amount and reference',()=>{
  const d={bankPayment:true,seller:{name:'Example',iban:'FI0250004640001302',bic:'OKOYFIHH'},total:5000,due:'2026-12-24'};
