@@ -356,7 +356,7 @@ function render(){
  if(!slots.length)textBlock(s,'p','Интервалы пока не добавлены.','muted');
  for(const slot of slots){
   const item=el('article',undefined,'record');textBlock(item,'h3',format(slot.start_at)+' — '+format(slot.end_at));
-  textBlock(item,'span',({open:'Свободно',blocked:'Заблокировано',reserved:'Подтверждено'}[slot.status]||slot.status),'pill');
+  textBlock(item,'span',({open:'Свободно',blocked:'Заблокировано',reserved:'Занято / резерв'}[slot.status]||slot.status),'pill');
   if(slot.note)textBlock(item,'p',slot.note);
   if(slot.status!=='reserved')button(item,'Удалить интервал',async()=>{if(!confirm('Удалить выбранное время?'))return;try{await request('/api/admin/slots/delete','POST',{id:slot.id});await reload();}catch(e){alert(e.message);}});
   slotControls(item,slot,request,reload);
@@ -372,7 +372,7 @@ function render(){
   if(v.quote_summary)textBlock(item,'p','Зафиксировано при отправке · '+v.quote_summary);
   if(v.message)textBlock(item,'p',v.message);
   textBlock(item,'small','Заявка: '+v.id+' · '+v.created_at);
-  if(!v.final_status&&v.status==='pending')for(const [label,next,cls] of [...(JSON.parse(v.quote_snapshot||'{}').prepayment?.amount?[]:[['Подтвердить','confirmed','confirm']]),['Отклонить','declined','decline']]){
+  if(!v.final_status&&v.status==='pending')for(const [label,next,cls] of [...(JSON.parse(v.quote_snapshot||'{}').prepayment?.amount?[]:[['Подтвердить','confirmed','confirm']]),...(v.deposit_number?[]:[['Отклонить','declined','decline']])]){
    button(item,label,async()=>{if(!confirm('Обработать заявку: '+label+'?'))return;try{await request('/api/admin/bookings/status','POST',{id:v.id,status:next});await reload();}catch(e){alert(e.message);}},cls);
   }
   if(!v.final_status&&['pending','confirmed'].includes(v.status)){
