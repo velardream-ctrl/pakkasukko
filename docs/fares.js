@@ -39,7 +39,7 @@ export function validPerformanceConfig(value){
     ||!Array.isArray(rows)||rows.length>25)return false;
   const seen=new Set();
   for(const row of rows){
-   if(!row||!Number.isInteger(row.minutes)||row.minutes<15||row.minutes>480||seen.has(row.minutes))return false;
+   if(!row||!Number.isInteger(row.minutes)||row.minutes<10||row.minutes>480||seen.has(row.minutes))return false;
    seen.add(row.minutes);
    if(!['solo','duo'].every(key=>row[key]===null||Number.isInteger(row[key])&&row[key]>=0&&row[key]<=10000000))return false;
    if(row.solo===null&&row.duo===null)return false;
