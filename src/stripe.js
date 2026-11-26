@@ -58,9 +58,10 @@ export async function stripeAdmin(req,env,path,reply){
  if(!id)return fail(reply,'Не указан заказ.');
  if(path==='checkout-link'&&req.method==='POST'){
   const db=env.DB;
-  const deposit=await db.prepare(`SELECT p.number,p.amount,p.status,p.due_date,b.name,b.email,b.city,b.service,d.final_status
-   FROM prepayment_requests p JOIN bookings b ON b.id=p.booking_id LEFT JOIN booking_details d ON d.booking_id=b.id WHERE p.booking_id=?`).bind(id).first();
+  const deposit=await db.prepare(`SELECT p.number,p.amount,p.status,p.due_date,b.name,b.email,b.city,b.service,d.final_status,q.snapshot AS quote_snapshot
+   FROM prepayment_requests p JOIN bookings b ON b.id=p.booking_id LEFT JOIN booking_details d ON d.booking_id=b.id LEFT JOIN booking_quotes q ON q.booking_id=b.id WHERE p.booking_id=?`).bind(id).first();
   if(!deposit)return fail(reply,'Сначала выпишите авансовый счёт.',409);
+  if(JSON.parse(deposit.quote_snapshot||'{}').prepayment?.paymentMethod==='bank')return fail(reply,'Для этого заказа выбран банковский перевод.',409);
   if(deposit.status!=='requested'||deposit.final_status==='cancelled')return fail(reply,'Оплата этого заказа уже обработана или отменена.',409);
   const now=Math.floor(Date.now()/1000);
   const active=await db.prepare("SELECT * FROM stripe_checkouts WHERE booking_id=? AND status='open' AND expires_at>? ORDER BY created_at DESC LIMIT 1").bind(id,now+180).first();
