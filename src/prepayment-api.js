@@ -1,3 +1,4 @@
+import {expireBankHolds} from './automatic-advance.js';
 import {invoiceView} from './invoice-view.js';
 import {invoiceService} from '../docs/invoice-service.js';
 const fiDay=()=>new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Helsinki'}).format(new Date());
@@ -15,6 +16,7 @@ export async function prepaymentsAPI(req,env,path,reply){
   return reply({prepayments:results||[]});
  }
  if(!id)return fail(reply,'Выберите заявку.');
+ if(path==='paid'&&method==='POST')await expireBankHolds(db);
  const old=await db.prepare(select).bind(id).first();
  if(path==='request'&&method==='POST'){
   if(old)return reply({number:'A-'+old.number,alreadyIssued:true});
@@ -84,10 +86,14 @@ export async function prepaymentsAPI(req,env,path,reply){
    db.prepare("UPDATE prepayment_requests SET status='paid',paid_at=?,bank_note=? WHERE booking_id=? AND status='requested'").bind(stamp,note,id),
    db.prepare(`INSERT INTO prepayment_events(booking_id,action,amount,note,created_at)
     SELECT booking_id,'paid',amount,?,? FROM prepayment_requests WHERE booking_id=? AND status='paid'
-    AND paid_at=?`).bind(note,stamp,id,stamp)
+    AND paid_at=?`).bind(note,stamp,id,stamp),
+   ...(document.automatic?[
+    db.prepare("UPDATE slots SET status='open',booking_id=NULL WHERE booking_id=? AND status='reserved' AND EXISTS(SELECT 1 FROM prepayment_requests WHERE booking_id=? AND paid_at=? AND status='paid') AND NOT EXISTS(SELECT 1 FROM booking_details WHERE booking_id=? AND final_status IS NOT NULL)").bind(id,id,stamp,id),
+    db.prepare("UPDATE bookings SET status='confirmed' WHERE id=? AND status='pending' AND EXISTS(SELECT 1 FROM prepayment_requests WHERE booking_id=? AND paid_at=? AND status='paid') AND NOT EXISTS(SELECT 1 FROM booking_details WHERE booking_id=? AND final_status IS NOT NULL)").bind(id,id,stamp,id)
+   ]:[])
   ]);}catch{return fail(reply,'Ошибка записи оплаты.',409);}
   const row=await db.prepare(select).bind(id).first();
-  return row.status==='paid'?reply({ok:true}):fail(reply,'Оплата уже обработана.',409);
+  return row.status==='paid'?reply({ok:true,confirmed:row.booking_status==='confirmed'&&!row.final_status}):fail(reply,'Оплата уже обработана.',409);
  }
  if(path==='refund'&&method==='POST'){
   const stripePayment=await db.prepare("SELECT id FROM stripe_checkouts WHERE booking_id=? AND status='paid' LIMIT 1").bind(id).first();
