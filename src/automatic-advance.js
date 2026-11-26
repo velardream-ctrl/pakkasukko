@@ -31,8 +31,8 @@ export async function expireBankHolds(db){
   SELECT p.booking_id,'cancelled' FROM prepayment_requests p JOIN bookings b ON b.id=p.booking_id
   LEFT JOIN booking_details d ON d.booking_id=b.id
   WHERE p.status='requested' AND b.status='pending' AND d.final_status IS NULL
-  AND json_extract(p.document,'$.automatic')=1 AND p.bank_note='' AND json_extract(p.document,'$.holdUntil')<=?
-  ON CONFLICT(booking_id) DO UPDATE SET final_status='cancelled' WHERE booking_details.final_status IS NULL`).bind(localTime(new Date())).run();
+  AND json_extract(p.document,'$.automatic')=1 AND ((p.bank_note='' AND json_extract(p.document,'$.holdUntil')<=?) OR json_extract(p.document,'$.time')<=?)
+  ON CONFLICT(booking_id) DO UPDATE SET final_status='cancelled' WHERE booking_details.final_status IS NULL`).bind(localTime(new Date()),localTime(new Date())).run();
 }
 export async function publicAdvance(req,env,url,reply,mac,same,emailOwner){
  const id=url.searchParams.get('id')||'',token=url.searchParams.get('token')||'';
