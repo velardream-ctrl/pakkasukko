@@ -9,3 +9,6 @@ export function mapsLink(origin,city){return 'https://www.google.com/maps/dir/?'
 export const distanceDefaults={origin:'Kitee',enabled:false,dailyLimit:50};
 export function validDistanceSettings(v){return !!v&&validCityQuery(v.origin)&&typeof v.enabled==='boolean'&&Number.isInteger(v.dailyLimit)&&v.dailyLimit>=1&&v.dailyLimit<=100;}
 export function fuelEstimate(km,fare){return Math.round(km*2*fare.fuel*fare.consumption);}
+
+export function validPin(p){return !!p&&typeof p.lat==='number'&&typeof p.lng==='number'&&Number.isFinite(p.lat)&&Number.isFinite(p.lng)&&p.lat>=59.5&&p.lat<=70.2&&p.lng>=19&&p.lng<=32;}
+export function pinLink(p){return 'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(p.lat+','+p.lng);}
