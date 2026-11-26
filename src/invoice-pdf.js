@@ -1,3 +1,4 @@
+import {paymentData} from './bank-payment.js';
 import {PDFDocument,rgb} from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
 export function base64(bytes){
@@ -52,7 +53,9 @@ export async function makePDF(d,number,env,origin){
  y-=8;if(d.advancePaid)line('Maksettu ennakko / Полученная предоплата: −'+money(d.advancePaid));
  if(d.advanceRefund)line('Palautettava liikamaksu / Возврат переплаты: '+money(d.advanceRefund));
  line('Maksettava / К оплате: '+money(d.advance?d.total:d.remaining??d.total),17);
- line('Eräpäivä / Оплатить до: '+d.due);line('IBAN: '+p.iban);if(p.bic)line('BIC / SWIFT: '+p.bic);if(!d.preview)line('Viesti / Сообщение к платежу: Lasku '+number);
+ line('Eräpäivä / Оплатить до: '+d.due);line('IBAN: '+p.iban);if(p.bic)line('BIC / SWIFT: '+p.bic);const bank=paymentData(d,number);
+ if(bank){line('Saajan nimi / Получатель: '+bank.name);line('Viitenumero: '+bank.reference);line('Virtuaaliviivakoodi: '+bank.barcode,10);if(d.holdUntil)line('Резерв до '+d.holdUntil.replace('T',' ')+' (Europe/Helsinki)');const matrix=(await import('./bank-qr.js')).qrMatrix(bank.payload);if(y<190){page=pdf.addPage([595,842]);y=790;}const cell=3,side=(matrix.length+8)*cell;page.drawRectangle({x:46,y:y-side,width:side,height:side,color:rgb(1,1,1)});for(let r=0;r<matrix.length;r++)for(let c=0;c<matrix.length;c++)if(matrix[r][c])page.drawRectangle({x:46+(c+4)*cell,y:y-(r+5)*cell,width:cell,height:cell,color:rgb(0,0,0)});y-=side+12;}
+ else if(!d.preview)line('Viesti / Сообщение к платежу: Lasku '+number);
  if(d.preview)for(const p of pdf.getPages())p.drawText('TESTI — EI MAKSETTAVAKSI / ТЕСТ — НЕ ОПЛАЧИВАТЬ',{x:46,y:25,size:10,font,color:rgb(.65,.1,.1)});
  return pdf.save();
 }

@@ -1,3 +1,4 @@
+import {expireBankHolds} from './automatic-advance.js';
 import {invoiceView} from './invoice-view.js';
 import {invoiceService} from '../docs/invoice-service.js';
 const fiDay=()=>new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Helsinki'}).format(new Date());
@@ -15,6 +16,7 @@ export async function prepaymentsAPI(req,env,path,reply){
   return reply({prepayments:results||[]});
  }
  if(!id)return fail(reply,'Выберите заявку.');
+ if(path==='paid'&&method==='POST')await expireBankHolds(db);
  const old=await db.prepare(select).bind(id).first();
  if(path==='request'&&method==='POST'){
   if(old)return reply({number:'A-'+old.number,alreadyIssued:true});
@@ -54,6 +56,7 @@ export async function prepaymentsAPI(req,env,path,reply){
   return new Response(bytes,{headers:{'Content-Type':'application/pdf','Content-Disposition':'inline; filename="Pakkasukko-ennakko-'+old.number+'.pdf"','Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'}});
  }
  if(path==='send'&&method==='POST'){
+  if(old.final_status||old.status!=='requested'||(document.automatic&&old.bank_note))return fail(reply,'Не отправляйте повторное требование об оплате по обработанному или отменённому счёту.',409);
   if(old.sent_at)return reply({ok:true,alreadySent:true});
   const input=await readJSON(req),email=String(input.email||old.email||'').trim();
   if(!validEmail(email))return fail(reply,'Введите правильный email для авансового счёта.');
@@ -74,20 +77,28 @@ export async function prepaymentsAPI(req,env,path,reply){
   return reply({ok:true});
  }
  if(path==='paid'&&method==='POST'){
+  if(old.status==='paid')return reply({ok:true,alreadyPaid:true,confirmed:old.booking_status==='confirmed'&&!old.final_status});
   if(document.quote?.prepayment?.paymentMethod==='stripe')return fail(reply,'Для этого заказа подтверждение оплаты поступает от Stripe.',409);
   const outstanding=await db.prepare("SELECT id FROM stripe_checkouts WHERE booking_id=? AND status='open' AND expires_at>? LIMIT 1").bind(id,Math.floor(Date.now()/1000)).first();
   if(outstanding)return fail(reply,'Есть активная ссылка Stripe. Дождитесь подтверждения оплаты или окончания срока ссылки.',409);
   const input=await readJSON(req),note=safeNote(input.note);
   if(!note)return fail(reply,'Укажите дату или примечание к банковскому поступлению.');
+  if(document.automatic&&(!Number.isSafeInteger(input.amount)||input.amount!==old.amount))return fail(reply,'Сумма фактического поступления не совпадает со счётом. Не подтверждайте бронь до сверки и согласования.',409);
   const stamp=new Date().toISOString();
   try{await db.batch([
-   db.prepare("UPDATE prepayment_requests SET status='paid',paid_at=?,bank_note=? WHERE booking_id=? AND status='requested'").bind(stamp,note,id),
+   db.prepare("UPDATE prepayment_requests SET status='paid',paid_at=?,bank_note=? WHERE booking_id=? AND status='requested' AND (?=0 OR EXISTS(SELECT 1 FROM booking_details WHERE booking_id=? AND final_status='cancelled') OR EXISTS(SELECT 1 FROM bookings b JOIN slots s ON s.id=b.slot_id WHERE b.id=? AND b.status='pending' AND s.status='reserved' AND s.booking_id=b.id))").bind(stamp,note,id,document.automatic?1:0,id,id),
    db.prepare(`INSERT INTO prepayment_events(booking_id,action,amount,note,created_at)
     SELECT booking_id,'paid',amount,?,? FROM prepayment_requests WHERE booking_id=? AND status='paid'
-    AND paid_at=?`).bind(note,stamp,id,stamp)
+    AND paid_at=? AND NOT EXISTS(SELECT 1 FROM prepayment_events e WHERE e.booking_id=prepayment_requests.booking_id AND e.action='paid')`).bind(note,stamp,id,stamp),
+   ...(document.automatic?[
+    db.prepare("UPDATE slots SET status='open',booking_id=NULL WHERE booking_id=? AND status='reserved' AND EXISTS(SELECT 1 FROM bookings b WHERE b.id=slots.booking_id AND b.status='pending') AND EXISTS(SELECT 1 FROM prepayment_requests WHERE booking_id=? AND paid_at=? AND status='paid') AND NOT EXISTS(SELECT 1 FROM booking_details WHERE booking_id=? AND final_status IS NOT NULL)").bind(id,id,stamp,id),
+    db.prepare("UPDATE bookings SET status='confirmed' WHERE id=? AND status='pending' AND EXISTS(SELECT 1 FROM prepayment_requests WHERE booking_id=? AND paid_at=? AND status='paid') AND NOT EXISTS(SELECT 1 FROM booking_details WHERE booking_id=? AND final_status IS NOT NULL)").bind(id,id,stamp,id)
+   ]:[])
   ]);}catch{return fail(reply,'Ошибка записи оплаты.',409);}
   const row=await db.prepare(select).bind(id).first();
-  return row.status==='paid'?reply({ok:true}):fail(reply,'Оплата уже обработана.',409);
+  const confirmed=row.booking_status==='confirmed'&&!row.final_status;
+  if(document.automatic&&row.paid_at===stamp&&confirmed&&validEmail(row.email||'')&&env.RESEND_API_KEY&&env.FROM_EMAIL){try{const res=await fetch('https://api.resend.com/emails',{method:'POST',headers:{Authorization:'Bearer '+env.RESEND_API_KEY,'Content-Type':'application/json','Idempotency-Key':'pakkasukko-paid-'+old.number},body:JSON.stringify({from:env.FROM_EMAIL,to:[row.email],subject:'Pakkasukko · бронирование подтверждено',text:'Предоплата по счёту '+number+' получена. Ваш визит подтверждён: '+row.start_at.replace('T',' ')+' (Финляндия). Спасибо!'})});if(!res.ok)console.warn('Payment confirmation email not accepted',res.status);}catch(e){console.warn('Payment confirmation email failed',e.message);}}
+  return row.status==='paid'?reply({ok:true,confirmed}):fail(reply,'Оплата уже обработана.',409);
  }
  if(path==='refund'&&method==='POST'){
   const stripePayment=await db.prepare("SELECT id FROM stripe_checkouts WHERE booking_id=? AND status='paid' LIMIT 1").bind(id).first();

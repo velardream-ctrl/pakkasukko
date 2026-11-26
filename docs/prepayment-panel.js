@@ -25,8 +25,10 @@ export function prepaymentControls(box,b,request,reload,stripe={enabled:false,mo
  for(const [path,label] of [['view','Открыть авансовый счёт'],['pdf','PDF авансового счёта']]){
   const a=add(actions,'a',label);a.href=url(path);a.target='_blank';a.rel='noopener noreferrer';
  }
+ if(b.final_status==='cancelled'&&b.deposit_status==='requested')add(p,'p','Резерв отменён. Если деньги поступили позднее, зарегистрируйте их для возврата; бронь не будет восстановлена автоматически.');
+ if(b.deposit_status==='requested'&&b.deposit_note)add(p,'p',b.deposit_note+' — проверьте банковское поступление.');
  const meta=add(p,'p','Номер A-'+b.deposit_number+' · Срок '+b.deposit_due+' · '+(b.deposit_sent?'Отправлено клиенту':'Не отправлено клиенту'));
- if(!b.deposit_sent&&planned.paymentMethod!=='stripe'){
+ if(!b.deposit_sent&&planned.paymentMethod!=='stripe'&&b.deposit_status==='requested'&&!b.final_status&&!b.deposit_note){
   const label=add(p,'label','Email клиента для отправки');const email=add(label,'input');email.type='email';email.value=b.email||'';email.placeholder='name@example.com';
   control(p,'Отправить авансовый счёт',async()=>{
    if(!email.reportValidity()||!email.value||!confirm('Отправить авансовый счёт '+email.value+'?'))return;
@@ -48,10 +50,12 @@ export function prepaymentControls(box,b,request,reload,stripe={enabled:false,mo
  if(b.deposit_status==='requested'&&planned.paymentMethod!=='stripe'){
   const label=add(p,'label','Подтверждение банка (дата поступления, выписка или примечание)');
   const note=add(label,'input');note.maxLength=300;note.placeholder='Например: получено по выписке 26.11';
+  const amountLabel=add(p,'label','Фактически поступило, €');const actual=add(amountLabel,'input');actual.type='number';actual.min='0.01';actual.step='0.01';actual.placeholder=(b.deposit_amount/100).toFixed(2);
   control(p,'Деньги поступили — отметить оплачено',async()=>{
+   const amount=Math.round(Number(actual.value)*100);if(!actual.value||amount!==b.deposit_amount)throw Error('Введите точную сумму поступления, равную сумме счёта. При расхождении сначала согласуйте оплату.');
    if(!note.value.trim()){alert('Сначала укажите данные банковского поступления.');return;}
    if(!confirm('Вы лично проверили поступление '+euros(b.deposit_amount)+' на банковский счёт?'))return;
-   await request(url('paid'),'POST',{note:note.value});await reload();
+   const result=await request(url('paid'),'POST',{note:note.value,amount});await reload();if(result.confirmed===false)alert('Деньги зарегистрированы, но бронь отменена. Согласуйте возврат или новое время.');
   });
  }
  if(b.deposit_status==='paid'){
