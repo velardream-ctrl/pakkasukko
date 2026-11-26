@@ -1,6 +1,6 @@
 import {deliveryConfig,deliveryLink} from './video-service.js';
-import {mountFares} from './fare-form.js?v=64';
-import {holidayInfo,bookingPaymentMode,defaultFare} from './fares.js?v=64';
+import {mountFares} from './fare-form.js?v=65';
+import {holidayInfo,bookingPaymentMode,defaultFare} from './fares.js?v=65';
 import {fitTagline} from './tagline.js';
 import {pageText,initial,bindPage,renderPage,deviceFor} from './site.js?v=45';
 import {mountSpatialPhoto} from './spatial-gallery.js?v=8';
@@ -49,7 +49,7 @@ async function activate(){
     // Sending personal information is a separate owner-controlled feature.
     const selectable=Boolean(config.bookingsEnabled&&config.turnstileSiteKey);
     const paymentNotice=document.createElement('p');paymentNotice.className='privacy-note';paymentNotice.setAttribute('aria-live','polite');$('#bookingMode').after(paymentNotice);
-    const updatePaymentNotice=()=>{const mode=bookingPaymentMode(config.fares?.prepayments||defaultFare.prepayments);paymentNotice.textContent=mode==='none'?'Бронирование без предоплаты. Дождитесь подтверждения заявки.':mode==='stripe'?'Для бронирования предусмотрена онлайн-предоплата после согласования.':'Для бронирования предусмотрена предоплата банковским переводом после согласования.';};updatePaymentNotice();
+    const updatePaymentNotice=()=>{const mode=bookingPaymentMode(config.fares?.prepayments||defaultFare.prepayments);paymentNotice.textContent=mode==='none'?'Бронирование без предоплаты. Дождитесь подтверждения заявки.':mode==='stripe'?'Для бронирования предусмотрена онлайн-предоплата после согласования.':config.fares?.prepayments?.automaticBank?'Для бронирования с известной стоимостью счёт предоплаты откроется сразу.':'Для бронирования предусмотрена предоплата банковским переводом после согласования.';};updatePaymentNotice();
     const select=$('#dateSelect'),area=$('#slots'),form=$('#bookingForm'),submit=$('#bookingSubmit');
     if(!visitOption){$('#bookingMode').textContent='Все услуги заказываются по дате получения. Выберите нужную карточку выше.';form.hidden=true;select.hidden=true;area.hidden=true;return;}
     // Keep the calculator available even while the booking calendar is closed.
@@ -133,7 +133,7 @@ async function activate(){
       const signature=JSON.stringify(payload);
       if(signature!==previousSelection){submissionKey=crypto.randomUUID();previousSelection=signature;}
       payload.submissionKey=submissionKey;payload.turnstileToken=form.dataset.captcha;submit.disabled=true;submit.textContent=pageText(model,'sending');
-      try{const r=await fetch('/api/bookings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});const res=await r.json();if(!r.ok){if(res.fares){Object.assign(config,{fares:res.fares,services:res.services});fare.update();redraw();updatePaymentNotice();}throw Error(res.error||pageText(model,'error'));}previousSelection='';out.textContent=pageText(model,'success')+' '+res.summary;for(const visit of res.receipts||[]){const link=document.createElement('a');link.href='./trip.html#'+visit.id;link.textContent='Расчёт по визиту '+visit.time.replace('T',' ');out.append(document.createElement('br'),link);}form.reset();$('#slotId').value='';$('#dateSelect').dispatchEvent(new Event('change'));window.turnstile?.reset();form.dataset.captcha='';}catch(err){out.textContent=err.message;submit.disabled=false;submit.textContent=pageText(model,'retry');}
+      try{const r=await fetch('/api/bookings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});const res=await r.json();if(!r.ok){if(res.fares){Object.assign(config,{fares:res.fares,services:res.services});fare.update();redraw();updatePaymentNotice();}throw Error(res.error||pageText(model,'error'));}previousSelection='';const advances=(res.receipts||[]).filter(v=>v.paymentUrl);if(advances.length===1&&res.receipts.length===1){location.assign(advances[0].paymentUrl);return;}out.textContent=(advances.length?'Время временно зарезервировано. Оплатите счета по ссылкам ниже.':pageText(model,'success'))+' '+res.summary;for(const visit of res.receipts||[]){const link=document.createElement('a');link.href=visit.paymentUrl||'./trip.html#'+visit.id;link.textContent=(visit.paymentUrl?'Оплатить предоплату за визит ':'Расчёт по визиту ')+visit.time.replace('T',' ');out.append(document.createElement('br'),link);}form.reset();$('#slotId').value='';$('#dateSelect').dispatchEvent(new Event('change'));window.turnstile?.reset();form.dataset.captcha='';}catch(err){out.textContent=err.message;submit.disabled=false;submit.textContent=pageText(model,'retry');}
     });
   }catch(error){console.warn('Pakkasukko API not ready',error.message);}
 }
