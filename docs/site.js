@@ -186,7 +186,7 @@ export function renderPage(doc,model,fields,device,editing=false,fares=null){
   fitTagline(doc,model.taglineWidth);
   for(const heading of doc.querySelectorAll('[data-heading-display]'))heading.remove();
   for(const node of doc.querySelectorAll('[data-heading-original]')){
-    node.hidden=false;node.removeAttribute('data-heading-original');
+    node.hidden=false;node.removeAttribute('data-heading-original');if(node.dataset.headingOriginalId){node.id=node.dataset.headingOriginalId;delete node.dataset.headingOriginalId;}
   }
   for(const section of doc.querySelectorAll('main > section[data-created]'))section.remove();
   for(const block of model.sections||[]){
@@ -203,6 +203,7 @@ export function renderPage(doc,model,fields,device,editing=false,fares=null){
     const parts=legacyHeadingParts(model,id,original);
     if(!validHeadingParts(parts))continue;
     for(const [index,part] of parts.entries()){if(index)replacement.append(doc.createElement('br'));const span=doc.createElement('span');span.textContent=part.text;styleElement(span,part);replacement.append(span);}
+    if(original.id){replacement.id=original.id;original.dataset.headingOriginalId=original.id;original.removeAttribute('id');}
     original.dataset.headingOriginal='';original.hidden=true;original.after(replacement);
   }
   for(const id of model.order){const section=doc.getElementById(id);if(section?.parentElement?.tagName==='MAIN')section.parentElement.append(section);}
