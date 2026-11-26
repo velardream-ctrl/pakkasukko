@@ -1,0 +1,98 @@
+:root {
+  color-scheme: dark;
+  font-family: system-ui, sans-serif;
+  color: #faf2e5;
+  background: #101d2a;
+  --gold: #f2d49a;
+  --muted: #cfdae0;
+}
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(ellipse at 85% 8%, #44302a 0%, transparent 53%),
+    radial-gradient(ellipse at 6% 40%, #21394a 0%, transparent 48%), #101d2a;
+  line-height: 1.6;
+}
+a { color: var(--gold); text-underline-offset: .2em; }
+a:focus-visible { outline: 2px solid #fff1c1; outline-offset: 5px; }
+.shell { width: min(1170px, calc(100% - 48px)); margin-inline: auto; }
+.workshop-header {
+  min-height: 76px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  border-bottom: 1px solid #f2d49a45;
+}
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: #faf2e5;
+  font-weight: 750;
+  letter-spacing: .1em;
+  text-decoration: none;
+}
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, .88fr) minmax(0, 1.12fr);
+  align-items: center;
+  gap: clamp(24px, 5vw, 72px);
+  padding-block: clamp(45px, 8vw, 112px) clamp(35px, 6vw, 80px);
+}
+.eyebrow, .card-brand {
+  color: var(--gold);
+  font-size: .78rem;
+  font-weight: 750;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+}
+h1, h2, .card-title { font-family: Georgia, serif; font-weight: 400; }
+h1 { margin: 12px 0 18px; font-size: clamp(2.65rem, 5.5vw, 5.1rem); line-height: 1.02; letter-spacing: -.035em; }
+.intro { max-width: 38ch; color: var(--muted); font-size: 1.08rem; }
+.actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
+.button { display: inline-flex; align-items: center; min-height: 46px; padding: 10px 17px; border: 1px solid var(--gold); border-radius: 8px; text-decoration: none; font-weight: 650; }
+.primary { color: #26191a; background: #f2d49a; }
+.primary:hover { background: #ffe3aa; }
+.secondary:hover { background: #f2d49a18; }
+.gift-preview { margin: 0; min-width: 0; }
+.gift-card {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  min-height: 235px;
+  aspect-ratio: 1.64;
+  display: flex;
+  align-items: center;
+  border: 1px solid #e0b676;
+  border-radius: 19px;
+  background: #3e131d;
+  box-shadow: 0 22px 60px #05080db0;
+  container-type: inline-size;
+}
+.gift-card::before, .gift-card::after { position: absolute; inset: 0; content: ""; pointer-events: none; }
+.gift-card::before { z-index: -1; background: linear-gradient(90deg, #38121d 3%, #421622 30%, #421622e8 43%, #42162230 67%, transparent 88%); }
+.gift-card::after { inset: 9px; border: 1px solid #e0b676a0; border-radius: 13px; }
+.portrait { position: absolute; z-index: -2; inset: 0 0 0 auto; width: 66%; height: 100%; object-fit: cover; object-position: 50% 12%; }
+.card-copy { display: grid; justify-items: start; gap: 10px; padding: 7%; width: 63%; }
+.card-title { font-size: clamp(1.55rem, 8.2cqw, 3.25rem); line-height: 1.02; color: #fff2d8; }
+.card-note { max-width: 19ch; color: var(--gold); font-size: clamp(.77rem, 2.8cqw, 1rem); line-height: 1.35; }
+figcaption { text-align: right; margin-top: 10px; color: var(--muted); font-size: .86rem; }
+.details { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; padding-bottom: 60px; }
+.details section { border: 1px solid #f2d49a42; border-radius: 14px; padding: clamp(20px, 3vw, 32px); background: #ffffff06; scroll-margin-top: 20px; }
+.details h2 { margin: 0 0 10px; font-size: clamp(1.55rem, 3vw, 2rem); line-height: 1.18; }
+.details p { color: var(--muted); max-width: 54ch; }
+.booking-link { display: inline-block; min-height: 44px; padding-top: 7px; }
+#redeem:target { border-color: var(--gold); }
+@media (max-width: 800px) {
+  .hero { grid-template-columns: 1fr; }
+  .gift-preview { width: min(100%, 590px); }
+}
+@media (max-width: 540px) {
+  .shell { width: calc(100% - 32px); }
+  .workshop-header { min-height: 64px; font-size: .9rem; }
+  .details { grid-template-columns: 1fr; }
+  .gift-card { min-height: 190px; }
+  .card-brand { font-size: .67rem; }
+}
