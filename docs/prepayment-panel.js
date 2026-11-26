@@ -25,6 +25,7 @@ export function prepaymentControls(box,b,request,reload,stripe={enabled:false,mo
  for(const [path,label] of [['view','Открыть авансовый счёт'],['pdf','PDF авансового счёта']]){
   const a=add(actions,'a',label);a.href=url(path);a.target='_blank';a.rel='noopener noreferrer';
  }
+ if(b.final_status==='cancelled'&&b.deposit_status==='requested')add(p,'p','Резерв отменён. Если деньги поступили позднее, зарегистрируйте их для возврата; бронь не будет восстановлена автоматически.');
  const meta=add(p,'p','Номер A-'+b.deposit_number+' · Срок '+b.deposit_due+' · '+(b.deposit_sent?'Отправлено клиенту':'Не отправлено клиенту'));
  if(!b.deposit_sent&&planned.paymentMethod!=='stripe'){
   const label=add(p,'label','Email клиента для отправки');const email=add(label,'input');email.type='email';email.value=b.email||'';email.placeholder='name@example.com';
@@ -51,7 +52,7 @@ export function prepaymentControls(box,b,request,reload,stripe={enabled:false,mo
   control(p,'Деньги поступили — отметить оплачено',async()=>{
    if(!note.value.trim()){alert('Сначала укажите данные банковского поступления.');return;}
    if(!confirm('Вы лично проверили поступление '+euros(b.deposit_amount)+' на банковский счёт?'))return;
-   await request(url('paid'),'POST',{note:note.value});await reload();
+   const result=await request(url('paid'),'POST',{note:note.value});await reload();if(result.confirmed===false)alert('Деньги зарегистрированы, но бронь отменена. Согласуйте возврат или новое время.');
   });
  }
  if(b.deposit_status==='paid'){
