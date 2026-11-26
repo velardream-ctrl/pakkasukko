@@ -48,12 +48,12 @@ export async function publicAdvance(req,env,url,reply,mac,same,emailOwner){
  const root='/api/advance/';
  if(url.pathname===root+'view'&&req.method==='GET'){
   return invoiceView({number,document:row.document,sent_at:row.sent_at},id,'prepayments',{
-   pdf:active?root+'pdf'+params:null,report:active&&!row.bank_note?root+'report'+params:null,
+   pdf:active&&!row.bank_note?root+'pdf'+params:null,report:active&&!row.bank_note?root+'report'+params:null,
    status:row.final_status?'Бронирование отменено. Не оплачивайте счёт. Если уже перевели деньги, свяжитесь с организатором.':row.status==='paid'?'Оплата получена.':row.status==='refunded'?'Предоплата возвращена.':row.bank_note?'Вы сообщили об оплате. Ожидается проверка банка.':'Время временно зарезервировано. Бронь подтверждается после получения денег.',
    active,ownerEmail:env.OWNER_EMAIL||'',reported:Boolean(row.bank_note)
   });
  }
- if(url.pathname===root+'pdf'&&req.method==='GET'&&active){
+ if(url.pathname===root+'pdf'&&req.method==='GET'&&active&&!row.bank_note){
   const {makePDF}=await import('./invoice-pdf.js');
   const bytes=await makePDF(doc,number,env,url.origin);
   return new Response(bytes,{headers:{'Content-Type':'application/pdf','Content-Disposition':'attachment; filename="Pakkasukko-ennakko-'+row.number+'.pdf"','Cache-Control':'private, no-store','Referrer-Policy':'no-referrer','X-Robots-Tag':'noindex','X-Content-Type-Options':'nosniff'}});
