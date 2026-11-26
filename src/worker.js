@@ -2,7 +2,7 @@ import {billing} from './billing.js';
 import {prepaymentsAPI} from './prepayment-api.js';
 import {stripeAdmin,stripeWebhook} from './stripe.js';
 import {serviceCard,deliveryConfig,earliestDelivery} from '../docs/video-service.js';
-import {defaultFare,validFare,prices,quote,describe,visitQuote,euros,performanceRows,performanceChoice,prepaymentForVisit} from '../docs/fares.js';
+import {defaultFare,validFare,prices,quote,describe,visitQuote,euros,performanceRows,performanceChoice,prepaymentForVisit,bookingPaymentMode} from '../docs/fares.js';
 import {mediaAPI} from './media.js';
 import {musicAPI} from './music.js';
 import {reschedule} from './reschedule.js';
@@ -130,6 +130,9 @@ async function api(req,env,ctx,url){
    catch(e){return fail(e.message);}
    const b=orders[0];
    const services=prices(site,await getContent(env)),fares=await fareSettings(env);
+   const methodForBooking=bookingPaymentMode(fares.prepayments||defaultFare.prepayments);
+   if((input.paymentMethod!==undefined||fares.prepayments?.paymentMethod!==undefined)&&input.paymentMethod!==methodForBooking)return reply({error:'Способ оплаты изменился. Проверьте условия и отправьте заявку снова.',fares,services},409);
+   if(methodForBooking==='stripe'&&!(String(env.STRIPE_SECRET_KEY||'').startsWith('sk_live_')&&String(env.STRIPE_WEBHOOK_SECRET||'').startsWith('whsec_')))return fail('Онлайн-оплата временно недоступна. Свяжитесь с администратором.',503);
    const serviceId=b.service;
    b.service=cards.find(c=>c.id===serviceId)?.title||serviceId;
    if(!await human(b.turnstileToken,req,env))return fail('Пройдите проверку от спама.',403);
@@ -205,7 +208,8 @@ async function api(req,env,ctx,url){
  if(path.startsWith('/api/admin/media/'))return mediaAPI(req,env,path,reply,true);
  if(path==='/api/admin/travel-fare'&&method==='POST'){
    const f=await parse(req);
-   if(!validFare(f))return fail('Проверьте цену топлива, расход и километраж.');
+   if(!validFare(f))return fail('Проверьте цену топлива, расход, километраж и режим оплаты.');
+   if(f.prepayments?.paymentMethod==='stripe'&&!(String(env.STRIPE_SECRET_KEY||'').startsWith('sk_live_')&&String(env.STRIPE_WEBHOOK_SECRET||'').startsWith('whsec_')))return fail('Для онлайн-оплаты необходимо подключить Stripe в рабочем режиме.',409);
    const km=f.km,routes=f.routes;
    await setSetting(env,'travel_fare',JSON.stringify({fuel:f.fuel,consumption:f.consumption,km,routes,holidayPercent:f.holidayPercent??50,...(f.holidayRules!==undefined?{holidayRules:f.holidayRules}:{}),holidaySort:f.holidaySort||'date',...(f.performance!==undefined?{performance:f.performance}:{}),...(f.prepayments!==undefined?{prepayments:f.prepayments}:{})}));
    return reply({ok:true});

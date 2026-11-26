@@ -60,11 +60,16 @@ export function performanceChoice(fare,service,minutes,cast){
 
 // Prepayment is part of the agreed service price; no automatic no-show fine.
 // Per-city tariffs are frozen inside each booking snapshot on submission.
+export function bookingPaymentMode(settings){
+ if(settings?.enabled!==true)return 'none';
+ return settings.paymentMethod==='stripe'?'stripe':'bank';
+}
 export function validPrepayments(value,km){
  if(value===undefined)return true;
  if(!value||typeof value!=='object'||Array.isArray(value)||typeof value.enabled!=='boolean'
    ||!Number.isInteger(value.dueDays)||value.dueDays<1||value.dueDays>30
    ||!value.rules||typeof value.rules!=='object'||Array.isArray(value.rules))return false;
+ if(value.paymentMethod!==undefined&&(!['none','bank','stripe'].includes(value.paymentMethod)||value.enabled!==(value.paymentMethod!=='none')))return false;
  if(Object.keys(value.rules).length>100)return false;
  const base=value.defaultRule||{mode:'fixed',percent:0,amount:5000};
  if(!['none','travel','percent','fixed'].includes(base.mode)||!Number.isInteger(base.percent)||base.percent<0||base.percent>100||!Number.isInteger(base.amount)||base.amount<0||base.amount>10000000)return false;
@@ -78,7 +83,7 @@ export function validPrepayments(value,km){
 }
 export function prepaymentForVisit(fare,visit){
  const settings=fare?.prepayments||defaultFare.prepayments;
- if(settings?.enabled!==true||visit.remote)return null;
+ if(bookingPaymentMode(settings)==='none'||visit.remote)return null;
  const override=settings.rules?.[visit.city];
  const rule=override&&override.mode!=='inherit'?override:(settings.defaultRule||defaultFare.prepayments.defaultRule);
  if(rule.mode==='none')return null;
@@ -88,7 +93,7 @@ export function prepaymentForVisit(fare,visit){
    rule.mode==='percent'?Math.round(total*rule.percent/100):rule.amount;
  const amount=total===null?Math.max(0,raw||0):Math.min(total,Math.max(0,raw||0));
  return amount>0?{mode:rule.mode,amount,city:visit.city,dueDays:settings.dueDays,
-   ...(rule.mode==='percent'?{percent:rule.percent}:{})}:null;
+   ...(rule.mode==='percent'?{percent:rule.percent}:{}),...(settings.paymentMethod?{paymentMethod:bookingPaymentMode(settings)}:{})}:null;
 }
 export function validFare(f){
   const number=(n,min,max)=>typeof n==='number'&&Number.isFinite(n)&&n>=min&&n<=max;
