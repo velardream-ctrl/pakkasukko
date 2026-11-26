@@ -10,7 +10,7 @@ function loadGoogle(key){
   document.head.append(script);
  });return loading;
 }
-export async function mountDestinationMap(box,{key,city,address='',onPin,onAddress}){
+export async function mountDestinationMap(box,{key,mapId,city,address='',onPin,onAddress,onClear}){
  box.replaceChildren();
  const field=document.createElement('input');field.placeholder='Улица и дом';field.value=address;field.maxLength=200;field.setAttribute('aria-label','Адрес на карте');
  const search=document.createElement('button');search.type='button';search.textContent='Найти адрес';
@@ -20,7 +20,7 @@ export async function mountDestinationMap(box,{key,city,address='',onPin,onAddre
  await loadGoogle(key);
  if(!box.isConnected||!canvas.isConnected)return;
  const [{Map},{Geocoder},{AdvancedMarkerElement}]=await Promise.all(['maps','geocoding','marker'].map(x=>google.maps.importLibrary(x)));
- const map=new Map(canvas,{center:{lat:64.5,lng:26},zoom:5,mapId:'DEMO_MAP_ID',streetViewControl:false,mapTypeControl:false,fullscreenControl:false});
+ const map=new Map(canvas,{center:{lat:64.5,lng:26},zoom:5,mapId,streetViewControl:false,mapTypeControl:false,fullscreenControl:false});
  const geocoder=new Geocoder();let marker,sequence=0;
  function choose(p){const pin={lat:Number(p.lat.toFixed(6)),lng:Number(p.lng.toFixed(6))};if(!validPin(pin)){note.textContent='Выберите место в Финляндии.';return;}
   if(marker)marker.position=pin;else marker=new AdvancedMarkerElement({map,position:pin,title:'Место праздника'});
@@ -35,7 +35,7 @@ export async function mountDestinationMap(box,{key,city,address='',onPin,onAddre
    const place=response.results?.[0];if(!place){note.textContent='Адрес не найден. Выберите точку вручную.';return;}
    const point=place.geometry.location.toJSON();if(!validPin(point)){note.textContent='Выберите адрес в Финляндии.';return;}
    map.setCenter(point);map.setZoom(useAddress?16:12);
-   if(useAddress&&addressText){onAddress(addressText);choose(point);}else note.textContent='Введите адрес или нажмите на нужную точку карты.';
+   if(useAddress&&addressText){onClear();if(marker){marker.map=null;marker=null;}onAddress(addressText);note.textContent='Адрес найден. Нажмите на нужное место карты, чтобы подтвердить точку и рассчитать расстояние.';}else note.textContent='Введите адрес или нажмите на нужную точку карты.';
   }catch{if(id===sequence)note.textContent='Не удалось найти адрес. Выберите точку вручную.';}finally{search.disabled=false;}
  }
  search.onclick=()=>locate(true);field.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();locate(true);}};
