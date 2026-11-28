@@ -1,5 +1,23 @@
 <!doctype html>
-<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Обработка персональных данных · Pakkasukko</title><style>*{box-sizing:border-box}body{margin:0;background:#101f2b;color:#eef0ed;font:16px/1.65 system-ui,sans-serif}main{max-width:860px;margin:auto;padding:32px 22px 64px}h1{font:clamp(28px,5vw,48px)/1.15 Georgia,serif;color:#f6f3ed;overflow-wrap:anywhere}h2{font-size:20px;margin-top:30px;color:#e7c889}a{color:#e7c889;overflow-wrap:anywhere}p,li{color:#d0dce1}nav{margin-bottom:32px}small{color:#b6c4ca}</style></head><body><main><nav><a href="./index.html#privacy">← На сайт Pakkasukko</a></nav><h1>Обработка персональных данных</h1><p>Информация для заказчиков услуг Pakkasukko (GDPR / tietosuojaseloste).</p>
+<html lang="ru"><head>
+<script>
+/* Remove only the unwanted incoming referral marker; preserve other URL data. */
+(function(){
+  try{
+    var q=window.location.search;
+    if(!q||!window.history||!window.history.replaceState)return;
+    var parts=q.slice(1).split('&'),kept=parts.filter(function(part){
+      var i=part.indexOf('=');if(i<0)return true;
+      try{
+        var key=decodeURIComponent(part.slice(0,i)).toLowerCase();
+        var val=decodeURIComponent(part.slice(i+1)).toLowerCase();
+        return !(key==='utm_source'&&/^(?:chatgpt(?:\.com)?|gptchat(?:\.com)?)$/.test(val));
+      }catch(ignore){return true;}
+    });
+    if(kept.length!==parts.length)window.history.replaceState(window.history.state,'',window.location.pathname+(kept.length?'?'+kept.join('&'):'')+window.location.hash);
+  }catch(ignore){}
+}());
+</script><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Обработка персональных данных · Pakkasukko</title><style>*{box-sizing:border-box}body{margin:0;background:#101f2b;color:#eef0ed;font:16px/1.65 system-ui,sans-serif}main{max-width:860px;margin:auto;padding:32px 22px 64px}h1{font:clamp(28px,5vw,48px)/1.15 Georgia,serif;color:#f6f3ed;overflow-wrap:anywhere}h2{font-size:20px;margin-top:30px;color:#e7c889}a{color:#e7c889;overflow-wrap:anywhere}p,li{color:#d0dce1}nav{margin-bottom:32px}small{color:#b6c4ca}</style></head><body><main><nav><a href="./index.html#privacy">← На сайт Pakkasukko</a></nav><h1>Обработка персональных данных</h1><p>Информация для заказчиков услуг Pakkasukko (GDPR / tietosuojaseloste).</p>
 <h2>1. Ответственный за обработку данных</h2><p>Karjalas (toiminimi), предприниматель Илья Дмитриев, Y-tunnus 3445587-1, Финляндия. Для вопросов об обработке данных воспользуйтесь контактами организатора в <a href="./contact.html">форме «Почта Деда Мороза»</a> или ответьте на полученное от организатора подтверждение заявки.</p>
 <h2>2. Какие данные обрабатываются</h2><p>Имя, телефон, электронная почта (при предоставлении), тема и содержание письма, адрес и город проведения праздника, выбранное время и программа, пожелания, сведения о заказе и расчётах. Данные поступают от заказчика при заполнении заявки или обращении к организатору. Просим не указывать лишние персональные данные детей, сведения о здоровье и другие чувствительные сведения.</p>
 <h2>3. Цели и правовые основания</h2><p>Обработка необходима для рассмотрения заявки, заключения и исполнения договора, согласования времени, связи с клиентом и оказания услуг (ст. 6(1)(b) GDPR). Сведения, необходимые для выставления счетов, бухгалтерского учёта и соблюдения требований закона, обрабатываются для выполнения юридических обязанностей (ст. 6(1)(c)). Защита формы от злоупотреблений и обеспечение безопасности сервиса могут основываться на законном интересе организатора (ст. 6(1)(f)). Без необходимых для бронирования сведений организатор не сможет согласовать визит.</p>

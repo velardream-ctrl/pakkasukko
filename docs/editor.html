@@ -1,4 +1,22 @@
-<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><link rel="icon" href="./assets/pakkasukko-medallion.png"><link rel="apple-touch-icon" href="./assets/pakkasukko-medallion.png">
+<!doctype html><html lang="ru"><head>
+<script>
+/* Remove only the unwanted incoming referral marker; preserve other URL data. */
+(function(){
+  try{
+    var q=window.location.search;
+    if(!q||!window.history||!window.history.replaceState)return;
+    var parts=q.slice(1).split('&'),kept=parts.filter(function(part){
+      var i=part.indexOf('=');if(i<0)return true;
+      try{
+        var key=decodeURIComponent(part.slice(0,i)).toLowerCase();
+        var val=decodeURIComponent(part.slice(i+1)).toLowerCase();
+        return !(key==='utm_source'&&/^(?:chatgpt(?:\.com)?|gptchat(?:\.com)?)$/.test(val));
+      }catch(ignore){return true;}
+    });
+    if(kept.length!==parts.length)window.history.replaceState(window.history.state,'',window.location.pathname+(kept.length?'?'+kept.join('&'):'')+window.location.hash);
+  }catch(ignore){}
+}());
+</script><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><link rel="icon" href="./assets/pakkasukko-medallion.png"><link rel="apple-touch-icon" href="./assets/pakkasukko-medallion.png">
 <title>Редактор сайта · Pakkasukko</title><link rel="stylesheet" href="./editor.css"><link rel="stylesheet" href="./form-fit.css?v=39"><style>.pk-text-style-controls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.pk-text-style-controls select{width:100%;min-width:0}@media(max-width:480px){.pk-text-style-controls{grid-template-columns:1fr}}</style></head><body>
 <header><a href="./admin.html">← Мастерская</a><h1>Редактор сайта</h1></header><p id="status" role="status">Проверяем вход…</p>
 <main hidden><section><h2>Визуальный редактор</h2><label>Режим<select id="mode"><option value="text">Тексты и разделы</option><option value="photo">Перемещение и масштаб фотографий</option></select></label><p id="hint">Прокрутите страницу в окне просмотра и нажмите на текст. Его поле откроется под окном.</p><label>Устройство<select id="device"><option value="desktop">Компьютер</option><option value="tablet">Планшет</option><option value="phone">Телефон</option></select></label><button id="rotate">Повернуть экран</button>

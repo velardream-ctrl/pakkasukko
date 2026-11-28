@@ -1,1 +1,19 @@
-<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Pakkasukko · Оплата</title><link rel="icon" href="./assets/pakkasukko-medallion.png"><link rel="stylesheet" href="./style.css?v=45"><style>body{background:#0c2232;color:#f5f1e8}main{max-width:720px;margin:10vh auto;padding:clamp(20px,5vw,50px);text-align:center}.message{margin:20px auto 32px;padding:30px;background:#183446;border:1px solid #c9a36f;border-radius:18px}h1{font:normal 48px Georgia,serif;line-height:1.1}p{font-size:18px;line-height:1.65;color:#e1eaf0}a{color:#efd09b}</style></head><body><main><img src="./assets/pakkasukko-medallion.png" width="80" height="80" alt="Pakkasukko"><div class="message"><h1 id="heading">Спасибо за ваш выбор!</h1><p id="message">Проверьте статус платежа в вашем банке или платёжном приложении. Бронирование будет подтверждено после получения надёжного уведомления от платёжной системы.</p><p>Если у вас возникли вопросы, <a href="./index.html#contact">напишите Деду Морозу</a>.</p></div><a href="./index.html">Вернуться на главную</a></main><script>if(new URLSearchParams(location.search).get('result')==='cancel'){document.getElementById('heading').textContent='Оплата не завершена';document.getElementById('message').textContent='Вы вернулись без завершения платежа. Если хотите продолжить, используйте платёжную ссылку из письма или свяжитесь с нами. Списания нет, если платёж не был подтверждён вашим банком.'}</script></body></html>
+<!doctype html><html lang="ru"><head>
+<script>
+/* Remove only the unwanted incoming referral marker; preserve other URL data. */
+(function(){
+  try{
+    var q=window.location.search;
+    if(!q||!window.history||!window.history.replaceState)return;
+    var parts=q.slice(1).split('&'),kept=parts.filter(function(part){
+      var i=part.indexOf('=');if(i<0)return true;
+      try{
+        var key=decodeURIComponent(part.slice(0,i)).toLowerCase();
+        var val=decodeURIComponent(part.slice(i+1)).toLowerCase();
+        return !(key==='utm_source'&&/^(?:chatgpt(?:\.com)?|gptchat(?:\.com)?)$/.test(val));
+      }catch(ignore){return true;}
+    });
+    if(kept.length!==parts.length)window.history.replaceState(window.history.state,'',window.location.pathname+(kept.length?'?'+kept.join('&'):'')+window.location.hash);
+  }catch(ignore){}
+}());
+</script><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Pakkasukko · Оплата</title><link rel="icon" href="./assets/pakkasukko-medallion.png"><link rel="stylesheet" href="./style.css?v=45"><style>body{background:#0c2232;color:#f5f1e8}main{max-width:720px;margin:10vh auto;padding:clamp(20px,5vw,50px);text-align:center}.message{margin:20px auto 32px;padding:30px;background:#183446;border:1px solid #c9a36f;border-radius:18px}h1{font:normal 48px Georgia,serif;line-height:1.1}p{font-size:18px;line-height:1.65;color:#e1eaf0}a{color:#efd09b}</style></head><body><main><img src="./assets/pakkasukko-medallion.png" width="80" height="80" alt="Pakkasukko"><div class="message"><h1 id="heading">Спасибо за ваш выбор!</h1><p id="message">Проверьте статус платежа в вашем банке или платёжном приложении. Бронирование будет подтверждено после получения надёжного уведомления от платёжной системы.</p><p>Если у вас возникли вопросы, <a href="./index.html#contact">напишите Деду Морозу</a>.</p></div><a href="./index.html">Вернуться на главную</a></main><script>if(new URLSearchParams(location.search).get('result')==='cancel'){document.getElementById('heading').textContent='Оплата не завершена';document.getElementById('message').textContent='Вы вернулись без завершения платежа. Если хотите продолжить, используйте платёжную ссылку из письма или свяжитесь с нами. Списания нет, если платёж не был подтверждён вашим банком.'}</script></body></html>
